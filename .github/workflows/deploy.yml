@@ -7,6 +7,10 @@ on:
         description: "The namada SHA commit to build"
         required: true
         type: string
+      genesis_tag:
+        description: "The genesis template version tag"
+        required: true
+        type: string
 
 jobs:
   docker:
@@ -45,7 +49,7 @@ jobs:
           registry: ${{ env.regsitry_url }}
           username: _json_key
           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
-      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.commit }}
+      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.commit }}/${{ github.event.inputs.genesis_tag }}
         run: |
-          registry_url="${{ env.regsitry_url }}" sha=${{ github.event.inputs.commit }} make ${{ matrix.images.make }}
+          registry_url="${{ env.regsitry_url }}" sha=${{ github.event.inputs.commit }} genesis_tag=${{ github.event.inputs.genesis_tag }} make ${{ matrix.images.make }}
           docker push ${{ env.regsitry_url }}/${{ matrix.images.image }}:${{ github.event.inputs.commit }}${{ matrix.images.tag }}
