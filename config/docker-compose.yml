@@ -132,19 +132,16 @@ services:
     networks:
       namada-net:
         ipv4_address: 30.0.0.17
-  workload2:
-    container_name: workload2
-    hostname: workload2
-    image: namada-scenario-tester:latest
+  check:
+    container_name: check
+    hostname: check
+    image: namada-chain-check:latest
     restart: on-failure
     environment:
-      - TEST_STEPS=200
       - VALIDATOR_RPC=30.0.0.14:27658
-      - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
-      - WORKERS=5
     volumes:
       - ./container_ready/:/container_ready
-      - ./workload.sh:/app/entrypoint.sh
+      - ./check.sh:/app/check.sh
     entrypoint: /app/entrypoint.sh
     networks:
       namada-net:
