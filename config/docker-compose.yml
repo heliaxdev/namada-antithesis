@@ -29,6 +29,8 @@ services:
     environment:
       - NAMADA_TOKIO_THREADS=4
       - NAMADA_RAYON_THREADS=4
+      - NAMADA_ROCKSDB_COMPACTION_THREADS=4
+      - NAMADA_CMT_STDOUT=true
       - NAMADA_LOG=info
       - NAMADA_LOG_FMT=json
       - CMT_LOG_LEVEL=info
@@ -49,6 +51,8 @@ services:
     environment:
       - NAMADA_TOKIO_THREADS=4
       - NAMADA_RAYON_THREADS=4
+      - NAMADA_ROCKSDB_COMPACTION_THREADS=4
+      - NAMADA_CMT_STDOUT=true
       - NAMADA_LOG=info
       - NAMADA_LOG_FMT=json
       - CMT_LOG_LEVEL=info
@@ -69,6 +73,8 @@ services:
     environment:
       - NAMADA_TOKIO_THREADS=4
       - NAMADA_RAYON_THREADS=4
+      - NAMADA_ROCKSDB_COMPACTION_THREADS=4
+      - NAMADA_CMT_STDOUT=true
       - NAMADA_LOG=info
       - NAMADA_LOG_FMT=json
       - CMT_LOG_LEVEL=info
@@ -89,6 +95,8 @@ services:
     environment:
       - NAMADA_TOKIO_THREADS=4
       - NAMADA_RAYON_THREADS=4
+      - NAMADA_ROCKSDB_COMPACTION_THREADS=4
+      - NAMADA_CMT_STDOUT=true
       - NAMADA_LOG=info
       - NAMADA_LOG_FMT=json
       - CMT_LOG_LEVEL=info
