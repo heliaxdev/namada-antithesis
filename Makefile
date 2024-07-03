@@ -9,3 +9,6 @@ build-namada:
 
 build-namada-inst:
 	docker build --no-cache -t ${registry_url}/namada:${sha}-inst -f namada/Dockerfile.inst --build-arg GIT_SHA=${sha} namada
+
+build-check:
+	docker build --no-cache -t ${registry_url}/check:latest -f check/Dockerfile check
