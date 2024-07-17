@@ -18,7 +18,7 @@ use tendermint_rpc::{HttpClient, Url};
 #[tokio::main]
 async fn main() {
     antithesis_init();
-    
+
     let config = AppConfig::parse();
 
     tracing_subscriber::fmt()
@@ -71,21 +71,45 @@ async fn main() {
 }
 
 fn is_succesful(check_name: String, res: Result<(), String>) {
-    if let Err(e) = res {
+    if let Err(e) = res.clone() {
         match check_name.as_ref() {
             "HeightCheck" => {
-                antithesis_sdk::assert_always!(false, "height_check", &json!({ "details": e }));
-            },
+                antithesis_sdk::assert_always!(
+                    res.is_ok(),
+                    "height_check",
+                    &json!({ "details": e })
+                );
+            }
             "EpochCheck" => {
-                antithesis_sdk::assert_always!(false, "epoch_check", &json!({ "details": e }));
-            },
+                antithesis_sdk::assert_always!(
+                    res.is_ok(),
+                    "epoch_check",
+                    &json!({ "details": e })
+                );
+            }
             "InflationCheck" => {
-                antithesis_sdk::assert_always!(false, "inflation_check", &json!({ "details": e }));
-            },
-            _ => ()
+                antithesis_sdk::assert_always!(
+                    res.is_ok(),
+                    "inflation_check",
+                    &json!({ "details": e })
+                );
+            }
+            _ => (),
         }
         tracing::error!("{}", format!("{}: {}", check_name, e));
     } else {
+        match check_name.as_ref() {
+            "HeightCheck" => {
+                antithesis_sdk::assert_always!(res.is_ok(), "height_check", &json!({}));
+            }
+            "EpochCheck" => {
+                antithesis_sdk::assert_always!(res.is_ok(), "epoch_check", &json!({}));
+            }
+            "InflationCheck" => {
+                antithesis_sdk::assert_always!(res.is_ok(), "inflation_check", &json!({}));
+            }
+            _ => (),
+        }
         tracing::info!("{}", format!("{} ok", check_name));
     }
 }
