@@ -1,5 +1,6 @@
 use std::{str::FromStr, thread, time::Duration};
 
+use antithesis_sdk::antithesis_init;
 use clap::Parser;
 use namada_chain_check::{
     checks::{epoch::EpochCheck, height::HeightCheck, inflation::InflationCheck, DoCheck},
@@ -10,11 +11,14 @@ use namada_chain_check::{
 use namada_sdk::{
     io::NullIo, masp::fs::FsShieldedUtils, queries::Client, wallet::fs::FsWalletUtils,
 };
+use serde_json::json;
 use tempfile::tempdir;
 use tendermint_rpc::{HttpClient, Url};
 
 #[tokio::main]
 async fn main() {
+    antithesis_init();
+    
     let config = AppConfig::parse();
 
     tracing_subscriber::fmt()
@@ -68,6 +72,18 @@ async fn main() {
 
 fn is_succesful(check_name: String, res: Result<(), String>) {
     if let Err(e) = res {
+        match check_name.as_ref() {
+            "HeightCheck" => {
+                antithesis_sdk::assert_always!(false, "height_check", &json!({ "details": e }));
+            },
+            "EpochCheck" => {
+                antithesis_sdk::assert_always!(false, "epoch_check", &json!({ "details": e }));
+            },
+            "InflationCheck" => {
+                antithesis_sdk::assert_always!(false, "inflation_check", &json!({ "details": e }));
+            },
+            _ => ()
+        }
         tracing::error!("{}", format!("{}: {}", check_name, e));
     } else {
         tracing::info!("{}", format!("{} ok", check_name));
