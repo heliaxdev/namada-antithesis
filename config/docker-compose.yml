@@ -109,7 +109,7 @@ services:
     environment:
       - VALIDATOR_RPC=30.0.0.12:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
-      - WORKERS=5
+      - WORKERS=4
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
@@ -125,7 +125,7 @@ services:
     environment:
       - VALIDATOR_RPC=30.0.0.13:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
-      - WORKERS=5
+      - WORKERS=4
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
@@ -142,7 +142,7 @@ services:
       - TEST_STEPS=200
       - VALIDATOR_RPC=30.0.0.14:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
-      - WORKERS=5
+      - WORKERS=4
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
@@ -161,7 +161,7 @@ services:
       - ./container_ready/:/container_ready
     networks:
       namada-net:
-        ipv4_address: 30.0.0.19
+        ipv4_address: 30.0.0.19:27658
 networks:
   namada-net:
     driver: bridge
