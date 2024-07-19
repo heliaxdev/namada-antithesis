@@ -156,10 +156,9 @@ services:
     image: check:latest
     restart: on-failure
     environment:
-      - VALIDATOR_RPC=30.0.0.15
+      - RPC=30.0.0.15
     volumes:
       - ./container_ready/:/container_ready
-    entrypoint: /app/entrypoint.sh
     networks:
       namada-net:
         ipv4_address: 30.0.0.19

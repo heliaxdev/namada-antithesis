@@ -40,21 +40,21 @@ async fn main() {
 
     let io = NullIo;
 
-    let sdk = Sdk::new(&base_dir, http_client.clone(), wallet, shielded_ctx, io).await;
-
     let mut state = State::from_height(3);
 
-    // Wait for the first 1 blocks
+    // Wait for the first 2 blocks
     loop {
         let latest_blocked = http_client.latest_block().await;
         if let Ok(block) = latest_blocked {
-            if block.block.header.height.value() > 1 {
+            if block.block.header.height.value() > 2 {
                 break;
             }
         } else {
-            thread::sleep(Duration::from_secs(10));
+            thread::sleep(Duration::from_secs(5));
         }
     }
+
+    let sdk = Sdk::new(&base_dir, http_client.clone(), wallet, shielded_ctx, io).await;
 
     loop {
         let height_check_res = HeightCheck::do_check(&sdk, &mut state).await;
@@ -66,7 +66,7 @@ async fn main() {
         let inflation_check_res = InflationCheck::do_check(&sdk, &mut state).await;
         is_succesful(InflationCheck::to_string(), inflation_check_res);
 
-        tokio::time::sleep(Duration::from_secs(config.timeout.unwrap_or(30))).await;
+        tokio::time::sleep(Duration::from_secs(config.timeout.unwrap_or(15))).await;
     }
 }
 
