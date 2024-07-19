@@ -156,12 +156,12 @@ services:
     image: check:latest
     restart: on-failure
     environment:
-      - RPC=30.0.0.15
+      - RPC=30.0.0.15:27658
     volumes:
       - ./container_ready/:/container_ready
     networks:
       namada-net:
-        ipv4_address: 30.0.0.19:27658
+        ipv4_address: 30.0.0.19
 networks:
   namada-net:
     driver: bridge
