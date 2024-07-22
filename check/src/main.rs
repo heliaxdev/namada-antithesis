@@ -42,14 +42,19 @@ async fn main() {
 
     let mut state = State::from_height(3);
 
+    let timeout = config.timeout.unwrap_or(15);
+
     // Wait for the first 2 blocks
     loop {
         let latest_blocked = http_client.latest_block().await;
         if let Ok(block) = latest_blocked {
             if block.block.header.height.value() > 2 {
                 break;
+            } else {
+                tracing::info!("block height {}, waiting to be > 2...", block.block.header.height);
             }
         } else {
+            tracing::info!("no response from tendermint, retrying in 5...");
             thread::sleep(Duration::from_secs(5));
         }
     }
@@ -66,7 +71,8 @@ async fn main() {
         let inflation_check_res = InflationCheck::do_check(&sdk, &mut state).await;
         is_succesful(InflationCheck::to_string(), inflation_check_res);
 
-        tokio::time::sleep(Duration::from_secs(config.timeout.unwrap_or(15))).await;
+        tracing::info!("waiting {}...", timeout);
+        tokio::time::sleep(Duration::from_secs(timeout)).await;
     }
 }
 
@@ -96,7 +102,7 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             }
             _ => (),
         }
-        tracing::error!("{}", format!("{}: {}", check_name, e));
+        tracing::error!("{}", format!("Error! {}: {}", check_name, e));
     } else {
         match check_name.as_ref() {
             "HeightCheck" => {
@@ -110,6 +116,6 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             }
             _ => (),
         }
-        tracing::info!("{}", format!("{} ok", check_name));
+        tracing::info!("{}", format!("Check {} was successful.", check_name));
     }
 }

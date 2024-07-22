@@ -16,6 +16,7 @@ impl DoCheck for EpochCheck {
                 let current_epoch = epoch.0;
                 if state.last_epoch <= current_epoch {
                     state.last_epoch = current_epoch;
+                    tracing::info!("Epoch before: {}, after {}", state.last_epoch, epoch.0);
                     Ok(())
                 } else {
                     Err("Epoch decreased".to_string())

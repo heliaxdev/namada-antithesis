@@ -156,7 +156,7 @@ services:
     image: check:latest
     restart: on-failure
     environment:
-      - RPC=30.0.0.15:27658
+      - RPC=http://30.0.0.15:27658
     volumes:
       - ./container_ready/:/container_ready
     networks:
