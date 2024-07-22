@@ -8,7 +8,7 @@ build = "build.rs"
 
 [dependencies]
 clap = { version = "4.4.2", features = ["derive", "env"] }
-namada_sdk = { git = "https://github.com/anoma/namada", tag = "v0.39.0", default-features = false, features = ["tendermint-rpc", "std", "async-send", "download-params", "rand"] }
+namada_sdk = { git = "https://github.com/anoma/namada", tag = "v0.40.0", default-features = false, features = ["tendermint-rpc", "std", "async-send", "download-params", "rand"] }
 tendermint-config = "0.36.0"
 tendermint-rpc = { version = "0.36.0", features = ["http-client"]}
 tokio = {version = "1.8.2", default-features = false}
