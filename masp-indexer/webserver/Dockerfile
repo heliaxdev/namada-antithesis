@@ -1,0 +1,25 @@
+FROM docker.io/rust:1.76-bullseye as builder
+WORKDIR /app
+
+RUN apt-get -y update
+RUN apt-get install -y make git-core libssl-dev pkg-config libclang-dev build-essential protobuf-compiler libudev-dev
+
+RUN git clone https://github.com/anoma/namada-masp-indexer.git . && git checkout main
+RUN cargo build --release --package webserver
+
+FROM debian:bookworm-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app/target/release/webserver /app/webserver
+
+RUN apt-get update && apt-get install -y libpq5 wget
+
+# preload the MASP params (since we don't haveinternet)
+RUN mkdir -p /app/.masp-params
+
+RUN wget -O /app/.masp-params/masp-convert.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params
+RUN wget -O /app/.masp-params/masp-output.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params
+RUN wget -O /app/.masp-params/masp-spend.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params
+
+WORKDIR /app
+
+CMD ["./webserver"]
