@@ -116,6 +116,6 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             }
             _ => (),
         }
-        tracing::info!("{}", format!("Check {} was successful.", check_name));
+        tracing::debug!("{}", format!("Check {} was successful.", check_name));
     }
 }
