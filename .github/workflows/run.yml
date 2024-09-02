@@ -7,10 +7,6 @@ on:
         description: 'The docker tag of the namada docker images'
         required: true
         type: string
-      scenario_tester_docker_tag:
-        description: 'The docker tag of the scenario tester image'
-        required: true
-        type: string
       duration:
         description: The duration of the experiment
       faults:
@@ -28,7 +24,7 @@ jobs:
           username: ${{ secrets.ANTITHESIS_USER_NAME }}
           password: ${{ secrets.ANTITHESIS_PASSWORD }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          images: namada-genesis:${{ github.event.inputs.namada_docker_tag }},namada:${{ github.event.inputs.namada_docker_tag }},namada-scenario-tester:${{ github.event.inputs.scenario_tester_docker_tag }},check:latest
+          images: namada-genesis:${{ github.event.inputs.namada_docker_tag }},namada:${{ github.event.inputs.namada_docker_tag }},workload:latest,check:latest
           email_recipients: |
             gianmarco@heliax.dev,heliax-antithesis-aaaammxjv6zgaqxcdury4ktshq@antithesisgroup.slack.com
           additional_parameters: |

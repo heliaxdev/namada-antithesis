@@ -12,3 +12,6 @@ build-namada-inst:
 
 build-check:
 	docker build --no-cache -t ${registry_url}/check:latest -f check/Dockerfile check
+
+build-workload:
+	docker build --no-cache -t ${registry_url}/workload:latest -f workload/Dockerfile workload
