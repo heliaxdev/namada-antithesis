@@ -30,7 +30,6 @@ impl DoCheck for VotingPowerCheck {
                             let vp = validator.power();
                             let percentage_vp = (vp as f32) / (total_vp as f32);
                             tracing::info!("Validator: {}, voting power: {}, percentage: {}%", validator.address, vp, percentage_vp);
-
                         }
                     }
                     Err(e) => Err(format!("Failed to query validators: {}", e))?,
