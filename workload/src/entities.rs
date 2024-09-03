@@ -11,17 +11,21 @@ impl From<String> for Alias {
 
 impl From<&str> for Alias {
     fn from(value: &str) -> Self {
-        Alias { name: value.to_string() }
+        Alias {
+            name: value.to_string(),
+        }
     }
 }
 
 impl Alias {
     pub fn faucet() -> Self {
-        Self { name: "faucet".into()  }
+        Self {
+            name: "faucet".into(),
+        }
     }
 
     pub fn nam() -> Self {
-        Self { name: "nam".into()  }
+        Self { name: "nam".into() }
     }
 
     pub fn is_faucet(&self) -> bool {

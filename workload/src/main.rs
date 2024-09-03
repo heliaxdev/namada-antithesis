@@ -2,7 +2,12 @@ use std::{str::FromStr, thread, time::Duration};
 
 use antithesis_sdk::antithesis_init;
 use clap::Parser;
-use namada_chain_workload::{config::AppConfig, sdk::namada::Sdk, state::State, steps::{StepType, WorkloadExecutor}};
+use namada_chain_workload::{
+    config::AppConfig,
+    sdk::namada::Sdk,
+    state::State,
+    steps::{StepType, WorkloadExecutor},
+};
 use namada_sdk::{
     io::NullIo, masp::fs::FsShieldedUtils, queries::Client, wallet::fs::FsWalletUtils,
 };
@@ -51,24 +56,42 @@ async fn main() {
             thread::sleep(Duration::from_secs(5));
         }
     }
-    
-    let sdk = Sdk::new(&base_dir, http_client.clone(), wallet, shielded_ctx, io).await;
+
+    let sdk = Sdk::new(
+        &config,
+        &base_dir,
+        http_client.clone(),
+        wallet,
+        shielded_ctx,
+        io,
+    )
+    .await;
 
     let mut state = State::default();
     let workload_executor = WorkloadExecutor::new(
-        vec![StepType::NewWalletKeyPair, StepType::FaucetTransfer, StepType::TransparentTransfer], 
-        vec![3.0, 3.0, 6.0]
+        vec![
+            StepType::NewWalletKeyPair,
+            StepType::FaucetTransfer,
+            StepType::TransparentTransfer,
+        ],
+        vec![2.0, 3.0, 6.0],
     );
+
+    tracing::info!("Starting initialization...");
+    workload_executor.init(&sdk).await;
+    tracing::info!("Done initialization!");
 
     loop {
         let next_step = workload_executor.next(&state);
+        tracing::info!("Next step is: {:?}...", next_step);
         let tasks = workload_executor.build(next_step, &state);
+        tracing::info!("Built {:?}...", next_step);
 
         if let Err(e) = workload_executor.execute(&sdk, tasks.clone()).await {
-            tracing::error!("{:?} -> {}", next_step, e.to_string())
+            tracing::error!("Error {:?} -> {}", next_step, e.to_string())
         } else {
-            workload_executor.update_state(tasks, &mut state)
-        }    
+            workload_executor.update_state(tasks, &mut state);
+            tracing::info!("Done {:?}!", next_step);
+        }
     }
-
 }

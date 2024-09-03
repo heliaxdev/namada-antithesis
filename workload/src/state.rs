@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rand::seq::IteratorRandom;
 
@@ -59,7 +59,7 @@ impl State {
 
     pub fn any_account_can_pay_fees(&self) -> bool {
         self.balances.iter().any(|(alias, balance)| {
-            if balance >= &DEFAULT_GAS_LIMIT {
+            if balance >= &DEFAULT_FEE_IN_NATIVE_TOKEN {
                 let account = self.accounts.get(alias).expect("Alias should exist.");
                 account.is_implicit()
             } else {
@@ -75,9 +75,10 @@ impl State {
 
     /// GET
 
-    pub fn random_account(&self) -> Account {
+    pub fn random_account(&self, blacklist: Vec<Alias>) -> Account {
         self.accounts
             .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
             .choose(&mut rand::thread_rng())
             .map(|(_, account)| account.clone())
             .unwrap()
@@ -90,7 +91,7 @@ impl State {
                 if blacklist.contains(alias) {
                     return None;
                 }
-                if balance >= &DEFAULT_GAS_LIMIT {
+                if balance >= &DEFAULT_FEE_IN_NATIVE_TOKEN {
                     Some(self.accounts.get(alias).unwrap().clone())
                 } else {
                     None
@@ -122,14 +123,13 @@ impl State {
     pub fn modify_balance(&mut self, source: Alias, target: Alias, amount: u64) {
         if !source.is_faucet() {
             *self.balances.get_mut(&source).unwrap() -= amount;
-        } 
+        }
         *self.balances.get_mut(&target).unwrap() += amount;
     }
 
-    pub fn modify_balance_fee(&mut self, source: Alias, gas_limit: u64) {
+    pub fn modify_balance_fee(&mut self, source: Alias, _gas_limit: u64) {
         if !source.is_faucet() {
             *self.balances.get_mut(&source).unwrap() -= DEFAULT_FEE_IN_NATIVE_TOKEN;
-        } 
-        *self.balances.get_mut(&source).unwrap() += DEFAULT_FEE_IN_NATIVE_TOKEN;
+        }
     }
 }

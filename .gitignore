@@ -64,3 +64,4 @@ target/
 
 .vscode
 check/target
+workload/run.sh

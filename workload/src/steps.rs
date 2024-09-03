@@ -1,6 +1,7 @@
 use namada_sdk::{
     args::{InputAmount, TxBuilder, TxTransparentTransferData},
-    key::SchemeType,
+    key::{common, SchemeType},
+    rpc,
     signing::default_sign,
     token::{self, DenominatedAmount},
     tx::{data::GasLimit, either, ProcessTxResponse, Tx},
@@ -12,6 +13,7 @@ use rand::{
     Rng,
 };
 use thiserror::Error;
+use tokio::time::{sleep, Duration};
 use weighted_rand::{
     builder::{NewBuilder, WalkerTableBuilder},
     table::WalkerTable,
@@ -62,6 +64,25 @@ impl WorkloadExecutor {
         }
     }
 
+    pub async fn init(&self, sdk: &Sdk) {
+        let client = sdk.namada.client();
+        let wallet = sdk.namada.wallet.write().await;
+        let faucet_address = wallet.find_address("faucet").unwrap().into_owned();
+        let faucet_public_key = wallet.find_public_key("faucet").unwrap().to_owned();
+
+        loop {
+            if let Ok(res) = rpc::is_public_key_revealed(client, &faucet_address).await {
+                if !res {
+                    let _ = Self::reveal_pk(&sdk, faucet_public_key.clone());
+                } else {
+                    break;
+                }
+            } else {
+                sleep(Duration::from_secs(2)).await;
+            }
+        }
+    }
+
     pub fn next(&self, state: &State) -> StepType {
         let mut next_step = self.step_types[self.inner.next()];
         loop {
@@ -91,10 +112,10 @@ impl WorkloadExecutor {
                 vec![Task::NewWalletKeyPair(alias)]
             }
             StepType::FaucetTransfer => {
-                let target_account = state.random_account();
+                let target_account = state.random_account(vec![]);
                 let amount = Self::random_between(1000, 2000);
 
-                let task_settings = TaskSettings::new(vec![Alias::faucet()], Alias::faucet());
+                let task_settings = TaskSettings::faucet();
 
                 vec![Task::FaucetTransfer(
                     target_account.alias,
@@ -104,11 +125,10 @@ impl WorkloadExecutor {
             }
             StepType::TransparentTransfer => {
                 let source_account = state.random_account_with_min_balance(vec![]);
-                let target_account =
-                    state.random_account_with_min_balance(vec![source_account.alias.clone()]);
+                let target_account = state.random_account(vec![source_account.alias.clone()]);
                 let amount = state.get_balance_for(&source_account.alias);
 
-                let task_settings = TaskSettings::new(vec![Alias::faucet()], Alias::faucet());
+                let task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
 
                 vec![Task::TransparentTransfer(
                     source_account.alias,
@@ -134,12 +154,16 @@ impl WorkloadExecutor {
                         &mut OsRng,
                     );
 
-                    if let Some((alias, sk)) = keypair {
+                    let (_alias, sk) = if let Some((alias, sk)) = keypair {
                         wallet.save().expect("unable to save wallet");
                         (alias, sk)
                     } else {
                         return Err(StepError::Wallet("Failed to save keypair".to_string()));
                     };
+                    drop(wallet);
+
+                    let public_key = sk.to_public();
+                    Self::reveal_pk(&sdk, public_key).await?
                 }
                 Task::FaucetTransfer(target, amount, settings) => {
                     let wallet = sdk.namada.wallet.write().await;
@@ -179,6 +203,7 @@ impl WorkloadExecutor {
                         signing_keys.push(public_key)
                     }
                     transfer_tx_builder = transfer_tx_builder.signing_keys(signing_keys.clone());
+                    drop(wallet);
 
                     let (mut transfer_tx, signing_data) = transfer_tx_builder
                         .build(&sdk.namada)
@@ -245,6 +270,7 @@ impl WorkloadExecutor {
                         signing_keys.push(public_key)
                     }
                     transfer_tx_builder = transfer_tx_builder.signing_keys(signing_keys.clone());
+                    drop(wallet);
 
                     let (mut transfer_tx, signing_data) = transfer_tx_builder
                         .build(&sdk.namada)
@@ -288,18 +314,63 @@ impl WorkloadExecutor {
             match task {
                 Task::NewWalletKeyPair(alias) => {
                     state.add_implicit_account(alias);
-                },
+                }
                 Task::FaucetTransfer(target, amount, settings) => {
                     let source_alias = Alias::faucet();
                     state.modify_balance(source_alias, target, amount);
                     state.modify_balance_fee(settings.gas_payer, settings.gas_limit);
-                },
+                }
                 Task::TransparentTransfer(source, target, amount, setting) => {
                     state.modify_balance(source, target, amount);
                     state.modify_balance_fee(setting.gas_payer, setting.gas_limit);
-                },
+                }
             }
         }
+    }
+
+    async fn reveal_pk(sdk: &Sdk, public_key: common::PublicKey) -> Result<(), StepError> {
+        let wallet = sdk.namada.wallet.write().await;
+        let fee_payer = wallet.find_public_key("faucet").unwrap();
+        drop(wallet);
+
+        let reveal_pk_tx_builder = sdk
+            .namada
+            .new_reveal_pk(public_key.clone())
+            .signing_keys(vec![public_key.clone()])
+            .wrapper_fee_payer(fee_payer);
+
+        let (mut reveal_tx, signing_data) = reveal_pk_tx_builder
+            .build(&sdk.namada)
+            .await
+            .map_err(|e| StepError::Build(e.to_string()))?;
+
+        sdk.namada
+            .sign(
+                &mut reveal_tx,
+                &reveal_pk_tx_builder.tx,
+                signing_data,
+                default_sign,
+                (),
+            )
+            .await
+            .expect("unable to sign tx");
+
+        let tx = sdk
+            .namada
+            .submit(reveal_tx.clone(), &reveal_pk_tx_builder.tx)
+            .await;
+
+        if Self::is_tx_rejected(&reveal_tx, &tx) {
+            match tx {
+                Ok(tx) => {
+                    let errors = Self::get_tx_errors(&reveal_tx, &tx).unwrap_or_default();
+                    return Err(StepError::Execution(errors));
+                }
+                Err(e) => return Err(StepError::Broadcast(e.to_string())),
+            }
+        }
+
+        Ok(())
     }
 
     fn random_alias() -> Alias {
