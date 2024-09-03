@@ -12,8 +12,10 @@ use rand::{
     rngs::OsRng,
     Rng,
 };
+use serde_json::json;
 use thiserror::Error;
 use tokio::time::{sleep, Duration};
+use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, OnRetry, RetryFutureConfig};
 use weighted_rand::{
     builder::{NewBuilder, WalkerTableBuilder},
     table::WalkerTable,
@@ -34,6 +36,7 @@ pub enum StepError {
 }
 
 use crate::{
+    check::Check,
     entities::Alias,
     sdk::namada::Sdk,
     state::State,
@@ -78,6 +81,7 @@ impl WorkloadExecutor {
                     break;
                 }
             } else {
+                tracing::warn!("Retry revealing faucet pk...");
                 sleep(Duration::from_secs(2)).await;
             }
         }
@@ -140,6 +144,217 @@ impl WorkloadExecutor {
         }
     }
 
+    pub async fn build_check(&self, sdk: &Sdk, tasks: Vec<Task>) -> Vec<Check> {
+        let config = Self::retry_config();
+
+        let client = sdk.namada.client();
+        let mut checks = vec![];
+        for task in tasks {
+            let check = match task {
+                Task::NewWalletKeyPair(source) => vec![Check::RevealPk(source)],
+                Task::FaucetTransfer(target, amount, _) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let native_token_address = wallet.find_address("nam").unwrap().into_owned();
+                    let target_address = wallet.find_address(&target.name).unwrap().into_owned();
+                    drop(wallet);
+
+                    let check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
+                        rpc::get_token_balance(client, &native_token_address, &target_address)
+                    })
+                    .with_config(config)
+                    .on_retry(|attempt, _, error| {
+                        let error = error.to_string();
+                        async move {
+                            tracing::debug!("Retry {} due to {}...", attempt, error);
+                        }
+                    })
+                    .await
+                    {
+                        Check::BalanceTarget(target, pre_balance, amount)
+                    } else {
+                        continue;
+                    };
+
+                    vec![check]
+                }
+                Task::TransparentTransfer(source, target, amount, _) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let native_token_address = wallet.find_address("nam").unwrap().into_owned();
+                    let source_address = wallet.find_address(&source.name).unwrap().into_owned();
+                    let target_address = wallet.find_address(&target.name).unwrap().into_owned();
+                    drop(wallet);
+
+                    let source_check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
+                        rpc::get_token_balance(client, &native_token_address, &source_address)
+                    })
+                    .with_config(config)
+                    .await
+                    {
+                        Check::BalanceSource(source, pre_balance, amount)
+                    } else {
+                        continue;
+                    };
+
+                    let target_check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
+                        rpc::get_token_balance(client, &native_token_address, &target_address)
+                    })
+                    .with_config(config)
+                    .on_retry(|attempt, _, error| {
+                        let error = error.to_string();
+                        async move {
+                            tracing::debug!("Retry {} due to {}...", attempt, error);
+                        }
+                    })
+                    .await
+                    {
+                        Check::BalanceTarget(target, pre_balance, amount)
+                    } else {
+                        continue;
+                    };
+
+                    vec![source_check, target_check]
+                }
+            };
+            checks.extend(check)
+        }
+        checks
+    }
+
+    pub async fn checks(&self, sdk: &Sdk, checks: Vec<Check>) -> Result<(), String> {
+        let config = Self::retry_config();
+        let client = sdk.namada.client();
+
+        for check in checks {
+            match check {
+                Check::RevealPk(alias) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let source = wallet.find_address(&alias.name).unwrap().into_owned();
+                    drop(wallet);
+
+                    match tryhard::retry_fn(|| rpc::is_public_key_revealed(client, &source))
+                        .with_config(config)
+                        .await
+                    {
+                        Ok(was_pk_revealed) => {
+                            if !was_pk_revealed {
+                                return Err(format!(
+                                    "RevealPk check error: pk for {} was not revealed",
+                                    source.to_pretty_string()
+                                ));
+                            }
+                            antithesis_sdk::assert_always!(
+                                was_pk_revealed,
+                                "The public key was not released correctly.",
+                                &json!({
+                                    "public-key": source.to_pretty_string()
+                                })
+                            );
+                        }
+                        Err(e) => {
+                            return Err(format!("RevealPk check error: {}", e.to_string()));
+                        }
+                    }
+                }
+                Check::BalanceTarget(target, pre_balance, amount) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let native_token_address = wallet.find_address("nam").unwrap().into_owned();
+                    let target_address = wallet.find_address(&target.name).unwrap().into_owned();
+                    drop(wallet);
+
+                    match tryhard::retry_fn(|| {
+                        rpc::get_token_balance(client, &native_token_address, &target_address)
+                    })
+                    .with_config(config)
+                    .on_retry(|attempt, _, error| {
+                        let error = error.to_string();
+                        async move {
+                            tracing::warn!("Retry {} due to {}...", attempt, error);
+                        }
+                    })
+                    .await
+                    {
+                        Ok(post_amount) => {
+                            let check_balance = if let Some(balance) =
+                                pre_balance.checked_add(token::Amount::from_u64(amount))
+                            {
+                                balance
+                            } else {
+                                return Err(format!(
+                                    "BalanceTarget check error: balance is negative"
+                                ));
+                            };
+                            if !post_amount.le(&check_balance) {
+                                return Err(format!("BalanceTarget check error: post target amount is greater than pre balance",));
+                            }
+                            antithesis_sdk::assert_always!(
+                                post_amount.le(&check_balance),
+                                "Balance target is invalid.",
+                                &json!({
+                                    "target": target_address.to_pretty_string(),
+                                    "pre_balance": pre_balance,
+                                    "amount": check_balance,
+                                    "post_balance": post_amount
+                                })
+                            );
+                        }
+                        Err(e) => {
+                            return Err(format!("BalanceTarget check error: {}", e.to_string()))
+                        }
+                    }
+                }
+                Check::BalanceSource(target, pre_balance, amount) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let native_token_address = wallet.find_address("nam").unwrap().into_owned();
+                    let target_address = wallet.find_address(&target.name).unwrap().into_owned();
+                    drop(wallet);
+
+                    match tryhard::retry_fn(|| {
+                        rpc::get_token_balance(client, &native_token_address, &target_address)
+                    })
+                    .with_config(config)
+                    .on_retry(|attempt, _, error| {
+                        let error = error.to_string();
+                        async move {
+                            tracing::debug!("Retry {} due to {}...", attempt, error);
+                        }
+                    })
+                    .await
+                    {
+                        Ok(post_amount) => {
+                            let check_balance = if let Some(balance) =
+                                pre_balance.checked_sub(token::Amount::from_u64(amount))
+                            {
+                                balance
+                            } else {
+                                return Err(format!(
+                                    "BalanceTarget check error: balance is negative"
+                                ));
+                            };
+                            if !post_amount.ge(&check_balance) {
+                                return Err(format!("BalanceTarget check error: post target amount is less than pre balance",));
+                            }
+                            antithesis_sdk::assert_always!(
+                                post_amount.ge(&check_balance),
+                                "Balance source is invalid.",
+                                &json!({
+                                    "target": target_address.to_pretty_string(),
+                                    "pre_balance": pre_balance,
+                                    "amount": check_balance,
+                                    "post_balance": post_amount
+                                })
+                            );
+                        }
+                        Err(e) => {
+                            return Err(format!("BalanceTarget check error: {}", e.to_string()))
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn execute(&self, sdk: &Sdk, tasks: Vec<Task>) -> Result<(), StepError> {
         for task in tasks {
             match task {
@@ -194,9 +409,11 @@ impl WorkloadExecutor {
 
                     let mut transfer_tx_builder =
                         sdk.namada.new_transparent_transfer(vec![tx_transfer_data]);
+
                     transfer_tx_builder =
                         transfer_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
                     transfer_tx_builder = transfer_tx_builder.wrapper_fee_payer(fee_payer);
+
                     let mut signing_keys = vec![];
                     for signer in settings.signers {
                         let public_key = wallet.find_public_key(&signer.name).unwrap();
@@ -421,5 +638,11 @@ impl WorkloadExecutor {
             },
             _ => None,
         }
+    }
+
+    fn retry_config() -> RetryFutureConfig<ExponentialBackoff, NoOnRetry> {
+        RetryFutureConfig::new(4)
+            .exponential_backoff(Duration::from_secs(1))
+            .max_delay(Duration::from_secs(10))
     }
 }

@@ -1,3 +1,4 @@
+pub mod check;
 pub mod config;
 pub mod constants;
 pub mod entities;

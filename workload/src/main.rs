@@ -67,6 +67,8 @@ async fn main() {
     )
     .await;
 
+    tracing::info!("Using base dir: {}", sdk.base_dir.as_path().display());
+
     let mut state = State::default();
     let workload_executor = WorkloadExecutor::new(
         vec![
@@ -87,8 +89,24 @@ async fn main() {
         let tasks = workload_executor.build(next_step, &state);
         tracing::info!("Built {:?}...", next_step);
 
+        let checks = workload_executor.build_check(&sdk, tasks.clone()).await;
+        tracing::info!("Built checks for {:?}", next_step);
+
         if let Err(e) = workload_executor.execute(&sdk, tasks.clone()).await {
-            tracing::error!("Error {:?} -> {}", next_step, e.to_string())
+            match e {
+                namada_chain_workload::steps::StepError::Execution(_) => {
+                    tracing::error!("Error {:?} -> {}", next_step, e.to_string());
+                }
+                _ => {
+                    tracing::warn!("Warning {:?} -> {}", next_step, e.to_string());
+                }
+            }
+            continue;
+        }
+
+        if let Err(e) = workload_executor.checks(&sdk, checks).await {
+            tracing::error!("Error {:?} (Check) -> {}", next_step, e.to_string());
+            continue;
         } else {
             workload_executor.update_state(tasks, &mut state);
             tracing::info!("Done {:?}!", next_step);

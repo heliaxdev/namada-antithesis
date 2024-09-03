@@ -25,6 +25,7 @@ chrono = "0.4.38"
 weighted_rand = "0.4.2"
 rand = {version = "0.8", default-features = false}
 thiserror = "1.0.63"
+tryhard = "0.5.1"
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }
