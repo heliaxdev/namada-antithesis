@@ -45,7 +45,7 @@ impl Sdk {
 
         let native_token = rpc::query_native_token(namada.client()).await.unwrap();
         namada_wallet
-            .insert_address("nam".to_string(), native_token, true)
+            .insert_address("nam", native_token, true)
             .unwrap();
         drop(namada_wallet);
 

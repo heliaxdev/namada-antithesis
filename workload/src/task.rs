@@ -30,10 +30,13 @@ impl TaskSettings {
 pub type Target = Alias;
 pub type Source = Alias;
 pub type Amount = u64;
+pub type Address = String;
+pub type Epoch = u64;
 
 #[derive(Clone, Debug)]
 pub enum Task {
     NewWalletKeyPair(Source),
     FaucetTransfer(Target, Amount, TaskSettings),
     TransparentTransfer(Source, Target, Amount, TaskSettings),
+    Bond(Source, Address, Amount, Epoch, TaskSettings),
 }

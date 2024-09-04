@@ -75,8 +75,9 @@ async fn main() {
             StepType::NewWalletKeyPair,
             StepType::FaucetTransfer,
             StepType::TransparentTransfer,
+            StepType::Bond,
         ],
-        vec![2.0, 3.0, 6.0],
+        vec![2.0, 3.0, 6.0, 6.0],
     );
 
     tracing::info!("Starting initialization...");
@@ -86,30 +87,52 @@ async fn main() {
     loop {
         let next_step = workload_executor.next(&state);
         tracing::info!("Next step is: {:?}...", next_step);
-        let tasks = workload_executor.build(next_step, &state);
+        let tasks = match workload_executor.build(next_step, &sdk, &state).await {
+            Ok(tasks) => tasks,
+            Err(e) => {
+                match e {
+                    namada_chain_workload::steps::StepError::Execution(_) => {
+                        tracing::error!("Error {:?} -> {}", next_step, e.to_string());
+                    }
+                    _ => {
+                        tracing::warn!("Warning {:?} -> {}", next_step, e.to_string());
+                    }
+                }
+                continue;
+            }
+        };
         tracing::info!("Built {:?}...", next_step);
 
         let checks = workload_executor.build_check(&sdk, tasks.clone()).await;
         tracing::info!("Built checks for {:?}", next_step);
 
-        if let Err(e) = workload_executor.execute(&sdk, tasks.clone()).await {
-            match e {
-                namada_chain_workload::steps::StepError::Execution(_) => {
-                    tracing::error!("Error {:?} -> {}", next_step, e.to_string());
+        match workload_executor.execute(&sdk, tasks.clone()).await {
+            Ok(secs) => tracing::info!("Execution took {}s...", secs),
+            Err(e) => {
+                match e {
+                    namada_chain_workload::steps::StepError::Execution(_) => {
+                        tracing::error!("Error {:?} -> {}", next_step, e.to_string());
+                    }
+                    _ => {
+                        tracing::warn!("Warning {:?} -> {}", next_step, e.to_string());
+                    }
                 }
-                _ => {
-                    tracing::warn!("Warning {:?} -> {}", next_step, e.to_string());
-                }
+                continue;
             }
-            continue;
-        }
+        };
 
-        if let Err(e) = workload_executor.checks(&sdk, checks).await {
+        if let Err(e) = workload_executor.checks(&sdk, checks.clone()).await {
             tracing::error!("Error {:?} (Check) -> {}", next_step, e.to_string());
             continue;
         } else {
+            if checks.is_empty() {
+                tracing::info!("Checks are empty, skipping...");
+            } else {
+                tracing::info!("Checks were successful, updating state...");
+            }
             workload_executor.update_state(tasks, &mut state);
             tracing::info!("Done {:?}!", next_step);
         }
+        println!(" ")
     }
 }

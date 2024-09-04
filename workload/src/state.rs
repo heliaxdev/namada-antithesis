@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 
 use rand::seq::IteratorRandom;
 
 use crate::{
-    constants::{DEFAULT_FEE_IN_NATIVE_TOKEN, DEFAULT_GAS_LIMIT, MIN_TRANSFER_BALANCE},
+    constants::{DEFAULT_FEE_IN_NATIVE_TOKEN, MIN_TRANSFER_BALANCE},
     entities::Alias,
 };
 
@@ -38,6 +38,7 @@ impl Account {
 pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub balances: HashMap<Alias, u64>,
+    pub bonds: HashMap<Alias, HashMap<String, u64>>,
 }
 
 impl State {
@@ -117,7 +118,7 @@ impl State {
                 address_type: AddressType::Implicit,
             },
         );
-        self.balances.insert(alias, 0);
+        self.balances.insert(alias.clone(), 0);
     }
 
     pub fn modify_balance(&mut self, source: Alias, target: Alias, amount: u64) {
@@ -131,5 +132,18 @@ impl State {
         if !source.is_faucet() {
             *self.balances.get_mut(&source).unwrap() -= DEFAULT_FEE_IN_NATIVE_TOKEN;
         }
+    }
+
+    pub fn modify_bond(&mut self, source: Alias, validator: String, amount: u64) {
+        if !source.is_faucet() {
+            *self.balances.get_mut(&source).unwrap() -= amount;
+        }
+        let default = HashMap::from_iter([(validator.clone(), 0u64)]);
+        *self
+            .bonds
+            .entry(source.clone())
+            .or_insert(default)
+            .entry(validator)
+            .or_insert(0) += amount;
     }
 }
