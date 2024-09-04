@@ -111,13 +111,11 @@ services:
   workload0:
     container_name: workload0
     hostname: workload0
-    image: namada-scenario-tester:latest
+    image: workload:latest
     restart: on-failure
     environment:
-      - VALIDATOR_RPC=30.0.0.14:27658
+      - RPC=30.0.0.14:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
-      - WORKERS=1
-      - AVOID_CHECK=true
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
@@ -128,13 +126,11 @@ services:
   workload1:
     container_name: workload1
     hostname: workload1
-    image: namada-scenario-tester:latest
+    image: workload:latest
     restart: on-failure
     environment:
-      - VALIDATOR_RPC=30.0.0.14:27658
+      - RPC=30.0.0.14:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
-      - WORKERS=1
-      - AVOID_CHECK=true
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
@@ -145,14 +141,11 @@ services:
   workload2:
     container_name: workload2
     hostname: workload2
-    image: namada-scenario-tester:latest
+    image: workload:latest
     restart: on-failure
     environment:
-      - TEST_STEPS=200
-      - VALIDATOR_RPC=30.0.0.14:27658
+      - RPC=30.0.0.14:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
-      - WORKERS=1
-      - AVOID_CHECK=true
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh

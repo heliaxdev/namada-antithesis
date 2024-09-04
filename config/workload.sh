@@ -2,7 +2,6 @@
 
 set -e
 
-TEST_STEPS=${TEST_STEPS:-200}
 VALIDATOR_RPC=${VALIDATOR_RPC:-"30.0.0.12:27658"}
 FAUCET_SK=${FAUCET_SK:-"00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963"}
 
@@ -37,7 +36,4 @@ echo "Workload: the chain ID is $CHAIN_ID"
 # Ready to start workload
 echo "Ready to start the workload"
 
-OUTPUT=$(./scenario-generator --steps $TEST_STEPS)
-SCENARIO_NAME="$(cut -d' ' -f2 <<<"$OUTPUT")"
-echo "Using scenario $SCENARIO_NAME"
-./scenario-tester --rpc http://${VALIDATOR_RPC} --chain-id ${CHAIN_ID} --faucet-sk ${FAUCET_SK} --scenario scenarios/$SCENARIO_NAME.json
+./namada-chain-workload --rpc http://${VALIDATOR_RPC} --chain-id ${CHAIN_ID} --faucet-sk ${FAUCET_SK}
