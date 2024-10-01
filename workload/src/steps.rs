@@ -128,16 +128,16 @@ impl WorkloadExecutor {
         &self,
         step_type: StepType,
         sdk: &Sdk,
-        mut state: &mut State,
+        state: &mut State,
     ) -> Result<Vec<Task>, StepError> {
         let steps = match step_type {
             StepType::NewWalletKeyPair => {
-                let alias = Self::random_alias(&mut state);
+                let alias = Self::random_alias(state);
                 vec![Task::NewWalletKeyPair(alias)]
             }
             StepType::FaucetTransfer => {
                 let target_account = state.random_account(vec![]);
-                let amount = Self::random_between(1000, 2000, &mut state) * NATIVE_SCALE;
+                let amount = Self::random_between(1000, 2000, state) * NATIVE_SCALE;
 
                 let task_settings = TaskSettings::faucet();
 
@@ -188,8 +188,6 @@ impl WorkloadExecutor {
                     current_epoch.into(),
                     task_settings,
                 )]
-
-                
             }
         };
         Ok(steps)
@@ -274,7 +272,12 @@ impl WorkloadExecutor {
                     drop(wallet);
 
                     let bond_check = if let Ok(pre_bond) = tryhard::retry_fn(|| {
-                        rpc::get_bond_amount_at(client, &source_address, &validator_address, epoch.next().next())
+                        rpc::get_bond_amount_at(
+                            client,
+                            &source_address,
+                            &validator_address,
+                            epoch.next().next(),
+                        )
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
@@ -302,7 +305,7 @@ impl WorkloadExecutor {
         sdk: &Sdk,
         checks: Vec<Check>,
         execution_height: Option<u64>,
-        state: &mut State
+        state: &mut State,
     ) -> Result<(), String> {
         let config = Self::retry_config();
         let client = sdk.namada.client();
@@ -323,7 +326,7 @@ impl WorkloadExecutor {
                 let current_height = block.block.last_commit.unwrap().height.value();
                 let block_height = current_height;
                 if block_height >= execution_height {
-                    break current_height
+                    break current_height;
                 } else {
                     tracing::info!(
                         "Waiting for block height: {}, currently at: {}",
@@ -795,7 +798,7 @@ impl WorkloadExecutor {
 
         Ok(ExecutionResult {
             time_taken: now.elapsed().as_secs(),
-            execution_height: execution_height,
+            execution_height,
         })
     }
 

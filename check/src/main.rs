@@ -4,8 +4,8 @@ use antithesis_sdk::antithesis_init;
 use clap::Parser;
 use namada_chain_check::{
     checks::{
-        epoch::EpochCheck, height::HeightCheck, inflation::InflationCheck, status::StatusCheck,
-        voting_power::VotingPowerCheck, DoCheck,
+        epoch::EpochCheck, height::HeightCheck, inflation::InflationCheck, masp::MaspIndexerCheck,
+        status::StatusCheck, voting_power::VotingPowerCheck, DoCheck,
     },
     config::AppConfig,
     sdk::namada::Sdk,
@@ -64,7 +64,15 @@ async fn main() {
         }
     }
 
-    let sdk = Sdk::new(&base_dir, http_client.clone(), wallet, shielded_ctx, io).await;
+    let sdk = Sdk::new(
+        &base_dir,
+        http_client.clone(),
+        wallet,
+        shielded_ctx,
+        io,
+        config.masp_indexer_url,
+    )
+    .await;
 
     loop {
         let now = chrono::offset::Utc::now();
@@ -83,6 +91,9 @@ async fn main() {
 
         let vp_check_res = VotingPowerCheck::do_check(&sdk, &mut state, now).await;
         is_succesful(VotingPowerCheck::to_string(), vp_check_res);
+
+        let masp_indexer_check = MaspIndexerCheck::do_check(&sdk, &mut state, now).await;
+        is_succesful(MaspIndexerCheck::to_string(), masp_indexer_check);
 
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
@@ -126,6 +137,13 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
                     &json!({ "details": e })
                 );
             }
+            "MaspIndexerCheck" => {
+                antithesis_sdk::assert_sometimes!(
+                    res.is_ok(),
+                    "masp_indexer_check",
+                    &json!({ "details": e })
+                );
+            }
             _ => (),
         }
         tracing::error!("{}", format!("Error! {}: {}", check_name, e));
@@ -139,6 +157,9 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             }
             "InflationCheck" => {
                 antithesis_sdk::assert_always!(res.is_ok(), "inflation_check", &json!({}));
+            }
+            "MaspIndexerCheck" => {
+                antithesis_sdk::assert_sometimes!(res.is_ok(), "masp_indexer_check", &json!({}));
             }
             _ => (),
         }
