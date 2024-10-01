@@ -11,6 +11,7 @@ use tendermint_rpc::HttpClient;
 pub struct Sdk {
     pub base_dir: PathBuf,
     pub namada: NamadaImpl<HttpClient, FsWalletUtils, FsShieldedUtils, NullIo>,
+    pub masp_indexer_url: String
 }
 
 impl Sdk {
@@ -20,6 +21,7 @@ impl Sdk {
         wallet: Wallet<FsWalletUtils>,
         shielded_ctx: ShieldedContext<FsShieldedUtils>,
         io: NullIo,
+        masp_indexer_url: String
     ) -> Sdk {
         let namada = NamadaImpl::new(http_client, wallet, shielded_ctx, io)
             .await
@@ -28,6 +30,7 @@ impl Sdk {
         Self {
             base_dir: base_dir.to_owned(),
             namada,
+            masp_indexer_url
         }
     }
 }

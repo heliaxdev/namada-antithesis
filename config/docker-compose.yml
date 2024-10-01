@@ -160,6 +160,7 @@ services:
     restart: on-failure
     environment:
       - RPC=30.0.0.14:27658
+      - MASP_INDEXER_URL=30.0.0.20:5000
     volumes:
       - ./container_ready/:/container_ready
     networks:
