@@ -97,6 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+      masp_commit: main
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -112,7 +113,8 @@ jobs:
           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
       - name: Build & Push Image Masp Indexer Containers
         run: |
-          registry_url="${{ env.registry_url }}" make build-masp-indexer
+          registry_url="${{ env.registry_url }}" masp_sha=${{ env.masp_commit }} make build-masp-indexer
           docker push ${{ env.registry_url }}/masp-indexer-webserver:latest
           docker push ${{ env.registry_url }}/masp-indexer-chain:latest
+          docker push ${{ env.registry_url }}/masp-indexer-block-filter:latest
     
