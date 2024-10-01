@@ -8,9 +8,9 @@ use crate::sdk::namada::Sdk;
 pub mod epoch;
 pub mod height;
 pub mod inflation;
+pub mod masp;
 pub mod status;
 pub mod voting_power;
-pub mod masp;
 
 pub trait DoCheck {
     async fn check(sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String>;
@@ -45,7 +45,7 @@ pub trait DoCheck {
                     times,
                     3
                 );
-                times = times + 1;
+                times += 1;
                 sleep(Duration::from_secs(2)).await
             }
         }
