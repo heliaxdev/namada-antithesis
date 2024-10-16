@@ -3,14 +3,19 @@ name: Run antithesis (triggerable)
 on:
   workflow_dispatch:
     inputs:
+      namada_genesis_docker_tag:
+        description: 'The docker tag of the namada genesis docker images'
+        required: true
+        type: string
       namada_docker_tag:
         description: 'The docker tag of the namada docker images'
         required: true
         type: string
       duration:
-        description: The duration of the experiment
+        description: Duration of the experiment
       faults:
-        description: If faults needs to be introduced
+        type: boolean
+        description: Enable faults
 
 jobs:
   antithesis:
@@ -24,7 +29,7 @@ jobs:
           username: ${{ secrets.ANTITHESIS_USER_NAME }}
           password: ${{ secrets.ANTITHESIS_PASSWORD }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          images: namada-genesis:${{ github.event.inputs.namada_docker_tag }},namada:${{ github.event.inputs.namada_docker_tag }},workload:latest,check:latest
+          images: namada-genesis:${{ github.event.inputs.namada_genesis_docker_tag }},namada:${{ github.event.inputs.namada_docker_tag }},workload:latest,check:latest
           email_recipients: |
             gianmarco@heliax.dev,heliax-antithesis-aaaammxjv6zgaqxcdury4ktshq@antithesisgroup.slack.com
           additional_parameters: |
