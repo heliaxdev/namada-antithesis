@@ -1,0 +1,31 @@
+name: Start interactive session for a run
+
+on:
+  workflow_dispatch:
+    inputs:
+      session_id:
+        description: "The session id"
+        required: true
+        type: string
+      input_hash:
+        description: "The input hash"
+        required: true
+        type: string
+      vtime:
+        description: "The vtime"
+        required: true
+        type: string
+
+jobs:
+  logs:
+    runs-on: [ubuntu-latest]
+    strategy:
+      fail-fast: true
+      matrix:
+        runs:
+          - image: "main"
+            
+    steps:
+      - name: Start interactive session
+        run: |
+          curl --fail -u '${{ secrets.ANTITHESIS_USER_NAME }}:${{ secrets.ANTITHESIS_PASSWORD }}' -X POST https://heliax.antithesis.com/api/v1/launch_experiment/launch_debugging -d '{"params": { "antithesis.debugging.session_id":"${{ github.event.inputs.session_id }}", "antithesis.debugging.input_hash":"${{ github.event.inputs.input_hash }}" , "antithesis.debugging.vtime":"${{ github.event.inputs.vtime }}", "antithesis.report.recipients":"gianmarco@heliax.dev" }}'
