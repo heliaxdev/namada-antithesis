@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize,Deserializer, Serialize, Serializer};
 
-#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Alias {
     pub name: String,
 }
@@ -43,3 +43,16 @@ impl Serialize for Alias {
         Serialize::serialize(&self.name, serializer)
     }
 }
+
+
+impl<'de> Deserialize<'de> for Alias {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let name = String::deserialize(deserializer)?;
+        Ok(Alias { name })
+    }
+}
+
+

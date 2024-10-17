@@ -60,6 +60,21 @@ pub enum StepType {
     Bond,
 }
 
+impl FromStr for StepType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "NewWalletKeyPair" => Ok(StepType::NewWalletKeyPair),
+            "FaucetTransfer" => Ok(StepType::FaucetTransfer),
+            "TransparentTransfer" => Ok(StepType::TransparentTransfer),
+            "Bond" => Ok(StepType::Bond),
+            _ => Err(()),
+        }
+    }
+}
+
+
 #[derive(Clone, Debug)]
 pub struct WorkloadExecutor {
     pub step_types: Vec<StepType>,
@@ -97,14 +112,14 @@ impl WorkloadExecutor {
         }
     }
 
-    pub fn next(&self, state: &State) -> StepType {
+    pub fn next(&self, state: &State) -> Result<StepType, ()> {
         let mut next_step = self.step_types[self.inner.next()];
-        loop {
-            if Self::is_valid(next_step, state) {
-                return next_step;
-            }
-            next_step = self.step_types[self.inner.next()];
+        if !Self::is_valid(next_step, state) {
+            tracing::error!("This step won't work yet, aborting");
+            return Err(());
+            
         }
+        return Ok(next_step);
     }
 
     fn is_valid(step_type: StepType, state: &State) -> bool {
@@ -197,7 +212,9 @@ impl WorkloadExecutor {
                 Task::NewWalletKeyPair(source) => vec![Check::RevealPk(source)],
                 Task::FaucetTransfer(target, amount, _) => {
                     let wallet = sdk.namada.wallet.read().await;
+                    // println!("wallet {:?}", wallet);
                     let native_token_address = wallet.find_address("nam").unwrap().into_owned();
+                    // println!("{:?}", &target.name);
                     let target_address = wallet.find_address(&target.name).unwrap().into_owned();
                     drop(wallet);
 
@@ -222,34 +239,43 @@ impl WorkloadExecutor {
                 }
                 Task::TransparentTransfer(source, target, amount, _) => {
                     let wallet = sdk.namada.wallet.read().await;
+                    // tracing::info!("Got wallet");
                     let native_token_address = wallet.find_address("nam").unwrap().into_owned();
+                    // tracing::info!("Got native_token_address");
                     let source_address = wallet.find_address(&source.name).unwrap().into_owned();
+                    // tracing::info!("Got source_address");
                     let target_address = wallet.find_address(&target.name).unwrap().into_owned();
+                    // tracing::info!("Got target_address");
                     drop(wallet);
 
                     let source_check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
+                        // tracing::info!("Getting token_balance source");
                         rpc::get_token_balance(client, &native_token_address, &source_address, None)
                     })
                     .with_config(config)
                     .await
                     {
+                        // tracing::info!("Checking BalanceSource");
                         Check::BalanceSource(source, pre_balance, amount, state.clone())
                     } else {
                         continue;
                     };
 
                     let target_check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
+                        // tracing::info!("Getting token_balance target");
                         rpc::get_token_balance(client, &native_token_address, &target_address, None)
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
                         let error = error.to_string();
+                        // tracing::info!("Waiting for token_balance");
                         async move {
                             tracing::info!("Retry {} due to {}...", attempt, error);
                         }
                     })
                     .await
                     {
+                        // tracing::info!("Checking BalanceTarget");
                         Check::BalanceTarget(target, pre_balance, amount, state.clone())
                     } else {
                         continue;
@@ -259,24 +285,33 @@ impl WorkloadExecutor {
                 }
                 Task::Bond(source, validator, amount, epoch, _) => {
                     let wallet = sdk.namada.wallet.read().await;
+                    // tracing::info!("Got wallet");
                     let source_address = wallet.find_address(&source.name).unwrap().into_owned();
+                    // tracing::info!("Got source_address");
 
                     let validator_address = Address::from_str(&validator).unwrap();
+                    // tracing::info!("Got validator_address");
+
                     let epoch = namada_sdk::state::Epoch::from(epoch);
+                    // tracing::info!("Got epoch");
+
                     drop(wallet);
 
                     let bond_check = if let Ok(pre_bond) = tryhard::retry_fn(|| {
+                        // tracing::info!("Getting bond amount");
                         rpc::get_bond_amount_at(client, &source_address, &validator_address, epoch)
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
                         let error = error.to_string();
+                        // tracing::info!("Waiting for bond");
                         async move {
                             tracing::info!("Retry {} due to {}...", attempt, error);
                         }
                     })
                     .await
                     {
+                        // tracing::info!("Checking Bond");
                         Check::Bond(source, validator, pre_bond, amount, state.clone())
                     } else {
                         continue;

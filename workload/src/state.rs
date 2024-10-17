@@ -3,6 +3,8 @@ use std::collections::{BTreeSet, HashMap};
 use rand::{seq::IteratorRandom, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::{self, Read, Write};
 
 use crate::{
     constants::{DEFAULT_FEE_IN_NATIVE_TOKEN, MIN_TRANSFER_BALANCE},
@@ -45,6 +47,33 @@ pub struct State {
     pub rng: ChaCha20Rng,
 }
 
+
+#[derive(Deserialize, Clone, Debug, Serialize)]
+pub struct SaveState {
+    pub accounts: HashMap<Alias, Account>,
+    pub balances: HashMap<Alias, u64>,
+    pub bonds: HashMap<Alias, HashMap<String, u64>>,
+}
+
+impl SaveState {
+    pub fn from_state(s: &State) -> Self {
+        SaveState {
+            accounts: s.accounts.clone(),
+            balances: s.balances.clone(),
+            bonds: s.bonds.clone()
+        }
+    }
+
+    pub fn to_state(ss: Self, seed: u64) -> State {
+        State {
+            accounts: ss.accounts,
+            balances: ss.balances,
+            bonds: ss.bonds,
+            rng: ChaCha20Rng::seed_from_u64(seed),
+        }
+    }
+}
+
 impl State {
     pub fn new(seed: u64) -> Self {
         Self {
@@ -55,6 +84,38 @@ impl State {
         }
     }
     /// READ
+    
+    pub fn write_to_file(&self, file_path: &str) -> io::Result<()> {
+        let ss = SaveState::from_state(self);
+        let serialized_data = serde_json::to_string_pretty(&ss)
+            .expect("Failed to serialize the State struct");
+        let mut file = File::create(file_path)?;
+        file.write_all(serialized_data.as_bytes())?;
+        Ok(())
+    }
+
+    pub fn read_from_file(file_path: &str, seed: u64) -> io::Result<Self> {
+        let mut file = File::open(file_path);
+        match file {
+            Ok(mut f) => {
+                let mut buffer = String::new();
+                f.read_to_string(&mut buffer)?;
+                let mut res = serde_json::from_str(&buffer);
+                match res {
+                    Ok(ss) => Ok(SaveState::to_state(ss, seed)),
+                    Err(e) => {
+                        println!("Failed to deserialize: {:?}", e);
+                        Err(e.into())
+                    }
+                }
+            },
+            Err(e) => {
+                println!("File does not exist");
+                Err(e)
+            }
+        }
+
+    }
 
     pub fn any_account(&self) -> bool {
         self.at_least_accounts(1)

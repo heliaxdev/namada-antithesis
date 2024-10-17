@@ -28,6 +28,8 @@ rand = {version = "0.8.5", default-features = false}
 thiserror = "1.0.63"
 tryhard = "0.5.1"
 rand_chacha = { version = "0.3.1" }
+file-lock = "2.1.11"
+fs2 = "0.4"
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }
