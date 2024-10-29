@@ -1,5 +1,6 @@
-use std::{str::FromStr, time::Instant};
+use std::{fmt::Display, str::FromStr, time::Instant};
 
+use clap::ValueEnum;
 use namada_sdk::{
     address::Address,
     args::{InputAmount, TxBuilder, TxTransparentTransferData},
@@ -22,10 +23,6 @@ use serde_json::json;
 use thiserror::Error;
 use tokio::time::{sleep, Duration};
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
-use weighted_rand::{
-    builder::{NewBuilder, WalkerTableBuilder},
-    table::WalkerTable,
-};
 
 #[derive(Error, Debug)]
 pub enum StepError {
@@ -49,15 +46,26 @@ use crate::{
     entities::Alias,
     sdk::namada::Sdk,
     state::State,
-    task::{Task, TaskSettings},
+    task::{Task, TaskSettings}, utils,
 };
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum StepType {
     NewWalletKeyPair,
     FaucetTransfer,
     TransparentTransfer,
     Bond,
+}
+
+impl Display for StepType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StepType::NewWalletKeyPair => write!(f, "wallet-key-pair"),
+            StepType::FaucetTransfer => write!(f, "faucet-transfer"),
+            StepType::TransparentTransfer => write!(f, "transparent-transfer"),
+            StepType::Bond => write!(f, "bond"),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -67,20 +75,11 @@ pub struct ExecutionResult {
 }
 
 #[derive(Clone, Debug)]
-pub struct WorkloadExecutor {
-    pub step_types: Vec<StepType>,
-    inner: WalkerTable,
-}
+pub struct WorkloadExecutor {}
 
 impl WorkloadExecutor {
-    pub fn new(step_types: Vec<StepType>, step_prob: Vec<f32>) -> Self {
-        let builder = WalkerTableBuilder::new(&step_prob);
-        let table = builder.build();
-
-        Self {
-            step_types,
-            inner: table,
-        }
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub async fn init(&self, sdk: &Sdk) {
@@ -103,17 +102,7 @@ impl WorkloadExecutor {
         }
     }
 
-    pub fn next(&self, state: &State) -> StepType {
-        let mut next_step = self.step_types[self.inner.next()];
-        loop {
-            if Self::is_valid(next_step, state) {
-                return next_step;
-            }
-            next_step = self.step_types[self.inner.next()];
-        }
-    }
-
-    fn is_valid(step_type: StepType, state: &State) -> bool {
+    pub fn is_valid(&self, step_type: &StepType, state: &State) -> bool {
         match step_type {
             StepType::NewWalletKeyPair => true,
             StepType::FaucetTransfer => state.any_account(),
@@ -150,7 +139,8 @@ impl WorkloadExecutor {
             StepType::TransparentTransfer => {
                 let source_account = state.random_account_with_min_balance(vec![]);
                 let target_account = state.random_account(vec![source_account.alias.clone()]);
-                let amount = state.get_balance_for(&source_account.alias);
+                let amount_account = state.get_balance_for(&source_account.alias);
+                let amount = utils::get_random_between(&mut state, 1, amount_account);
 
                 let task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
 
@@ -164,7 +154,8 @@ impl WorkloadExecutor {
             StepType::Bond => {
                 let client = sdk.namada.client();
                 let source_account = state.random_account_with_min_balance(vec![]);
-                let amount = state.get_balance_for(&source_account.alias);
+                let amount_account = state.get_balance_for(&source_account.alias);
+                let amount = utils::get_random_between(&mut state, 1, amount_account);
 
                 let current_epoch = rpc::query_epoch(client)
                     .await
@@ -305,8 +296,7 @@ impl WorkloadExecutor {
         &self,
         sdk: &Sdk,
         checks: Vec<Check>,
-        execution_height: Option<u64>,
-        state: &mut State
+        execution_height: Option<u64>
     ) -> Result<(), String> {
         let config = Self::retry_config();
         let client = sdk.namada.client();
@@ -336,13 +326,10 @@ impl WorkloadExecutor {
                     );
                 }
             }
-            sleep(Duration::from_secs_f64(0.1f64)).await
+            sleep(Duration::from_secs_f64(0.5f64)).await
         };
 
-        // introduce some random sleep
-        // let random_timeout = state.rng.gen_range(0.0f64..2.0f64);
         let random_timeout = 0.0f64;
-        // sleep(Duration::from_secs_f64(random_timeout)).await;
 
         for check in checks {
             match check {

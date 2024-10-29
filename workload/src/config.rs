@@ -1,3 +1,5 @@
+use crate::steps::StepType;
+
 #[derive(clap::Parser, Clone, Debug)]
 pub struct AppConfig {
     #[clap(long, env)]
@@ -10,8 +12,11 @@ pub struct AppConfig {
     #[arg(required = true)]
     pub chain_id: String,
     #[clap(long, env)]
-    pub seed: Option<u64>,
+    pub seed: u64,
     #[clap(long, env)]
     #[arg(required = true)]
     pub masp_indexer_url: String,
+    #[arg(required = true)]
+    #[arg(value_enum)]
+    pub step_type: StepType,
 }

@@ -1,5 +1,10 @@
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    env, fs::{self, File},
+    path::PathBuf,
+};
 
+use fs2::FileExt;
 use rand::{seq::IteratorRandom, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
@@ -36,13 +41,15 @@ impl Account {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub balances: HashMap<Alias, u64>,
     pub bonds: HashMap<Alias, HashMap<String, u64>>,
-    #[serde(skip)]
+    pub seed: u64,
     pub rng: ChaCha20Rng,
+    pub path: PathBuf,
+    pub base_dir: PathBuf,
 }
 
 impl State {
@@ -51,9 +58,33 @@ impl State {
             accounts: HashMap::default(),
             balances: HashMap::default(),
             bonds: HashMap::default(),
+            seed,
             rng: ChaCha20Rng::seed_from_u64(seed),
+            path: env::current_dir()
+                .unwrap()
+                .join(format!("state-{}.json", seed)),
+            base_dir: env::current_dir().unwrap().join("base"),
         }
     }
+
+    pub fn serialize_to_file(&self) {
+        fs::write(&self.path, serde_json::to_string_pretty(&self).unwrap()).unwrap()
+    }
+
+    pub fn from_file(seed: u64) -> Self {
+        let path = env::current_dir()
+            .unwrap()
+            .join(format!("state-{}.json", seed));
+        match fs::read_to_string(path) {
+            Ok(data) => serde_json::from_str(&data).unwrap(),
+            Err(_) => {
+                let state = State::new(seed);
+                state.serialize_to_file();
+                state
+            }
+        }
+    }
+
     /// READ
 
     pub fn any_account(&self) -> bool {
@@ -80,6 +111,7 @@ impl State {
             }
         })
     }
+
     pub fn any_account_can_make_transfer(&self) -> bool {
         self.balances
             .iter()

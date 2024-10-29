@@ -1,20 +1,16 @@
-use std::{str::FromStr, thread, time::Duration};
+use std::{env, fs::File, str::FromStr, thread, time::Duration};
 
 use antithesis_sdk::antithesis_init;
 use clap::Parser;
+use fs2::FileExt;
 use namada_chain_workload::{
-    config::AppConfig,
-    sdk::namada::Sdk,
-    state::State,
-    steps::{StepType, WorkloadExecutor},
+    config::AppConfig, sdk::namada::Sdk, state::State, steps::WorkloadExecutor,
 };
 use namada_sdk::{
     io::{Client, NullIo},
     masp::{fs::FsShieldedUtils, ShieldedContext},
 };
 use namada_wallet::fs::FsWalletUtils;
-use rand::RngCore;
-use tempfile::tempdir;
 use tendermint_rpc::{HttpClient, Url};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -27,9 +23,6 @@ async fn main() {
         .with_default_directive(LevelFilter::INFO.into())
         .from_env()
         .unwrap();
-        // .add_directive("namada_chain_workload=debug".parse().unwrap())
-        // .add_directive("namada_sdk::rpc=debug".parse().unwrap())
-        // .add_directive("tendermint_rpc::client::transport::http=debug".parse().unwrap());
 
     tracing_subscriber::fmt()
         .with_env_filter(filter)
@@ -42,7 +35,18 @@ async fn main() {
     tracing::info!("Using config: {:#?}", config);
     tracing::info!("Sha commit: {}", env!("VERGEN_GIT_SHA").to_string());
 
-    let base_dir = tempdir().unwrap().path().to_path_buf();
+    tracing::info!("Trying to get the lock...");
+    let path = env::current_dir()
+        .unwrap()
+        .join(format!("state-{}.json", config.seed));
+    let file = File::open(&path).unwrap();
+    file.lock_exclusive().unwrap();
+    tracing::info!("State locked.");
+
+    let mut state = State::from_file(config.seed);
+
+    tracing::info!("Using base dir: {}", state.base_dir.as_path().display());
+    tracing::info!("Using seed: {}", state.seed);
 
     let url = Url::from_str(&config.rpc).expect("invalid RPC address");
     let http_client = HttpClient::new(url).unwrap();
@@ -67,18 +71,21 @@ async fn main() {
 
     let sdk = loop {
         // Setup wallet storage
-        let wallet_path = base_dir.join("wallet");
-        let wallet = FsWalletUtils::new(wallet_path);
+        let wallet_path = state.base_dir.join("wallet");
+        let mut wallet = FsWalletUtils::new(wallet_path.clone());
+        if wallet_path.join("wallet.toml").exists() {
+            wallet.load().expect("Should be able to load the wallet;");
+        }
 
         // Setup shielded context storage
-        let shielded_ctx_path = base_dir.join("masp");
+        let shielded_ctx_path = state.base_dir.join("masp");
         let shielded_ctx = ShieldedContext::new(FsShieldedUtils::new(shielded_ctx_path));
 
         let io = NullIo;
 
         match Sdk::new(
             &config,
-            &base_dir,
+            &state.base_dir,
             http_client.clone(),
             wallet,
             shielded_ctx,
@@ -91,82 +98,79 @@ async fn main() {
         };
     };
 
-    let seed = config.seed.unwrap_or(rand::thread_rng().next_u64());
-    let mut state = State::new(seed);
-
-    tracing::info!("Using base dir: {}", sdk.base_dir.as_path().display());
-    tracing::info!("Using seed: {}", seed);
-
-    let workload_executor = WorkloadExecutor::new(
-        vec![
-            StepType::NewWalletKeyPair,
-            StepType::FaucetTransfer,
-            StepType::TransparentTransfer,
-            StepType::Bond,
-        ],
-        vec![2.0, 3.0, 6.0, 6.0],
-    );
+    let workload_executor = WorkloadExecutor::new();
 
     tracing::info!("Starting initialization...");
     workload_executor.init(&sdk).await;
     tracing::info!("Done initialization!");
 
-    loop {
-        let next_step = workload_executor.next(&state);
-        tracing::info!("Next step is: {:?}...", next_step);
-        let tasks = match workload_executor.build(next_step, &sdk, &mut state).await {
-            Ok(tasks) => tasks,
-            Err(e) => {
-                match e {
-                    namada_chain_workload::steps::StepError::Execution(_) => {
-                        tracing::error!("Error build {:?} -> {}", next_step, e.to_string());
-                    }
-                    _ => {
-                        tracing::warn!("Warning build {:?} -> {}", next_step, e.to_string());
-                    }
-                }
-                continue;
-            }
-        };
-        tracing::info!("Built {:?}...", next_step);
-
-        let checks = workload_executor
-            .build_check(&sdk, tasks.clone(), &state)
-            .await;
-        tracing::info!("Built checks for {:?}", next_step);
-
-        let execution_height = match workload_executor.execute(&sdk, tasks.clone()).await {
-            Ok(result) => {
-                workload_executor.update_state(tasks, &mut state);
-                tracing::info!("Execution took {}s...", result.time_taken);
-                result.execution_height
-            }
-            Err(e) => {
-                match e {
-                    namada_chain_workload::steps::StepError::Execution(_) => {
-                        tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
-                    }
-                    _ => {
-                        tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
-                    }
-                }
-                continue;
-            }
-        };
-
-        if let Err(e) = workload_executor
-            .checks(&sdk, checks.clone(), execution_height, &mut state)
-            .await
-        {
-            tracing::error!("Error final checks {:?} -> {}", next_step, e.to_string());
-        } else {
-            if checks.is_empty() {
-                tracing::info!("Checks are empty, skipping...");
-            } else {
-                tracing::info!("Checks were successful, updating state...");
-            }
-            tracing::info!("Done {:?}!", next_step);
-        }
-        println!(" ")
+    let next_step = config.step_type;
+    if !workload_executor.is_valid(&next_step, &state) {
+        tracing::info!("Invalid step: {}", next_step);
+        return;
     }
+
+    tracing::info!("Step is: {:?}...", next_step);
+    let tasks = match workload_executor.build(next_step, &sdk, &mut state).await {
+        Ok(tasks) => tasks,
+        Err(e) => {
+            match e {
+                namada_chain_workload::steps::StepError::Execution(_) => {
+                    tracing::error!("Error build {:?} -> {}", next_step, e.to_string());
+                }
+                _ => {
+                    tracing::warn!("Warning build {:?} -> {}", next_step, e.to_string());
+                }
+            }
+            state.serialize_to_file();
+            return;
+        }
+    };
+    tracing::info!("Built {:?}...", next_step);
+
+    let checks = workload_executor
+        .build_check(&sdk, tasks.clone(), &state)
+        .await;
+    tracing::info!("Built checks for {:?}", next_step);
+
+    let execution_height = match workload_executor.execute(&sdk, tasks.clone()).await {
+        Ok(result) => {
+            tracing::info!("Execution took {}s...", result.time_taken);
+            result.execution_height
+        }
+        Err(e) => {
+            match e {
+                namada_chain_workload::steps::StepError::Execution(_) => {
+                    tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
+                }
+                _ => {
+                    tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
+                }
+            }
+            state.serialize_to_file();
+            return;
+        }
+    };
+
+    if let Err(e) = workload_executor
+        .checks(&sdk, checks.clone(), execution_height)
+        .await
+    {
+        tracing::error!("Error final checks {:?} -> {}", next_step, e.to_string());
+    } else {
+        if checks.is_empty() {
+            tracing::info!("Checks are empty, skipping...");
+        } else {
+            workload_executor.update_state(tasks, &mut state);
+            tracing::info!("Checks were successful, updating state...");
+        }
+    }
+
+    state.serialize_to_file();
+    let path = env::current_dir()
+        .unwrap()
+        .join(format!("state-{}.json", config.seed));
+    let file = File::open(&path).unwrap();
+    file.unlock().unwrap();
+    tracing::info!("Done {:?}!", next_step);
 }
