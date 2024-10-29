@@ -3249,6 +3249,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "clap",
+ "fs2",
  "futures",
  "namada_sdk",
  "namada_wallet",
@@ -3257,7 +3258,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "tempfile",
  "tendermint-config",
  "tendermint-rpc",
  "thiserror",
@@ -3266,7 +3266,6 @@ dependencies = [
  "tracing-subscriber",
  "tryhard",
  "vergen",
- "weighted_rand",
 ]
 
 [[package]]
@@ -4694,7 +4693,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acf0c195eebb4af52c752bec4f52f645da98b6e92077a04110c7f349477ae5ac"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.12.1",
  "proc-macro2",
  "quote",
  "syn 2.0.72",
@@ -4775,6 +4774,7 @@ checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
  "rand_core 0.6.4",
+ "serde",
 ]
 
 [[package]]
@@ -6634,16 +6634,6 @@ name = "webpki-roots"
 version = "0.25.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
-
-[[package]]
-name = "weighted_rand"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ab9b6b2a8470ef752f01ec563216a4aa4fbb2ef285f4506b241095c1ef0b16e"
-dependencies = [
- "rand 0.8.5",
- "serde",
-]
 
 [[package]]
 name = "winapi"
