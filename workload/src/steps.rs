@@ -38,16 +38,17 @@ pub enum StepError {
 
 use crate::{
     build::{
-        bond::build_bond, faucet_transfer::build_faucet_transfer,
+        batch::build_batch, bond::build_bond, faucet_transfer::build_faucet_transfer,
         new_wallet_keypair::build_new_wallet_keypair,
         transparent_transfer::build_transparent_transfer,
     },
     check::Check,
     entities::Alias,
     execute::{
-        bond::execute_bond, faucet_transfer::execute_faucet_transfer,
-        new_wallet_keypair::execute_new_wallet_key_pair, reveal_pk::execute_reveal_pk,
-        transparent_transfer::execute_transparent_transfer,
+        batch::execute_tx_batch, bond::{build_tx_bond, execute_tx_bond}, faucet_transfer::execute_faucet_transfer, new_wallet_keypair::execute_new_wallet_key_pair, reveal_pk::execute_reveal_pk, transparent_transfer::{
+            build_tx_transparent_transfer,
+            execute_tx_transparent_transfer,
+        }
     },
     sdk::namada::Sdk,
     state::State,
@@ -60,6 +61,8 @@ pub enum StepType {
     FaucetTransfer,
     TransparentTransfer,
     Bond,
+    BatchBond,
+    BatchRandom,
 }
 
 impl Display for StepType {
@@ -69,6 +72,8 @@ impl Display for StepType {
             StepType::FaucetTransfer => write!(f, "faucet-transfer"),
             StepType::TransparentTransfer => write!(f, "transparent-transfer"),
             StepType::Bond => write!(f, "bond"),
+            StepType::BatchRandom => write!(f, "batch-random"),
+            StepType::BatchBond => write!(f, "batch-bond"),
         }
     }
 }
@@ -121,6 +126,8 @@ impl WorkloadExecutor {
                 state.at_least_accounts(2) && state.any_account_can_make_transfer()
             }
             StepType::Bond => state.any_account_with_min_balance(1),
+            StepType::BatchBond => state.min_n_account_with_min_balance(3, 1),
+            StepType::BatchRandom => state.min_n_account_with_min_balance(3, 1),
         }
     }
 
@@ -132,9 +139,11 @@ impl WorkloadExecutor {
     ) -> Result<Vec<Task>, StepError> {
         let steps = match step_type {
             StepType::NewWalletKeyPair => build_new_wallet_keypair(state).await,
-            StepType::FaucetTransfer => build_faucet_transfer(state).await,
-            StepType::TransparentTransfer => build_transparent_transfer(state).await,
+            StepType::FaucetTransfer => build_faucet_transfer(state).await?,
+            StepType::TransparentTransfer => build_transparent_transfer(state).await?,
             StepType::Bond => build_bond(sdk, state).await?,
+            StepType::BatchBond => build_batch(sdk, true, false, 3, state).await?,
+            StepType::BatchRandom => build_batch(sdk, true, true, 3, state).await?,
         };
         Ok(steps)
     }
@@ -243,6 +252,9 @@ impl WorkloadExecutor {
                         continue;
                     };
                     vec![bond_check]
+                }
+                Task::Batch(vec, task_settings) => {
+                    vec![]
                 }
             };
             checks.extend(check)
@@ -516,10 +528,34 @@ impl WorkloadExecutor {
                     execute_faucet_transfer(sdk, target, amount, settings).await?
                 }
                 Task::TransparentTransfer(source, target, amount, settings) => {
-                    execute_transparent_transfer(sdk, source, target, amount, settings).await?
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_transparent_transfer(sdk, source, target, amount, settings)
+                            .await?;
+                    execute_tx_transparent_transfer(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Bond(source, validator, amount, _, settings) => {
-                    execute_bond(sdk, source, validator, amount, settings).await?
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_bond(sdk, source, validator, amount, settings).await?;
+                    execute_tx_bond(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::Batch(tasks, task_settings) => {
+                    let mut txs = vec![];
+                    for task in tasks {
+                        let (tx, signing_data, _) = match task {
+                            Task::TransparentTransfer(source, target, amount, settings) => {
+                                build_tx_transparent_transfer(
+                                    sdk, source, target, amount, settings,
+                                )
+                                .await?
+                            }
+                            Task::Bond(source, validator, amount, _, settings) => {
+                                build_tx_bond(sdk, source, validator, amount, settings).await?
+                            }
+                            _ => panic!(),
+                        };
+                        txs.push((tx, signing_data));
+                    }
+                    execute_tx_batch(sdk, txs, task_settings).await?
                 }
             };
             let execution_result = ExecutionResult {
@@ -533,26 +569,7 @@ impl WorkloadExecutor {
     }
 
     pub fn update_state(&self, tasks: Vec<Task>, state: &mut State) {
-        for task in tasks {
-            match task {
-                Task::NewWalletKeyPair(alias) => {
-                    state.add_implicit_account(alias);
-                }
-                Task::FaucetTransfer(target, amount, settings) => {
-                    let source_alias = Alias::faucet();
-                    state.modify_balance(source_alias, target, amount);
-                    state.modify_balance_fee(settings.gas_payer, settings.gas_limit);
-                }
-                Task::TransparentTransfer(source, target, amount, setting) => {
-                    state.modify_balance(source, target, amount);
-                    state.modify_balance_fee(setting.gas_payer, setting.gas_limit);
-                }
-                Task::Bond(source, validator, amount, _, setting) => {
-                    state.modify_bond(source, validator, amount);
-                    state.modify_balance_fee(setting.gas_payer, setting.gas_limit);
-                }
-            }
-        }
+        state.update(tasks, true);
     }
 
     async fn reveal_pk(sdk: &Sdk, public_key: common::PublicKey) -> Result<Option<u64>, StepError> {
