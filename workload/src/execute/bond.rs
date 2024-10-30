@@ -2,11 +2,11 @@ use std::str::FromStr;
 
 use namada_sdk::{
     address::Address,
-    args::TxBuilder,
+    args::{self, TxBuilder},
     rpc::TxResponse,
-    signing::default_sign,
+    signing::{default_sign, SigningTxData},
     token,
-    tx::{data::GasLimit, ProcessTxResponse},
+    tx::{data::GasLimit, ProcessTxResponse, Tx},
     Namada,
 };
 
@@ -14,13 +14,13 @@ use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSetti
 
 use super::utils;
 
-pub async fn execute_bond(
+pub async fn build_tx_bond(
     sdk: &Sdk,
     source: Alias,
     validator: String,
     amount: u64,
     settings: TaskSettings,
-) -> Result<Option<u64>, StepError> {
+) -> Result<(Tx, SigningTxData, args::Tx), StepError> {
     let wallet = sdk.namada.wallet.write().await;
 
     let source_address = wallet.find_address(source.name).unwrap().as_ref().clone();
@@ -42,42 +42,19 @@ pub async fn execute_bond(
     bond_tx_builder = bond_tx_builder.signing_keys(signing_keys.clone());
     drop(wallet);
 
-    let (mut bond_tx, signing_data) = bond_tx_builder
+    let (bond_tx, signing_data) = bond_tx_builder
         .build(&sdk.namada)
         .await
         .map_err(|e| StepError::Build(e.to_string()))?;
 
-    sdk.namada
-        .sign(
-            &mut bond_tx,
-            &bond_tx_builder.tx,
-            signing_data,
-            default_sign,
-            (),
-        )
-        .await
-        .expect("unable to sign tx");
+    Ok((bond_tx, signing_data, bond_tx_builder.tx))
+}
 
-    let tx = sdk
-        .namada
-        .submit(bond_tx.clone(), &bond_tx_builder.tx)
-        .await;
-
-    let execution_height = if let Ok(ProcessTxResponse::Applied(TxResponse { height, .. })) = &tx {
-        Some(height.0)
-    } else {
-        None
-    };
-
-    if utils::is_tx_rejected(&bond_tx, &tx) {
-        match tx {
-            Ok(tx) => {
-                let errors = utils::get_tx_errors(&bond_tx, &tx).unwrap_or_default();
-                return Err(StepError::Execution(errors));
-            }
-            Err(e) => return Err(StepError::Broadcast(e.to_string())),
-        }
-    }
-
-    Ok(execution_height)
+pub async fn execute_tx_bond(
+    sdk: &Sdk,
+    tx: &mut Tx,
+    signing_data: SigningTxData,
+    tx_args: &args::Tx
+) -> Result<Option<u64>, StepError> {
+    utils::execute_tx(sdk, tx, vec![signing_data], tx_args).await
 }

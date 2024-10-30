@@ -1,9 +1,9 @@
 use namada_sdk::{
-    args::{InputAmount, TxBuilder, TxTransparentTransferData},
+    args::{self, InputAmount, TxBuilder, TxTransparentTransferData},
     rpc::TxResponse,
-    signing::default_sign,
+    signing::{default_sign, SigningTxData},
     token::{self, DenominatedAmount},
-    tx::{data::GasLimit, ProcessTxResponse},
+    tx::{data::GasLimit, ProcessTxResponse, Tx},
     Namada,
 };
 
@@ -11,13 +11,13 @@ use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSetti
 
 use super::utils;
 
-pub async fn execute_transparent_transfer(
+pub async fn build_tx_transparent_transfer(
     sdk: &Sdk,
     source: Alias,
     target: Alias,
     amount: u64,
     settings: TaskSettings,
-) -> Result<Option<u64>, StepError> {
+) -> Result<(Tx, SigningTxData, args::Tx), StepError> {
     let wallet = sdk.namada.wallet.write().await;
 
     let native_token_alias = Alias::nam();
@@ -50,42 +50,19 @@ pub async fn execute_transparent_transfer(
     transfer_tx_builder = transfer_tx_builder.signing_keys(signing_keys.clone());
     drop(wallet);
 
-    let (mut transfer_tx, signing_data) = transfer_tx_builder
+    let (transfer_tx, signing_data) = transfer_tx_builder
         .build(&sdk.namada)
         .await
         .map_err(|e| StepError::Build(e.to_string()))?;
 
-    sdk.namada
-        .sign(
-            &mut transfer_tx,
-            &transfer_tx_builder.tx,
-            signing_data,
-            default_sign,
-            (),
-        )
-        .await
-        .expect("unable to sign tx");
+    Ok((transfer_tx, signing_data, transfer_tx_builder.tx))
+}
 
-    let tx = sdk
-        .namada
-        .submit(transfer_tx.clone(), &transfer_tx_builder.tx)
-        .await;
-
-    let execution_height = if let Ok(ProcessTxResponse::Applied(TxResponse { height, .. })) = &tx {
-        Some(height.0)
-    } else {
-        None
-    };
-
-    if utils::is_tx_rejected(&transfer_tx, &tx) {
-        match tx {
-            Ok(tx) => {
-                let errors = utils::get_tx_errors(&transfer_tx, &tx).unwrap_or_default();
-                return Err(StepError::Execution(errors));
-            }
-            Err(e) => return Err(StepError::Broadcast(e.to_string())),
-        }
-    }
-
-    Ok(execution_height)
+pub async fn execute_tx_transparent_transfer(
+    sdk: &Sdk,
+    tx: &mut Tx,
+    signing_data: SigningTxData,
+    tx_args: &args::Tx
+) -> Result<Option<u64>, StepError> {
+    utils::execute_tx(sdk, tx, vec![signing_data], tx_args).await
 }

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     constants::{DEFAULT_FEE_IN_NATIVE_TOKEN, MIN_TRANSFER_BALANCE},
-    entities::Alias,
+    entities::Alias, task::Task,
 };
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,6 +67,39 @@ impl State {
         }
     }
 
+    pub fn update(&mut self, tasks: Vec<Task>, with_fee: bool) {
+        for task in tasks {
+            match task {
+                Task::NewWalletKeyPair(alias) => {
+                    self.add_implicit_account(alias);
+                }
+                Task::FaucetTransfer(target, amount, settings) => {
+                    let source_alias = Alias::faucet();
+                    self.modify_balance(source_alias, target, amount);
+                    if with_fee {
+                        self.modify_balance_fee(settings.gas_payer, settings.gas_limit);
+                    }
+                }
+                Task::TransparentTransfer(source, target, amount, setting) => {
+                    self.modify_balance(source, target, amount);
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                }
+                Task::Bond(source, validator, amount, _, setting) => {
+                    self.modify_bond(source, validator, amount);
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                }
+                Task::Batch(tasks, setting) => {
+                    self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    self.update(tasks, false);
+                }
+            }
+        }
+    }
+
     pub fn serialize_to_file(&self) {
         fs::write(&self.path, serde_json::to_string_pretty(&self).unwrap()).unwrap()
     }
@@ -101,6 +134,13 @@ impl State {
             .any(|(_, balance)| balance >= &min_balance)
     }
 
+    pub fn min_n_account_with_min_balance(&self, total_accounts: usize, min_balance: u64) -> bool {
+        self.balances
+            .iter()
+            .filter(|(_, balance)| **balance >= min_balance)
+            .count() >= total_accounts
+    }
+
     pub fn any_account_can_pay_fees(&self) -> bool {
         self.balances.iter().any(|(alias, balance)| {
             if balance >= &DEFAULT_FEE_IN_NATIVE_TOKEN {
@@ -120,16 +160,15 @@ impl State {
 
     /// GET
 
-    pub fn random_account(&mut self, blacklist: Vec<Alias>) -> Account {
+    pub fn random_account(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
         self.accounts
             .iter()
             .filter(|(alias, _)| !blacklist.contains(alias))
             .choose(&mut self.rng)
             .map(|(_, account)| account.clone())
-            .unwrap()
     }
 
-    pub fn random_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Account {
+    pub fn random_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
         self.balances
             .iter()
             .filter_map(|(alias, balance)| {
@@ -143,7 +182,6 @@ impl State {
                 }
             })
             .choose(&mut self.rng)
-            .unwrap()
     }
 
     pub fn get_balance_for(&self, alias: &Alias) -> u64 {
