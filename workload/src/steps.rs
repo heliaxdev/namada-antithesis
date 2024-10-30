@@ -13,7 +13,6 @@ use namada_sdk::{
 };
 use rand::{
     distributions::{Alphanumeric, DistString},
-    seq::IteratorRandom,
     Rng,
 };
 use serde_json::json;
@@ -38,8 +37,12 @@ pub enum StepError {
 }
 
 use crate::{
+    build::{
+        bond::build_bond, faucet_transfer::build_faucet_transfer,
+        new_wallet_keypair::build_new_wallet_keypair,
+        transparent_transfer::build_transparent_transfer,
+    },
     check::Check,
-    constants::NATIVE_SCALE,
     entities::Alias,
     execute::{
         bond::execute_bond, faucet_transfer::execute_faucet_transfer,
@@ -48,8 +51,7 @@ use crate::{
     },
     sdk::namada::Sdk,
     state::State,
-    task::{Task, TaskSettings},
-    utils,
+    task::Task,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -129,66 +131,10 @@ impl WorkloadExecutor {
         state: &mut State,
     ) -> Result<Vec<Task>, StepError> {
         let steps = match step_type {
-            StepType::NewWalletKeyPair => {
-                let alias = Self::random_alias(state);
-                vec![Task::NewWalletKeyPair(alias)]
-            }
-            StepType::FaucetTransfer => {
-                let target_account = state.random_account(vec![]);
-                let amount = Self::random_between(1000, 2000, state) * NATIVE_SCALE;
-
-                let task_settings = TaskSettings::faucet();
-
-                vec![Task::FaucetTransfer(
-                    target_account.alias,
-                    amount,
-                    task_settings,
-                )]
-            }
-            StepType::TransparentTransfer => {
-                let source_account = state.random_account_with_min_balance(vec![]);
-                let target_account = state.random_account(vec![source_account.alias.clone()]);
-                let amount_account = state.get_balance_for(&source_account.alias);
-                let amount = utils::get_random_between(state, 1, amount_account);
-
-                let task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
-
-                vec![Task::TransparentTransfer(
-                    source_account.alias,
-                    target_account.alias,
-                    amount,
-                    task_settings,
-                )]
-            }
-            StepType::Bond => {
-                let client = sdk.namada.client();
-                let source_account = state.random_account_with_min_balance(vec![]);
-                let amount_account = state.get_balance_for(&source_account.alias);
-                let amount = utils::get_random_between(state, 1, amount_account);
-
-                let current_epoch = rpc::query_epoch(client)
-                    .await
-                    .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?;
-                let validators = rpc::get_all_consensus_validators(client, current_epoch)
-                    .await
-                    .map_err(|e| StepError::Rpc(format!("query consensus validators: {}", e)))?;
-
-                let validator = validators
-                    .into_iter()
-                    .map(|v| v.address)
-                    .choose(&mut state.rng)
-                    .unwrap(); // safe as there is always at least a validator
-
-                let task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
-
-                vec![Task::Bond(
-                    source_account.alias,
-                    validator.to_string(),
-                    amount,
-                    current_epoch.into(),
-                    task_settings,
-                )]
-            }
+            StepType::NewWalletKeyPair => build_new_wallet_keypair(state).await,
+            StepType::FaucetTransfer => build_faucet_transfer(state).await,
+            StepType::TransparentTransfer => build_transparent_transfer(state).await,
+            StepType::Bond => build_bond(sdk, state).await?,
         };
         Ok(steps)
     }
