@@ -1,10 +1,22 @@
-use namada_sdk::{args::{InputAmount, TxBuilder, TxTransparentTransferData}, rpc::TxResponse, signing::default_sign, token::{self, DenominatedAmount}, tx::{data::GasLimit, ProcessTxResponse}, Namada};
+use namada_sdk::{
+    args::{InputAmount, TxBuilder, TxTransparentTransferData},
+    rpc::TxResponse,
+    signing::default_sign,
+    token::{self, DenominatedAmount},
+    tx::{data::GasLimit, ProcessTxResponse},
+    Namada,
+};
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSettings};
 
 use super::utils;
 
-pub async fn execute_faucet_transfer(sdk: &Sdk, target: Alias, amount: u64, settings: TaskSettings) -> Result<Option<u64>, StepError> {
+pub async fn execute_faucet_transfer(
+    sdk: &Sdk,
+    target: Alias,
+    amount: u64,
+    settings: TaskSettings,
+) -> Result<Option<u64>, StepError> {
     let wallet = sdk.namada.wallet.write().await;
 
     let faucet_alias = Alias::faucet();

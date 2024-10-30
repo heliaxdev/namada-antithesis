@@ -1,6 +1,14 @@
 use std::str::FromStr;
 
-use namada_sdk::{address::Address, args::TxBuilder, rpc::TxResponse, signing::default_sign, token, tx::{data::GasLimit, ProcessTxResponse}, Namada};
+use namada_sdk::{
+    address::Address,
+    args::TxBuilder,
+    rpc::TxResponse,
+    signing::default_sign,
+    token,
+    tx::{data::GasLimit, ProcessTxResponse},
+    Namada,
+};
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSettings};
 
@@ -70,6 +78,6 @@ pub async fn execute_bond(
             Err(e) => return Err(StepError::Broadcast(e.to_string())),
         }
     }
-    
+
     Ok(execution_height)
 }

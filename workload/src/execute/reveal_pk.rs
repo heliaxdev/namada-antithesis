@@ -1,10 +1,16 @@
-use namada_sdk::{args::TxBuilder, key::common, rpc::TxResponse, signing::default_sign, tx::ProcessTxResponse, Namada};
+use namada_sdk::{
+    args::TxBuilder, key::common, rpc::TxResponse, signing::default_sign, tx::ProcessTxResponse,
+    Namada,
+};
 
 use crate::{sdk::namada::Sdk, steps::StepError};
 
 use super::utils;
 
-pub async fn execute_reveal_pk(sdk: &Sdk, public_key: common::PublicKey) -> Result<Option<u64>, StepError> {
+pub async fn execute_reveal_pk(
+    sdk: &Sdk,
+    public_key: common::PublicKey,
+) -> Result<Option<u64>, StepError> {
     let wallet = sdk.namada.wallet.write().await;
     let fee_payer = wallet.find_public_key("faucet").unwrap();
     drop(wallet);

@@ -14,7 +14,7 @@ pub(crate) fn is_tx_rejected(
     }
 }
 
-pub(crate)  fn get_tx_errors(tx: &Tx, tx_response: &ProcessTxResponse) -> Option<String> {
+pub(crate) fn get_tx_errors(tx: &Tx, tx_response: &ProcessTxResponse) -> Option<String> {
     let cmt = tx.first_commitments().unwrap().to_owned();
     let wrapper_hash = tx.wrapper_hash();
     match tx_response {

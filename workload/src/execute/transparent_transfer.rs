@@ -1,4 +1,11 @@
-use namada_sdk::{args::{InputAmount, TxBuilder, TxTransparentTransferData}, rpc::TxResponse, signing::default_sign, token::{self, DenominatedAmount}, tx::{data::GasLimit, ProcessTxResponse}, Namada};
+use namada_sdk::{
+    args::{InputAmount, TxBuilder, TxTransparentTransferData},
+    rpc::TxResponse,
+    signing::default_sign,
+    token::{self, DenominatedAmount},
+    tx::{data::GasLimit, ProcessTxResponse},
+    Namada,
+};
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSettings};
 

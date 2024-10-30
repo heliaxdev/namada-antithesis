@@ -1,11 +1,10 @@
 use std::{
     collections::{BTreeSet, HashMap},
     env,
-    fs::{self, File},
+    fs::{self},
     path::PathBuf,
 };
 
-use fs2::FileExt;
 use rand::{seq::IteratorRandom, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
