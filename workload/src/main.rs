@@ -135,8 +135,12 @@ async fn main() {
 
     let execution_height = match workload_executor.execute(&sdk, tasks.clone()).await {
         Ok(result) => {
-            tracing::info!("Execution took {}s...", result.time_taken);
-            result.execution_height
+            let total_time_takes: u64 = result.iter().map(|execution| execution.time_taken).sum();
+            tracing::info!("Execution took {}s...", total_time_takes);
+            result
+                .iter()
+                .filter_map(|execution| execution.execution_height)
+                .max()
         }
         Err(e) => {
             match e {

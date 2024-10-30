@@ -41,12 +41,7 @@ pub enum StepError {
 }
 
 use crate::{
-    check::Check,
-    constants::NATIVE_SCALE,
-    entities::Alias,
-    sdk::namada::Sdk,
-    state::State,
-    task::{Task, TaskSettings}, utils,
+    check::Check, constants::NATIVE_SCALE, entities::Alias, execute::{self, bond::execute_bond, faucet_transfer::execute_faucet_transfer, new_wallet_keypair::execute_new_wallet_key_pair, reveal_pk::execute_reveal_pk, transparent_transfer::execute_transparent_transfer}, sdk::namada::Sdk, state::State, task::{Task, TaskSettings}, utils
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -179,8 +174,6 @@ impl WorkloadExecutor {
                     current_epoch.into(),
                     task_settings,
                 )]
-
-                
             }
         };
         Ok(steps)
@@ -268,7 +261,12 @@ impl WorkloadExecutor {
                     drop(wallet);
 
                     let bond_check = if let Ok(pre_bond) = tryhard::retry_fn(|| {
-                        rpc::get_bond_amount_at(client, &source_address, &validator_address, epoch.next().next())
+                        rpc::get_bond_amount_at(
+                            client,
+                            &source_address,
+                            &validator_address,
+                            epoch.next().next(),
+                        )
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
@@ -296,9 +294,10 @@ impl WorkloadExecutor {
         &self,
         sdk: &Sdk,
         checks: Vec<Check>,
-        execution_height: Option<u64>
+        execution_height: Option<u64>,
     ) -> Result<(), String> {
         let config = Self::retry_config();
+        let random_timeout = 0.0f64;
         let client = sdk.namada.client();
 
         if checks.is_empty() {
@@ -317,7 +316,7 @@ impl WorkloadExecutor {
                 let current_height = block.block.last_commit.unwrap().height.value();
                 let block_height = current_height;
                 if block_height >= execution_height {
-                    break current_height
+                    break current_height;
                 } else {
                     tracing::info!(
                         "Waiting for block height: {}, currently at: {}",
@@ -328,8 +327,6 @@ impl WorkloadExecutor {
             }
             sleep(Duration::from_secs_f64(0.5f64)).await
         };
-
-        let random_timeout = 0.0f64;
 
         for check in checks {
             match check {
@@ -541,253 +538,34 @@ impl WorkloadExecutor {
         Ok(())
     }
 
-    pub async fn execute(&self, sdk: &Sdk, tasks: Vec<Task>) -> Result<ExecutionResult, StepError> {
-        let now = Instant::now();
-        let mut execution_height: Option<u64> = None;
+    pub async fn execute(&self, sdk: &Sdk, tasks: Vec<Task>) -> Result<Vec<ExecutionResult>, StepError> {
+        let mut execution_results = vec![];
 
         for task in tasks {
-            match task {
+            let now = Instant::now();
+            let execution_height = match task {
                 Task::NewWalletKeyPair(alias) => {
-                    let mut wallet = sdk.namada.wallet.write().await;
-
-                    let keypair = wallet.gen_store_secret_key(
-                        SchemeType::Ed25519,
-                        Some(alias.name),
-                        true,
-                        None,
-                        &mut OsRng,
-                    );
-
-                    let (_alias, sk) = if let Some((alias, sk)) = keypair {
-                        wallet.save().expect("unable to save wallet");
-                        (alias, sk)
-                    } else {
-                        return Err(StepError::Wallet("Failed to save keypair".to_string()));
-                    };
-                    drop(wallet);
-
-                    let public_key = sk.to_public();
-                    execution_height = Self::reveal_pk(sdk, public_key).await?
+                    let public_key = execute_new_wallet_key_pair(&sdk, alias).await?;
+                    Self::reveal_pk(sdk, public_key).await?
                 }
                 Task::FaucetTransfer(target, amount, settings) => {
-                    let wallet = sdk.namada.wallet.write().await;
-
-                    let faucet_alias = Alias::faucet();
-                    let native_token_alias = Alias::nam();
-
-                    let source_address = wallet
-                        .find_address(faucet_alias.name)
-                        .unwrap()
-                        .as_ref()
-                        .clone();
-                    let target_address = wallet.find_address(target.name).unwrap().as_ref().clone();
-                    let token_address = wallet
-                        .find_address(native_token_alias.name)
-                        .unwrap()
-                        .as_ref()
-                        .clone();
-                    let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
-                    let token_amount = token::Amount::from_u64(amount);
-
-                    let tx_transfer_data = TxTransparentTransferData {
-                        source: source_address.clone(),
-                        target: target_address.clone(),
-                        token: token_address,
-                        amount: InputAmount::Unvalidated(DenominatedAmount::native(token_amount)),
-                    };
-
-                    let mut transfer_tx_builder =
-                        sdk.namada.new_transparent_transfer(vec![tx_transfer_data]);
-
-                    transfer_tx_builder =
-                        transfer_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
-                    transfer_tx_builder = transfer_tx_builder.wrapper_fee_payer(fee_payer);
-
-                    let mut signing_keys = vec![];
-                    for signer in settings.signers {
-                        let public_key = wallet.find_public_key(&signer.name).unwrap();
-                        signing_keys.push(public_key)
-                    }
-                    transfer_tx_builder = transfer_tx_builder.signing_keys(signing_keys.clone());
-                    drop(wallet);
-
-                    let (mut transfer_tx, signing_data) = transfer_tx_builder
-                        .build(&sdk.namada)
-                        .await
-                        .map_err(|e| StepError::Build(e.to_string()))?;
-
-                    sdk.namada
-                        .sign(
-                            &mut transfer_tx,
-                            &transfer_tx_builder.tx,
-                            signing_data,
-                            default_sign,
-                            (),
-                        )
-                        .await
-                        .expect("unable to sign tx");
-
-                    let tx = sdk
-                        .namada
-                        .submit(transfer_tx.clone(), &transfer_tx_builder.tx)
-                        .await;
-
-                    if let Ok(ProcessTxResponse::Applied(TxResponse { height, .. })) = &tx {
-                        execution_height = Some(height.0)
-                    } else {
-                        execution_height = None
-                    }
-
-                    if Self::is_tx_rejected(&transfer_tx, &tx) {
-                        match tx {
-                            Ok(tx) => {
-                                let errors =
-                                    Self::get_tx_errors(&transfer_tx, &tx).unwrap_or_default();
-                                return Err(StepError::Execution(errors));
-                            }
-                            Err(e) => return Err(StepError::Broadcast(e.to_string())),
-                        }
-                    }
+                    execute_faucet_transfer(sdk, target, amount, settings).await?
                 }
                 Task::TransparentTransfer(source, target, amount, settings) => {
-                    let wallet = sdk.namada.wallet.write().await;
-
-                    let native_token_alias = Alias::nam();
-
-                    let source_address = wallet.find_address(source.name).unwrap().as_ref().clone();
-                    let target_address = wallet.find_address(target.name).unwrap().as_ref().clone();
-                    let token_address = wallet
-                        .find_address(native_token_alias.name)
-                        .unwrap()
-                        .as_ref()
-                        .clone();
-                    let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
-                    let token_amount = token::Amount::from_u64(amount);
-
-                    let tx_transfer_data = TxTransparentTransferData {
-                        source: source_address.clone(),
-                        target: target_address.clone(),
-                        token: token_address,
-                        amount: InputAmount::Unvalidated(DenominatedAmount::native(token_amount)),
-                    };
-
-                    let mut transfer_tx_builder =
-                        sdk.namada.new_transparent_transfer(vec![tx_transfer_data]);
-                    transfer_tx_builder =
-                        transfer_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
-                    transfer_tx_builder = transfer_tx_builder.wrapper_fee_payer(fee_payer);
-                    let mut signing_keys = vec![];
-                    for signer in settings.signers {
-                        let public_key = wallet.find_public_key(&signer.name).unwrap();
-                        signing_keys.push(public_key)
-                    }
-                    transfer_tx_builder = transfer_tx_builder.signing_keys(signing_keys.clone());
-                    drop(wallet);
-
-                    let (mut transfer_tx, signing_data) = transfer_tx_builder
-                        .build(&sdk.namada)
-                        .await
-                        .map_err(|e| StepError::Build(e.to_string()))?;
-
-                    sdk.namada
-                        .sign(
-                            &mut transfer_tx,
-                            &transfer_tx_builder.tx,
-                            signing_data,
-                            default_sign,
-                            (),
-                        )
-                        .await
-                        .expect("unable to sign tx");
-
-                    let tx = sdk
-                        .namada
-                        .submit(transfer_tx.clone(), &transfer_tx_builder.tx)
-                        .await;
-
-                    if let Ok(ProcessTxResponse::Applied(TxResponse { height, .. })) = &tx {
-                        execution_height = Some(height.0)
-                    } else {
-                        execution_height = None
-                    }
-
-                    if Self::is_tx_rejected(&transfer_tx, &tx) {
-                        match tx {
-                            Ok(tx) => {
-                                let errors =
-                                    Self::get_tx_errors(&transfer_tx, &tx).unwrap_or_default();
-                                return Err(StepError::Execution(errors));
-                            }
-                            Err(e) => return Err(StepError::Broadcast(e.to_string())),
-                        }
-                    }
+                    execute_transparent_transfer(sdk, source, target, amount, settings).await?
                 }
                 Task::Bond(source, validator, amount, _, settings) => {
-                    let wallet = sdk.namada.wallet.write().await;
-
-                    let source_address = wallet.find_address(source.name).unwrap().as_ref().clone();
-                    let token_amount = token::Amount::from_u64(amount);
-                    let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
-                    let validator = Address::from_str(&validator).unwrap(); // safe
-
-                    let mut bond_tx_builder = sdk
-                        .namada
-                        .new_bond(validator, token_amount)
-                        .source(source_address);
-                    bond_tx_builder = bond_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
-                    bond_tx_builder = bond_tx_builder.wrapper_fee_payer(fee_payer);
-                    let mut signing_keys = vec![];
-                    for signer in settings.signers {
-                        let public_key = wallet.find_public_key(&signer.name).unwrap();
-                        signing_keys.push(public_key)
-                    }
-                    bond_tx_builder = bond_tx_builder.signing_keys(signing_keys.clone());
-                    drop(wallet);
-
-                    let (mut bond_tx, signing_data) = bond_tx_builder
-                        .build(&sdk.namada)
-                        .await
-                        .map_err(|e| StepError::Build(e.to_string()))?;
-
-                    sdk.namada
-                        .sign(
-                            &mut bond_tx,
-                            &bond_tx_builder.tx,
-                            signing_data,
-                            default_sign,
-                            (),
-                        )
-                        .await
-                        .expect("unable to sign tx");
-
-                    let tx = sdk
-                        .namada
-                        .submit(bond_tx.clone(), &bond_tx_builder.tx)
-                        .await;
-
-                    if let Ok(ProcessTxResponse::Applied(TxResponse { height, .. })) = &tx {
-                        execution_height = Some(height.0)
-                    } else {
-                        execution_height = None
-                    }
-
-                    if Self::is_tx_rejected(&bond_tx, &tx) {
-                        match tx {
-                            Ok(tx) => {
-                                let errors = Self::get_tx_errors(&bond_tx, &tx).unwrap_or_default();
-                                return Err(StepError::Execution(errors));
-                            }
-                            Err(e) => return Err(StepError::Broadcast(e.to_string())),
-                        }
-                    }
+                    execute_bond(sdk, source, validator, amount, settings).await?
                 }
-            }
+            };
+            let execution_result = ExecutionResult {
+                time_taken: now.elapsed().as_secs(),
+                execution_height: execution_height.clone(),
+            };
+            execution_results.push(execution_result);
         }
 
-        Ok(ExecutionResult {
-            time_taken: now.elapsed().as_secs(),
-            execution_height: execution_height,
-        })
+        Ok(execution_results)
     }
 
     pub fn update_state(&self, tasks: Vec<Task>, state: &mut State) {
@@ -814,52 +592,7 @@ impl WorkloadExecutor {
     }
 
     async fn reveal_pk(sdk: &Sdk, public_key: common::PublicKey) -> Result<Option<u64>, StepError> {
-        let wallet = sdk.namada.wallet.write().await;
-        let fee_payer = wallet.find_public_key("faucet").unwrap();
-        drop(wallet);
-
-        let reveal_pk_tx_builder = sdk
-            .namada
-            .new_reveal_pk(public_key.clone())
-            .signing_keys(vec![public_key.clone()])
-            .wrapper_fee_payer(fee_payer);
-
-        let (mut reveal_tx, signing_data) = reveal_pk_tx_builder
-            .build(&sdk.namada)
-            .await
-            .map_err(|e| StepError::Build(e.to_string()))?;
-
-        sdk.namada
-            .sign(
-                &mut reveal_tx,
-                &reveal_pk_tx_builder.tx,
-                signing_data,
-                default_sign,
-                (),
-            )
-            .await
-            .expect("unable to sign tx");
-
-        let tx = sdk
-            .namada
-            .submit(reveal_tx.clone(), &reveal_pk_tx_builder.tx)
-            .await;
-
-        if Self::is_tx_rejected(&reveal_tx, &tx) {
-            match tx {
-                Ok(tx) => {
-                    let errors = Self::get_tx_errors(&reveal_tx, &tx).unwrap_or_default();
-                    return Err(StepError::Execution(errors));
-                }
-                Err(e) => return Err(StepError::Broadcast(e.to_string())),
-            }
-        }
-
-        if let Ok(ProcessTxResponse::Applied(TxResponse { height, .. })) = &tx {
-            Ok(Some(height.0))
-        } else {
-            Ok(None)
-        }
+        execute_reveal_pk(sdk, public_key).await
     }
 
     fn random_alias(state: &mut State) -> Alias {
@@ -872,44 +605,6 @@ impl WorkloadExecutor {
 
     fn random_between(from: u64, to: u64, state: &mut State) -> u64 {
         state.rng.gen_range(from..to)
-    }
-
-    fn is_tx_rejected(
-        tx: &Tx,
-        tx_response: &Result<ProcessTxResponse, namada_sdk::error::Error>,
-    ) -> bool {
-        let cmt = tx.first_commitments().unwrap().to_owned();
-        let wrapper_hash = tx.wrapper_hash();
-        match tx_response {
-            Ok(tx_result) => tx_result
-                .is_applied_and_valid(wrapper_hash.as_ref(), &cmt)
-                .is_none(),
-            Err(_) => true,
-        }
-    }
-
-    fn get_tx_errors(tx: &Tx, tx_response: &ProcessTxResponse) -> Option<String> {
-        let cmt = tx.first_commitments().unwrap().to_owned();
-        let wrapper_hash = tx.wrapper_hash();
-        match tx_response {
-            ProcessTxResponse::Applied(result) => match &result.batch {
-                Some(batch) => {
-                    tracing::info!("batch result: {:#?}", batch);
-                    match batch.get_inner_tx_result(wrapper_hash.as_ref(), either::Right(&cmt)) {
-                        Some(Ok(res)) => {
-                            let errors = res.vps_result.errors.clone();
-                            let _status_flag = res.vps_result.status_flags;
-                            let _rejected_vps = res.vps_result.rejected_vps.clone();
-                            Some(serde_json::to_string(&errors).unwrap())
-                        }
-                        Some(Err(e)) => Some(e.to_string()),
-                        _ => None,
-                    }
-                }
-                None => None,
-            },
-            _ => None,
-        }
     }
 
     fn retry_config() -> RetryFutureConfig<ExponentialBackoff, NoOnRetry> {
