@@ -3,19 +3,16 @@ use std::{fmt::Display, str::FromStr, time::Instant};
 use clap::ValueEnum;
 use namada_sdk::{
     address::Address,
-    args::{InputAmount, TxBuilder, TxTransparentTransferData},
+    args::TxBuilder,
     io::{Client, NamadaIo},
-    key::{common, SchemeType},
-    rpc::{self, TxResponse},
-    signing::default_sign,
+    key::common,
+    rpc::{self},
     state::Epoch,
-    token::{self, DenominatedAmount},
-    tx::{data::GasLimit, either, ProcessTxResponse, Tx},
+    token::{self},
     Namada,
 };
 use rand::{
     distributions::{Alphanumeric, DistString},
-    rngs::OsRng,
     seq::IteratorRandom,
     Rng,
 };
@@ -41,7 +38,18 @@ pub enum StepError {
 }
 
 use crate::{
-    check::Check, constants::NATIVE_SCALE, entities::Alias, execute::{self, bond::execute_bond, faucet_transfer::execute_faucet_transfer, new_wallet_keypair::execute_new_wallet_key_pair, reveal_pk::execute_reveal_pk, transparent_transfer::execute_transparent_transfer}, sdk::namada::Sdk, state::State, task::{Task, TaskSettings}, utils
+    check::Check,
+    constants::NATIVE_SCALE,
+    entities::Alias,
+    execute::{
+        bond::execute_bond, faucet_transfer::execute_faucet_transfer,
+        new_wallet_keypair::execute_new_wallet_key_pair, reveal_pk::execute_reveal_pk,
+        transparent_transfer::execute_transparent_transfer,
+    },
+    sdk::namada::Sdk,
+    state::State,
+    task::{Task, TaskSettings},
+    utils,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -71,6 +79,12 @@ pub struct ExecutionResult {
 
 #[derive(Clone, Debug)]
 pub struct WorkloadExecutor {}
+
+impl Default for WorkloadExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WorkloadExecutor {
     pub fn new() -> Self {
@@ -112,16 +126,16 @@ impl WorkloadExecutor {
         &self,
         step_type: StepType,
         sdk: &Sdk,
-        mut state: &mut State,
+        state: &mut State,
     ) -> Result<Vec<Task>, StepError> {
         let steps = match step_type {
             StepType::NewWalletKeyPair => {
-                let alias = Self::random_alias(&mut state);
+                let alias = Self::random_alias(state);
                 vec![Task::NewWalletKeyPair(alias)]
             }
             StepType::FaucetTransfer => {
                 let target_account = state.random_account(vec![]);
-                let amount = Self::random_between(1000, 2000, &mut state) * NATIVE_SCALE;
+                let amount = Self::random_between(1000, 2000, state) * NATIVE_SCALE;
 
                 let task_settings = TaskSettings::faucet();
 
@@ -135,7 +149,7 @@ impl WorkloadExecutor {
                 let source_account = state.random_account_with_min_balance(vec![]);
                 let target_account = state.random_account(vec![source_account.alias.clone()]);
                 let amount_account = state.get_balance_for(&source_account.alias);
-                let amount = utils::get_random_between(&mut state, 1, amount_account);
+                let amount = utils::get_random_between(state, 1, amount_account);
 
                 let task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
 
@@ -150,7 +164,7 @@ impl WorkloadExecutor {
                 let client = sdk.namada.client();
                 let source_account = state.random_account_with_min_balance(vec![]);
                 let amount_account = state.get_balance_for(&source_account.alias);
-                let amount = utils::get_random_between(&mut state, 1, amount_account);
+                let amount = utils::get_random_between(state, 1, amount_account);
 
                 let current_epoch = rpc::query_epoch(client)
                     .await
@@ -538,14 +552,18 @@ impl WorkloadExecutor {
         Ok(())
     }
 
-    pub async fn execute(&self, sdk: &Sdk, tasks: Vec<Task>) -> Result<Vec<ExecutionResult>, StepError> {
+    pub async fn execute(
+        &self,
+        sdk: &Sdk,
+        tasks: Vec<Task>,
+    ) -> Result<Vec<ExecutionResult>, StepError> {
         let mut execution_results = vec![];
 
         for task in tasks {
             let now = Instant::now();
             let execution_height = match task {
                 Task::NewWalletKeyPair(alias) => {
-                    let public_key = execute_new_wallet_key_pair(&sdk, alias).await?;
+                    let public_key = execute_new_wallet_key_pair(sdk, alias).await?;
                     Self::reveal_pk(sdk, public_key).await?
                 }
                 Task::FaucetTransfer(target, amount, settings) => {
@@ -560,7 +578,7 @@ impl WorkloadExecutor {
             };
             let execution_result = ExecutionResult {
                 time_taken: now.elapsed().as_secs(),
-                execution_height: execution_height.clone(),
+                execution_height,
             };
             execution_results.push(execution_result);
         }

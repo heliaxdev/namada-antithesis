@@ -161,20 +161,18 @@ async fn main() {
         .await
     {
         tracing::error!("Error final checks {:?} -> {}", next_step, e.to_string());
+    } else if checks.is_empty() {
+        tracing::info!("Checks are empty, skipping...");
     } else {
-        if checks.is_empty() {
-            tracing::info!("Checks are empty, skipping...");
-        } else {
-            workload_executor.update_state(tasks, &mut state);
-            tracing::info!("Checks were successful, updating state...");
-        }
+        workload_executor.update_state(tasks, &mut state);
+        tracing::info!("Checks were successful, updating state...");
     }
 
     state.serialize_to_file();
     let path = env::current_dir()
         .unwrap()
         .join(format!("state-{}.json", config.seed));
-    let file = File::open(&path).unwrap();
+    let file = File::open(path).unwrap();
     file.unlock().unwrap();
     tracing::info!("Done {:?}!", next_step);
 }
