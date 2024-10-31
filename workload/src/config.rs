@@ -12,7 +12,9 @@ pub struct AppConfig {
     #[arg(required = true)]
     pub chain_id: String,
     #[clap(long, env)]
-    pub seed: u64,
+    pub seed: Option<u64>,
+    #[clap(long, env)]
+    pub id: u64,
     #[clap(long, env)]
     #[arg(required = true)]
     pub masp_indexer_url: String,

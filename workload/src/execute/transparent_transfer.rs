@@ -1,9 +1,8 @@
 use namada_sdk::{
     args::{self, InputAmount, TxBuilder, TxTransparentTransferData},
-    rpc::TxResponse,
-    signing::{default_sign, SigningTxData},
+    signing::SigningTxData,
     token::{self, DenominatedAmount},
-    tx::{data::GasLimit, ProcessTxResponse, Tx},
+    tx::{data::GasLimit, Tx},
     Namada,
 };
 
@@ -62,7 +61,7 @@ pub async fn execute_tx_transparent_transfer(
     sdk: &Sdk,
     tx: &mut Tx,
     signing_data: SigningTxData,
-    tx_args: &args::Tx
+    tx_args: &args::Tx,
 ) -> Result<Option<u64>, StepError> {
     utils::execute_tx(sdk, tx, vec![signing_data], tx_args).await
 }

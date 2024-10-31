@@ -3,10 +3,9 @@ use std::str::FromStr;
 use namada_sdk::{
     address::Address,
     args::{self, TxBuilder},
-    rpc::TxResponse,
-    signing::{default_sign, SigningTxData},
+    signing::SigningTxData,
     token,
-    tx::{data::GasLimit, ProcessTxResponse, Tx},
+    tx::{data::GasLimit, Tx},
     Namada,
 };
 
@@ -54,7 +53,7 @@ pub async fn execute_tx_bond(
     sdk: &Sdk,
     tx: &mut Tx,
     signing_data: SigningTxData,
-    tx_args: &args::Tx
+    tx_args: &args::Tx,
 ) -> Result<Option<u64>, StepError> {
     utils::execute_tx(sdk, tx, vec![signing_data], tx_args).await
 }

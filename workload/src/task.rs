@@ -25,6 +25,14 @@ impl TaskSettings {
             gas_limit: DEFAULT_GAS_LIMIT,
         }
     }
+
+    pub fn faucet_batch(size: usize) -> Self {
+        Self {
+            signers: BTreeSet::from_iter(vec![Alias::faucet()]),
+            gas_payer: Alias::faucet(),
+            gas_limit: DEFAULT_GAS_LIMIT * size as u64,
+        }
+    }
 }
 
 pub type Target = Alias;
@@ -39,5 +47,5 @@ pub enum Task {
     FaucetTransfer(Target, Amount, TaskSettings),
     TransparentTransfer(Source, Target, Amount, TaskSettings),
     Bond(Source, Address, Amount, Epoch, TaskSettings),
-    Batch(Vec<Task>, TaskSettings)
+    Batch(Vec<Task>, TaskSettings),
 }

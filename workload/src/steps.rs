@@ -1,19 +1,34 @@
 use std::{fmt::Display, str::FromStr, time::Instant};
 
+use crate::{
+    build::{
+        batch::{build_bond_batch, build_random_batch},
+        bond::build_bond,
+        faucet_transfer::build_faucet_transfer,
+        new_wallet_keypair::build_new_wallet_keypair,
+        transparent_transfer::build_transparent_transfer,
+    },
+    check::Check,
+    execute::{
+        batch::execute_tx_batch,
+        bond::{build_tx_bond, execute_tx_bond},
+        faucet_transfer::execute_faucet_transfer,
+        new_wallet_keypair::execute_new_wallet_key_pair,
+        reveal_pk::execute_reveal_pk,
+        transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
+    },
+    sdk::namada::Sdk,
+    state::State,
+    task::Task,
+};
 use clap::ValueEnum;
 use namada_sdk::{
     address::Address,
-    args::TxBuilder,
     io::{Client, NamadaIo},
     key::common,
     rpc::{self},
     state::Epoch,
     token::{self},
-    Namada,
-};
-use rand::{
-    distributions::{Alphanumeric, DistString},
-    Rng,
 };
 use serde_json::json;
 use thiserror::Error;
@@ -35,25 +50,6 @@ pub enum StepError {
     #[error("error calling rpc `{0}`")]
     Rpc(String),
 }
-
-use crate::{
-    build::{
-        batch::build_batch, bond::build_bond, faucet_transfer::build_faucet_transfer,
-        new_wallet_keypair::build_new_wallet_keypair,
-        transparent_transfer::build_transparent_transfer,
-    },
-    check::Check,
-    entities::Alias,
-    execute::{
-        batch::execute_tx_batch, bond::{build_tx_bond, execute_tx_bond}, faucet_transfer::execute_faucet_transfer, new_wallet_keypair::execute_new_wallet_key_pair, reveal_pk::execute_reveal_pk, transparent_transfer::{
-            build_tx_transparent_transfer,
-            execute_tx_transparent_transfer,
-        }
-    },
-    sdk::namada::Sdk,
-    state::State,
-    task::Task,
-};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum StepType {
@@ -125,9 +121,9 @@ impl WorkloadExecutor {
             StepType::TransparentTransfer => {
                 state.at_least_accounts(2) && state.any_account_can_make_transfer()
             }
-            StepType::Bond => state.any_account_with_min_balance(1),
-            StepType::BatchBond => state.min_n_account_with_min_balance(3, 1),
-            StepType::BatchRandom => state.min_n_account_with_min_balance(3, 1),
+            StepType::Bond => state.any_account_with_min_balance(2),
+            StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
+            StepType::BatchRandom => state.min_n_account_with_min_balance(3, 2),
         }
     }
 
@@ -142,8 +138,8 @@ impl WorkloadExecutor {
             StepType::FaucetTransfer => build_faucet_transfer(state).await?,
             StepType::TransparentTransfer => build_transparent_transfer(state).await?,
             StepType::Bond => build_bond(sdk, state).await?,
-            StepType::BatchBond => build_batch(sdk, true, false, 3, state).await?,
-            StepType::BatchRandom => build_batch(sdk, true, true, 3, state).await?,
+            StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
+            StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
         };
         Ok(steps)
     }
@@ -253,7 +249,7 @@ impl WorkloadExecutor {
                     };
                     vec![bond_check]
                 }
-                Task::Batch(vec, task_settings) => {
+                Task::Batch(tasks, _) => {
                     vec![]
                 }
             };
@@ -297,7 +293,7 @@ impl WorkloadExecutor {
                     );
                 }
             }
-            sleep(Duration::from_secs_f64(0.5f64)).await
+            sleep(Duration::from_secs_f64(1.0f64)).await
         };
 
         for check in checks {
@@ -543,10 +539,8 @@ impl WorkloadExecutor {
                     for task in tasks {
                         let (tx, signing_data, _) = match task {
                             Task::TransparentTransfer(source, target, amount, settings) => {
-                                build_tx_transparent_transfer(
-                                    sdk, source, target, amount, settings,
-                                )
-                                .await?
+                                build_tx_transparent_transfer(sdk, source, target, amount, settings)
+                                    .await?
                             }
                             Task::Bond(source, validator, amount, _, settings) => {
                                 build_tx_bond(sdk, source, validator, amount, settings).await?
@@ -555,6 +549,7 @@ impl WorkloadExecutor {
                         };
                         txs.push((tx, signing_data));
                     }
+
                     execute_tx_batch(sdk, txs, task_settings).await?
                 }
             };
@@ -574,18 +569,6 @@ impl WorkloadExecutor {
 
     async fn reveal_pk(sdk: &Sdk, public_key: common::PublicKey) -> Result<Option<u64>, StepError> {
         execute_reveal_pk(sdk, public_key).await
-    }
-
-    fn random_alias(state: &mut State) -> Alias {
-        format!(
-            "load-tester-{}",
-            Alphanumeric.sample_string(&mut state.rng, 8)
-        )
-        .into()
-    }
-
-    fn random_between(from: u64, to: u64, state: &mut State) -> u64 {
-        state.rng.gen_range(from..to)
     }
 
     fn retry_config() -> RetryFutureConfig<ExponentialBackoff, NoOnRetry> {

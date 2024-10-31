@@ -5,13 +5,14 @@ use std::{
     path::PathBuf,
 };
 
-use rand::{seq::IteratorRandom, SeedableRng};
+use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     constants::{DEFAULT_FEE_IN_NATIVE_TOKEN, MIN_TRANSFER_BALANCE},
-    entities::Alias, task::Task,
+    entities::Alias,
+    task::Task,
 };
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,7 +54,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(seed: u64) -> Self {
+    pub fn new(id: u64, seed: u64) -> Self {
         Self {
             accounts: HashMap::default(),
             balances: HashMap::default(),
@@ -62,7 +63,7 @@ impl State {
             rng: ChaCha20Rng::seed_from_u64(seed),
             path: env::current_dir()
                 .unwrap()
-                .join(format!("state-{}.json", seed)),
+                .join(format!("state-{}.json", id)),
             base_dir: env::current_dir().unwrap().join("base"),
         }
     }
@@ -104,14 +105,27 @@ impl State {
         fs::write(&self.path, serde_json::to_string_pretty(&self).unwrap()).unwrap()
     }
 
-    pub fn from_file(seed: u64) -> Self {
+    pub fn from_file(id: u64, seed: Option<u64>) -> Self {
         let path = env::current_dir()
             .unwrap()
-            .join(format!("state-{}.json", seed));
+            .join(format!("state-{}.json", id));
         match fs::read_to_string(path) {
-            Ok(data) => serde_json::from_str(&data).unwrap(),
+            Ok(data) => match serde_json::from_str(&data) {
+                Ok(state) => state,
+                Err(_) => {
+                    let state = State::new(
+                        id,
+                        seed.unwrap_or(rand::thread_rng().gen_range(0..u64::MAX)),
+                    );
+                    state.serialize_to_file();
+                    state
+                }
+            },
             Err(_) => {
-                let state = State::new(seed);
+                let state = State::new(
+                    id,
+                    seed.unwrap_or(rand::thread_rng().gen_range(0..u64::MAX)),
+                );
                 state.serialize_to_file();
                 state
             }
@@ -138,7 +152,8 @@ impl State {
         self.balances
             .iter()
             .filter(|(_, balance)| **balance >= min_balance)
-            .count() >= total_accounts
+            .count()
+            >= total_accounts
     }
 
     pub fn any_account_can_pay_fees(&self) -> bool {

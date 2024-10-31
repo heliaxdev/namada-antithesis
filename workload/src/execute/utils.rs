@@ -2,14 +2,20 @@ use std::{path::PathBuf, str::FromStr};
 
 use namada_sdk::{
     args::{self, DeviceTransport, TxBuilder},
-    key::common,
     rpc::TxResponse,
     signing::{default_sign, SigningTxData},
-    tx::{self, data::GasLimit, either, ProcessTxResponse, Tx, TX_REVEAL_PK},
+    tx::{
+        self,
+        data::{GasLimit, TxType},
+        either, ProcessTxResponse, Tx, TX_REVEAL_PK,
+    },
     Namada,
 };
 
-use crate::{constants::DEFAULT_GAS_LIMIT, entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSettings};
+use crate::{
+    constants::DEFAULT_GAS_LIMIT, entities::Alias, sdk::namada::Sdk, steps::StepError,
+    task::TaskSettings,
+};
 
 pub(crate) fn is_tx_rejected(
     tx: &Tx,
@@ -85,17 +91,17 @@ async fn default_tx_arg(sdk: &Sdk) -> args::Tx {
 pub async fn merge_tx(
     sdk: &Sdk,
     txs: Vec<(Tx, SigningTxData)>,
-    settings: TaskSettings
+    settings: TaskSettings,
 ) -> Result<(Tx, Vec<SigningTxData>, args::Tx), StepError> {
     if txs.is_empty() {
         return Err(StepError::Build("Empty tx batch".to_string()));
     }
-    let tx_args = default_tx_arg(&sdk).await;
+    let tx_args = default_tx_arg(sdk).await;
 
     let wallet = sdk.namada.wallet.write().await;
 
     let faucet_alias = Alias::faucet();
-    let gas_payer = wallet.find_public_key(&faucet_alias.name).unwrap();
+    let gas_payer = wallet.find_public_key(faucet_alias.name).unwrap();
     drop(wallet);
 
     let (tx, signing_datas) = if txs.len() == 1 {
@@ -105,10 +111,17 @@ pub async fn merge_tx(
         let (mut tx, signing_datas) =
             tx::build_batch(txs.clone()).map_err(|e| StepError::Build(e.to_string()))?;
         tx.header.atomic = true;
+
+        let mut wrapper = tx.header.wrapper().unwrap();
+        wrapper.gas_limit = GasLimit::from(settings.gas_limit);
+        wrapper.pk = gas_payer.clone();
+        tx.header.tx_type = TxType::Wrapper(Box::new(wrapper));
+
         (tx, signing_datas)
     };
 
-    let tx_args = tx_args.gas_limit(GasLimit::from(settings.gas_limit));
+    tracing::info!("Built batch with {} txs.", txs.len());
+
     let tx_args = tx_args.wrapper_fee_payer(gas_payer);
 
     Ok((tx, signing_datas, tx_args))
@@ -120,14 +133,14 @@ pub(crate) async fn execute_tx(
     signing_datas: Vec<SigningTxData>,
     tx_args: &args::Tx,
 ) -> Result<Option<u64>, StepError> {
-    do_sign_tx(sdk, tx, signing_datas, tx_args);
+    do_sign_tx(sdk, tx, signing_datas, tx_args).await;
 
-    let tx_response = sdk.namada.submit(tx.clone(), &tx_args).await;
+    let tx_response = sdk.namada.submit(tx.clone(), tx_args).await;
 
-    if is_tx_rejected(&tx, &tx_response) {
+    if is_tx_rejected(tx, &tx_response) {
         match tx_response {
             Ok(tx_response) => {
-                let errors = get_tx_errors(&tx, &tx_response).unwrap_or_default();
+                let errors = get_tx_errors(tx, &tx_response).unwrap_or_default();
                 return Err(StepError::Execution(errors));
             }
             Err(e) => return Err(StepError::Broadcast(e.to_string())),
@@ -145,14 +158,12 @@ pub async fn do_sign_tx(
     sdk: &Sdk,
     tx: &mut Tx,
     signing_datas: Vec<SigningTxData>,
-    tx_args: &args::Tx
-) -> Result<(), StepError> {
+    tx_args: &args::Tx,
+) {
     for signing_data in signing_datas {
         sdk.namada
-            .sign(tx, &tx_args, signing_data, default_sign, ())
+            .sign(tx, tx_args, signing_data, default_sign, ())
             .await
             .expect("unable to sign tx");
     }
-
-    Ok(())
 }
