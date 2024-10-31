@@ -38,12 +38,12 @@ async fn main() {
     tracing::info!("Trying to get the lock...");
     let path = env::current_dir()
         .unwrap()
-        .join(format!("state-{}.json", config.seed));
+        .join(format!("state-{}.json", config.id));
     let file = File::open(&path).unwrap();
     file.lock_exclusive().unwrap();
     tracing::info!("State locked.");
 
-    let mut state = State::from_file(config.seed);
+    let mut state = State::from_file(config.id, config.seed);
 
     tracing::info!("Using base dir: {}", state.base_dir.as_path().display());
     tracing::info!("Using seed: {}", state.seed);
@@ -162,6 +162,7 @@ async fn main() {
     {
         tracing::error!("Error final checks {:?} -> {}", next_step, e.to_string());
     } else if checks.is_empty() {
+        workload_executor.update_state(tasks, &mut state);
         tracing::info!("Checks are empty, skipping...");
     } else {
         workload_executor.update_state(tasks, &mut state);
@@ -171,7 +172,7 @@ async fn main() {
     state.serialize_to_file();
     let path = env::current_dir()
         .unwrap()
-        .join(format!("state-{}.json", config.seed));
+        .join(format!("state-{}.json", config.id));
     let file = File::open(path).unwrap();
     file.unlock().unwrap();
     tracing::info!("Done {:?}!", next_step);
