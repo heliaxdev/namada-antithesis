@@ -32,4 +32,4 @@ echo "Using rpc: ${RPC}"
 # Ready to start workload
 echo "Ready to start the workload"
 
-/app/namada-chain-workload --rpc http://${RPC} --chain-id ${CHAIN_ID} --faucet-sk ${FAUCET_SK} --id ${WORKLOAD_ID} --masp-indexer-url ${MASP_INDEXER_URL} faucet-transfer
+/app/namada-chain-workload --rpc http://${RPC} --chain-id ${CHAIN_ID} --faucet-sk ${FAUCET_SK} --id ${WORKLOAD_ID} --masp-indexer-url ${MASP_INDEXER_URL} batch-bond

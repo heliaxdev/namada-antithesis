@@ -110,6 +110,7 @@ services:
       - RPC=30.0.0.14:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
       - MASP_INDEXER_URL=30.0.0.20:5000
+      - WORKLOAD_ID=0
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
@@ -126,6 +127,7 @@ services:
       - RPC=30.0.0.14:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
       - MASP_INDEXER_URL=30.0.0.20:5000
+      - WORKLOAD_ID=1
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
@@ -142,6 +144,7 @@ services:
       - RPC=30.0.0.14:27658
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
       - MASP_INDEXER_URL=30.0.0.20:5000
+      - WORKLOAD_ID=2
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh

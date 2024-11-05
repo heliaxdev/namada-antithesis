@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr, time::Instant};
+use std::{collections::HashMap, fmt::Display, str::FromStr, time::Instant};
 
 use crate::{
     build::{
@@ -8,7 +8,9 @@ use crate::{
         new_wallet_keypair::build_new_wallet_keypair,
         transparent_transfer::build_transparent_transfer,
     },
+    build_checks,
     check::Check,
+    entities::Alias,
     execute::{
         batch::execute_tx_batch,
         bond::{build_tx_bond, execute_tx_bond},
@@ -145,112 +147,135 @@ impl WorkloadExecutor {
     }
 
     pub async fn build_check(&self, sdk: &Sdk, tasks: Vec<Task>, state: &State) -> Vec<Check> {
-        let config = Self::retry_config();
+        let retry_config = Self::retry_config();
 
-        let client = sdk.namada.client();
         let mut checks = vec![];
         for task in tasks {
             let check = match task {
                 Task::NewWalletKeyPair(source) => vec![Check::RevealPk(source)],
                 Task::FaucetTransfer(target, amount, _) => {
-                    let wallet = sdk.namada.wallet.read().await;
-                    let native_token_address = wallet.find_address("nam").unwrap().into_owned();
-                    let target_address = wallet.find_address(&target.name).unwrap().into_owned();
-                    drop(wallet);
-
-                    let check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
-                        rpc::get_token_balance(client, &native_token_address, &target_address, None)
-                    })
-                    .with_config(config)
-                    .on_retry(|attempt, _, error| {
-                        let error = error.to_string();
-                        async move {
-                            tracing::info!("Retry {} due to {}...", attempt, error);
-                        }
-                    })
+                    build_checks::faucet::faucet_build_check(
+                        sdk,
+                        target,
+                        amount,
+                        retry_config,
+                        state,
+                    )
                     .await
-                    {
-                        Check::BalanceTarget(target, pre_balance, amount, state.clone())
-                    } else {
-                        tracing::info!("retrying ...");
-                        continue;
-                    };
-
-                    vec![check]
                 }
                 Task::TransparentTransfer(source, target, amount, _) => {
-                    let wallet = sdk.namada.wallet.read().await;
-                    let native_token_address = wallet.find_address("nam").unwrap().into_owned();
-                    let source_address = wallet.find_address(&source.name).unwrap().into_owned();
-                    let target_address = wallet.find_address(&target.name).unwrap().into_owned();
-                    drop(wallet);
-
-                    let source_check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
-                        rpc::get_token_balance(client, &native_token_address, &source_address, None)
-                    })
-                    .with_config(config)
+                    build_checks::transparent_transfer::transparent_transfer(
+                        sdk,
+                        source,
+                        target,
+                        amount,
+                        retry_config,
+                        state,
+                    )
                     .await
-                    {
-                        Check::BalanceSource(source, pre_balance, amount, state.clone())
-                    } else {
-                        tracing::info!("retrying ...");
-                        continue;
-                    };
-
-                    let target_check = if let Ok(pre_balance) = tryhard::retry_fn(|| {
-                        rpc::get_token_balance(client, &native_token_address, &target_address, None)
-                    })
-                    .with_config(config)
-                    .on_retry(|attempt, _, error| {
-                        let error = error.to_string();
-                        async move {
-                            tracing::info!("Retry {} due to {}...", attempt, error);
-                        }
-                    })
-                    .await
-                    {
-                        Check::BalanceTarget(target, pre_balance, amount, state.clone())
-                    } else {
-                        tracing::info!("retrying ...");
-                        continue;
-                    };
-
-                    vec![source_check, target_check]
                 }
                 Task::Bond(source, validator, amount, epoch, _) => {
-                    let wallet = sdk.namada.wallet.read().await;
-                    let source_address = wallet.find_address(&source.name).unwrap().into_owned();
-
-                    let validator_address = Address::from_str(&validator).unwrap();
-                    let epoch = namada_sdk::state::Epoch::from(epoch);
-                    drop(wallet);
-
-                    let bond_check = if let Ok(pre_bond) = tryhard::retry_fn(|| {
-                        rpc::get_bond_amount_at(
-                            client,
-                            &source_address,
-                            &validator_address,
-                            epoch.next().next(),
-                        )
-                    })
-                    .with_config(config)
-                    .on_retry(|attempt, _, error| {
-                        let error = error.to_string();
-                        async move {
-                            tracing::info!("Retry {} due to {}...", attempt, error);
-                        }
-                    })
+                    build_checks::bond::bond(
+                        sdk,
+                        source,
+                        validator,
+                        amount,
+                        epoch,
+                        retry_config,
+                        state,
+                    )
                     .await
-                    {
-                        Check::Bond(source, validator, pre_bond, amount, state.clone())
-                    } else {
-                        tracing::info!("retrying ...");
-                        continue;
-                    };
-                    vec![bond_check]
                 }
                 Task::Batch(tasks, _) => {
-                    vec![]
+                    let mut checks = vec![];
+
+                    let mut reveal_pks: HashMap<Alias, Alias> = HashMap::default();
+                    let mut balances: HashMap<Alias, i64> = HashMap::default();
+                    let mut bond: HashMap<String, (u64, u64)> = HashMap::default();
+
+                    for task in tasks {
+                        println!("{:>?}", task);
+                        match &task {
+                            Task::NewWalletKeyPair(source) => {
+                                reveal_pks.insert(source.clone(), source.to_owned());
+                            }
+                            Task::FaucetTransfer(target, amount, _task_settings) => {
+                                balances
+                                    .entry(target.clone())
+                                    .and_modify(|balance| *balance += *amount as i64)
+                                    .or_insert(*amount as i64);
+                            }
+                            Task::TransparentTransfer(source, target, amount, _task_settings) => {
+                                balances
+                                    .entry(target.clone())
+                                    .and_modify(|balance| *balance += *amount as i64)
+                                    .or_insert(*amount as i64);
+                                balances
+                                    .entry(source.clone())
+                                    .and_modify(|balance| *balance -= *amount as i64)
+                                    .or_insert(-(*amount as i64));
+                            }
+                            Task::Bond(source, validator, amount, epoch, _task_settings) => {
+                                bond.entry(format!("{}@{}", source.name, validator))
+                                    .and_modify(|(_epoch, balance)| *balance += amount)
+                                    .or_insert((*epoch, *amount));
+                                balances
+                                    .entry(source.clone())
+                                    .and_modify(|balance| *balance -= *amount as i64)
+                                    .or_insert(-(*amount as i64));
+                            }
+                            _ => panic!(),
+                        };
+                    }
+
+                    for (_, source) in reveal_pks {
+                        checks.push(Check::RevealPk(source));
+                    }
+
+                    for (alias, amount) in balances {
+                        if let Some(pre_balance) =
+                            build_checks::utils::get_balance(sdk, alias.clone(), retry_config).await
+                        {
+                            if amount >= 0 {
+                                checks.push(Check::BalanceTarget(
+                                    alias,
+                                    pre_balance,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            } else {
+                                checks.push(Check::BalanceSource(
+                                    alias,
+                                    pre_balance,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            }
+                        }
+                    }
+
+                    for (key, (epoch, amount)) in bond {
+                        let (source, validator) = key.split_once('@').unwrap();
+                        if let Some(pre_bond) = build_checks::utils::get_bond(
+                            sdk,
+                            Alias::from(source),
+                            validator.to_owned(),
+                            epoch,
+                            retry_config,
+                        )
+                        .await
+                        {
+                            checks.push(Check::Bond(
+                                Alias::from(source),
+                                validator.to_owned(),
+                                pre_bond,
+                                amount,
+                                state.clone(),
+                            ));
+                        }
+                    }
+                    println!("{:>?}", checks);
+                    checks
                 }
             };
             checks.extend(check)
@@ -315,7 +340,7 @@ impl WorkloadExecutor {
                                     "public-key": source.to_pretty_string(),
                                     "timeout": random_timeout,
                                     "execution_height": execution_height,
-                                    "check_height": latest_block
+                                    "check_height": latest_block,
                                 })
                             );
                             if !was_pk_revealed {
@@ -326,6 +351,15 @@ impl WorkloadExecutor {
                             }
                         }
                         Err(e) => {
+                            tracing::error!(
+                                "{}",
+                                json!({
+                                    "public-key": source.to_pretty_string(),
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block,
+                                })
+                            );
                             return Err(format!("RevealPk check error: {}", e));
                         }
                     }
@@ -374,7 +408,21 @@ impl WorkloadExecutor {
                                 })
                             );
                             if !post_amount.eq(&check_balance) {
-                                return Err("BalanceTarget check error: post target amount is not equal to pre balance".to_string());
+                                tracing::error!(
+                                    "{}",
+                                    json!({
+                                        "target_alias": target,
+                                        "target": target_address.to_pretty_string(),
+                                        "pre_balance": pre_balance,
+                                        "amount": amount,
+                                        "post_balance": post_amount,
+                                        "pre_state": pre_state,
+                                        "timeout": random_timeout,
+                                        "execution_height": execution_height,
+                                        "check_height": latest_block
+                                    })
+                                );
+                                return Err(format!("BalanceTarget check error: post target amount is not equal to pre balance: pre {}, post: {}, {}", pre_balance, post_amount, amount));
                             }
                         }
                         Err(e) => return Err(format!("BalanceTarget check error: {}", e)),
@@ -424,10 +472,24 @@ impl WorkloadExecutor {
                                 })
                             );
                             if !post_amount.eq(&check_balance) {
-                                return Err(format!("BalanceTarget check error: post target amount not equal to pre balance: pre {}, post: {}, {}", pre_balance, post_amount, amount));
+                                tracing::error!(
+                                    "{}",
+                                    json!({
+                                        "target_alias": target,
+                                        "target": target_address.to_pretty_string(),
+                                        "pre_balance": pre_balance,
+                                        "amount": amount,
+                                        "post_balance": post_amount,
+                                        "pre_state": pre_state,
+                                        "timeout": random_timeout,
+                                        "execution_height": execution_height,
+                                        "check_height": latest_block
+                                    })
+                                );
+                                return Err(format!("BalanceSource check error: post target amount not equal to pre balance: pre {}, post: {}, {}", pre_balance, post_amount, amount));
                             }
                         }
-                        Err(e) => return Err(format!("BalanceTarget check error: {}", e)),
+                        Err(e) => return Err(format!("BalanceSource check error: {}", e)),
                     }
                 }
                 Check::Bond(target, validator, pre_bond, amount, pre_state) => {
@@ -494,6 +556,22 @@ impl WorkloadExecutor {
                                 })
                             );
                             if !post_bond.eq(&check_bond) {
+                                tracing::error!(
+                                    "{}",
+                                    json!({
+                                        "target_alias": target,
+                                        "target": source_address.to_pretty_string(),
+                                        "validator": validator_address.to_pretty_string(),
+                                        "pre_bond": pre_bond,
+                                        "amount": amount,
+                                        "post_bond": post_bond,
+                                        "pre_state": pre_state,
+                                        "epoch": epoch,
+                                        "timeout": random_timeout,
+                                        "execution_height": execution_height,
+                                        "check_height": latest_block
+                                    })
+                                );
                                 return Err(format!("Bond check error: post target amount is not equal to pre balance: pre {}, post {}, amount: {}", pre_bond, post_bond, amount));
                             }
                         }
