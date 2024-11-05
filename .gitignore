@@ -69,3 +69,4 @@ workload/run-campfire.sh
 docker-compose-test.yml
 workload/base
 state-*.json
+go.sh

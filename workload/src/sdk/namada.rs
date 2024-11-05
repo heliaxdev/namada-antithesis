@@ -1,7 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
 use namada_sdk::io::NamadaIo;
-use namada_sdk::Namada;
 use namada_sdk::{
     address::{Address, ImplicitAddress},
     args::TxBuilder,

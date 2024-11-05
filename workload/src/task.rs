@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, fmt::Display};
 
 use crate::{constants::DEFAULT_GAS_LIMIT, entities::Alias};
 
@@ -48,4 +48,20 @@ pub enum Task {
     TransparentTransfer(Source, Target, Amount, TaskSettings),
     Bond(Source, Address, Amount, Epoch, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
+}
+
+impl Display for Task {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Task::NewWalletKeyPair(source) => write!(f, "wallet-key-pair-{}", source.name),
+            Task::FaucetTransfer(target, _, _) => write!(f, "faucet-transfer-{}", target.name),
+            Task::TransparentTransfer(source, target, _, _) => {
+                write!(f, "transparent-transfer-{}-{}", source.name, target.name)
+            }
+            Task::Bond(source, validator, _, _, _) => {
+                write!(f, "bond-{}-{}", source.name, validator)
+            }
+            Task::Batch(_, _) => write!(f, "batch"),
+        }
+    }
 }

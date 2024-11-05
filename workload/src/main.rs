@@ -163,7 +163,7 @@ async fn main() {
         tracing::error!("Error final checks {:?} -> {}", next_step, e.to_string());
     } else if checks.is_empty() {
         workload_executor.update_state(tasks, &mut state);
-        tracing::info!("Checks are empty, skipping...");
+        tracing::info!("Checks are empty, skipping checks and upadating state...");
     } else {
         workload_executor.update_state(tasks, &mut state);
         tracing::info!("Checks were successful, updating state...");
