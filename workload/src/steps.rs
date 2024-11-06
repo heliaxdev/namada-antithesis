@@ -5,6 +5,7 @@ use crate::{
         batch::{build_bond_batch, build_random_batch},
         bond::build_bond,
         faucet_transfer::build_faucet_transfer,
+        init_account::build_init_account,
         new_wallet_keypair::build_new_wallet_keypair,
         transparent_transfer::build_transparent_transfer,
     },
@@ -15,6 +16,7 @@ use crate::{
         batch::execute_tx_batch,
         bond::{build_tx_bond, execute_tx_bond},
         faucet_transfer::execute_faucet_transfer,
+        init_account::build_tx_init_account,
         new_wallet_keypair::execute_new_wallet_key_pair,
         reveal_pk::execute_reveal_pk,
         transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
@@ -59,6 +61,7 @@ pub enum StepType {
     FaucetTransfer,
     TransparentTransfer,
     Bond,
+    InitAccount,
     BatchBond,
     BatchRandom,
 }
@@ -70,6 +73,7 @@ impl Display for StepType {
             StepType::FaucetTransfer => write!(f, "faucet-transfer"),
             StepType::TransparentTransfer => write!(f, "transparent-transfer"),
             StepType::Bond => write!(f, "bond"),
+            StepType::InitAccount => write!(f, "init-account"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
         }
@@ -124,6 +128,7 @@ impl WorkloadExecutor {
                 state.at_least_accounts(2) && state.any_account_can_make_transfer()
             }
             StepType::Bond => state.any_account_with_min_balance(2),
+            StepType::InitAccount => state.min_n_implicit_accounts(3),
             StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
             StepType::BatchRandom => state.min_n_account_with_min_balance(3, 2),
         }
@@ -140,6 +145,7 @@ impl WorkloadExecutor {
             StepType::FaucetTransfer => build_faucet_transfer(state).await?,
             StepType::TransparentTransfer => build_transparent_transfer(state).await?,
             StepType::Bond => build_bond(sdk, state).await?,
+            StepType::InitAccount => build_init_account(state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
         };
@@ -181,6 +187,17 @@ impl WorkloadExecutor {
                         validator,
                         amount,
                         epoch,
+                        retry_config,
+                        state,
+                    )
+                    .await
+                }
+                Task::InitAccount(alias, sources, threshold, _) => {
+                    build_checks::init_account::init_account_build_checks(
+                        sdk,
+                        alias,
+                        sources,
+                        threshold,
                         retry_config,
                         state,
                     )
@@ -578,6 +595,85 @@ impl WorkloadExecutor {
                         Err(e) => return Err(format!("Bond check error: {}", e)),
                     }
                 }
+                Check::AccountExist(target, threshold, sources, pre_state) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let source_address = wallet.find_address(&target.name).unwrap().into_owned();
+                    drop(wallet);
+
+                    match tryhard::retry_fn(|| rpc::get_account_info(client, &source_address))
+                        .with_config(config)
+                        .on_retry(|attempt, _, error| {
+                            let error = error.to_string();
+                            async move {
+                                tracing::info!("Retry {} due to {}...", attempt, error);
+                            }
+                        })
+                        .await
+                    {
+                        Ok(Some(account)) => {
+                            let is_threshold_ok = account.threshold == threshold as u8;
+                            let is_sources_ok =
+                                sources.len() == account.public_keys_map.idx_to_pk.len();
+                            antithesis_sdk::assert_always!(
+                                is_sources_ok && is_threshold_ok,
+                                "OnChain account is invalid.",
+                                &json!({
+                                    "target_alias": target,
+                                    "target": source_address.to_pretty_string(),
+                                    "account": account,
+                                    "threshold": threshold,
+                                    "sources": sources,
+                                    "pre_state": pre_state,
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block
+                                })
+                            );
+                            if !is_sources_ok || !is_threshold_ok {
+                                tracing::error!(
+                                    "{}",
+                                    json!({
+                                        "target_alias": target,
+                                        "target": source_address.to_pretty_string(),
+                                        "account": account,
+                                        "threshold": threshold,
+                                        "sources": sources,
+                                        "pre_state": pre_state,
+                                        "timeout": random_timeout,
+                                        "execution_height": execution_height,
+                                        "check_height": latest_block
+                                    })
+                                );
+                                return Err(format!(
+                                    "AccountExist check error: account {} is invalid",
+                                    source_address
+                                ));
+                            }
+                        }
+                        Ok(None) => {
+                            antithesis_sdk::assert_always!(
+                                false,
+                                "OnChain account doesn't exist.",
+                                &json!({
+                                    "target_alias": target,
+                                    "target": source_address.to_pretty_string(),
+                                    "account": "",
+                                    "threshold": threshold,
+                                    "sources": sources,
+                                    "pre_state": pre_state,
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block
+                                })
+                            );
+                            return Err(format!(
+                                "AccountExist check error: account {} is doesn't exist",
+                                target.name
+                            ));
+                        }
+                        Err(e) => return Err(format!("AccountExist check error: {}", e)),
+                    };
+                }
             }
         }
 
@@ -610,6 +706,11 @@ impl WorkloadExecutor {
                 Task::Bond(source, validator, amount, _, settings) => {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_bond(sdk, source, validator, amount, settings).await?;
+                    execute_tx_bond(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::InitAccount(source, sources, threshold, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_init_account(sdk, source, sources, threshold, settings).await?;
                     execute_tx_bond(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Batch(tasks, task_settings) => {

@@ -97,6 +97,12 @@ impl State {
                     self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     self.update(tasks, false);
                 }
+                Task::InitAccount(alias, sources, threshold, setting) => {
+                    self.add_enstablished_account(alias, sources, threshold);
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                }
             }
         }
     }
@@ -173,6 +179,14 @@ impl State {
             .any(|(_, balance)| balance >= &MIN_TRANSFER_BALANCE)
     }
 
+    pub fn min_n_implicit_accounts(&self, sample_size: usize) -> bool {
+        self.accounts
+            .iter()
+            .filter(|(_, account)| account.is_implicit())
+            .count()
+            > sample_size
+    }
+
     /// GET
 
     pub fn random_account(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
@@ -181,6 +195,21 @@ impl State {
             .filter(|(alias, _)| !blacklist.contains(alias))
             .choose(&mut self.rng)
             .map(|(_, account)| account.clone())
+    }
+
+    pub fn random_implicit_accounts(
+        &mut self,
+        blacklist: Vec<Alias>,
+        sample_size: usize,
+    ) -> Vec<Account> {
+        self.accounts
+            .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
+            .choose_multiple(&mut self.rng, sample_size)
+            .into_iter()
+            .filter(|(_, account)| account.is_implicit())
+            .map(|(_, account)| account.clone())
+            .collect()
     }
 
     pub fn random_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
@@ -213,6 +242,24 @@ impl State {
                 public_keys: BTreeSet::from_iter(vec![alias.clone()]),
                 threshold: 1,
                 address_type: AddressType::Implicit,
+            },
+        );
+        self.balances.insert(alias.clone(), 0);
+    }
+
+    pub fn add_enstablished_account(
+        &mut self,
+        alias: Alias,
+        aliases: BTreeSet<Alias>,
+        threshold: u64,
+    ) {
+        self.accounts.insert(
+            alias.clone(),
+            Account {
+                alias: alias.clone(),
+                public_keys: aliases,
+                threshold,
+                address_type: AddressType::Enstablished,
             },
         );
         self.balances.insert(alias.clone(), 0);

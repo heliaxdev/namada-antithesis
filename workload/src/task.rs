@@ -40,6 +40,7 @@ pub type Source = Alias;
 pub type Amount = u64;
 pub type Address = String;
 pub type Epoch = u64;
+pub type Threshold = u64;
 
 #[derive(Clone, Debug)]
 pub enum Task {
@@ -48,6 +49,7 @@ pub enum Task {
     TransparentTransfer(Source, Target, Amount, TaskSettings),
     Bond(Source, Address, Amount, Epoch, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
+    InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
 }
 
 impl Display for Task {
@@ -61,6 +63,7 @@ impl Display for Task {
             Task::Bond(source, validator, _, _, _) => {
                 write!(f, "bond-{}-{}", source.name, validator)
             }
+            Task::InitAccount(_sources, _, _, _) => write!(f, "init-account"),
             Task::Batch(_, _) => write!(f, "batch"),
         }
     }

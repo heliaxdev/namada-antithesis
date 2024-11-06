@@ -6,7 +6,11 @@ use rand::{
 use crate::{entities::Alias, state::State};
 
 pub(crate) fn random_between(state: &mut State, from: u64, to: u64) -> u64 {
-    state.rng.gen_range(from..to)
+    if from == to {
+        return from
+    } else {
+        state.rng.gen_range(from..to)
+    }
 }
 
 pub(crate) fn random_alias(state: &mut State) -> Alias {
