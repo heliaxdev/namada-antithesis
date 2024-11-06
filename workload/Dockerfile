@@ -26,6 +26,7 @@ WORKDIR /app
 # copy the runtime files
 COPY --from=builder /app/target/release/namada-chain-workload /app/namada-chain-workload 
 
+COPY --chmod=0755 scripts/init_script.sh /opt/antithesis/test/v1/namada/first_get_chainid.sh
 COPY --chmod=0755 scripts/parallel_driver_create_wallet.sh /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
 COPY --chmod=0755 scripts/parallel_driver_faucet_transfer.sh /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 COPY --chmod=0755 scripts/parallel_driver_bond.sh /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
