@@ -1,12 +1,9 @@
-# Namada three validator devnet setup
-# IMAGE_TAG=v0.33.0-inst podman-compose up
 version: "3.8"
 
 services:
   genesis:
     container_name: genesis
     hostname: genesis
-    # image: namada-genesis:v0.33.0-inst
     image: "namada-genesis:${IMAGE_TAG:-latest}"
     environment:
     - VALIDATOR0_ADDR=30.0.0.12:27657
@@ -24,7 +21,6 @@ services:
   validator0:
     container_name: validator0
     hostname: validator0
-    # image: namada:v0.33.0-inst
     image: "namada:${IMAGE_TAG:-latest}"
     environment:
       - NAMADA_TOKIO_THREADS=4
@@ -43,10 +39,9 @@ services:
     networks:
       namada-net:
         ipv4_address: 30.0.0.12
-  validator1: # validator
+  validator1:
     container_name: validator1
     hostname: validator1
-    # image: namada:v0.33.0-inst
     image: "namada:${IMAGE_TAG:-latest}"
     environment:
       - NAMADA_TOKIO_THREADS=4
@@ -65,10 +60,9 @@ services:
     networks:
       namada-net:
         ipv4_address: 30.0.0.13
-  validator2: # validator
+  validator2:
     container_name: validator2
     hostname: validator2
-    # image: namada:v0.33.0-inst
     image: "namada:${IMAGE_TAG:-latest}"
     environment:
       - NAMADA_TOKIO_THREADS=4
@@ -87,10 +81,9 @@ services:
     networks:
       namada-net:
         ipv4_address: 30.0.0.14
-  fullnode: # full node
+  fullnode:
     container_name: fullnode
     hostname: fullnode
-    # image: namada:v0.33.0-inst
     image: "namada:${IMAGE_TAG:-latest}"
     environment:
       - NAMADA_TOKIO_THREADS=4
@@ -185,6 +178,7 @@ services:
       start_period: 80s
     networks:
       namada-net:
+        ipv4_address: 30.0.0.21
   masp-chain:
     container_name: masp-chain
     hostname: masp-chain

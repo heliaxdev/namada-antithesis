@@ -66,3 +66,4 @@ target/
 check/target
 workload/run.sh
 workload/run-campfire.sh
+docker-compose-test.yml
