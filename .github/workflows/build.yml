@@ -20,7 +20,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+      antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
     strategy:
       fail-fast: true
       matrix:
@@ -48,18 +48,18 @@ jobs:
       - name: Login to private registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.registry_url }}
+          registry: ${{ env.antithesis_registry_url }}
           username: _json_key
           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
       - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.commit }}/${{ github.event.inputs.genesis_template_version }}
         run: |
-          registry_url="${{ env.registry_url }}" sha=${{ github.event.inputs.commit }} genesis_template_version=${{ github.event.inputs.genesis_template_version }} make ${{ matrix.images.make }}
-          docker push ${{ env.registry_url }}/${{ matrix.images.image }}:${{ github.event.inputs.commit }}${{ matrix.images.tag }}
+          registry_url="${{ env.antithesis_registry_url }}" sha=${{ github.event.inputs.commit }} genesis_template_version=${{ github.event.inputs.genesis_template_version }} make ${{ matrix.images.make }}
+          docker push ${{ env.antithesis_registry_url }}/${{ matrix.images.image }}:${{ github.event.inputs.commit }}${{ matrix.images.tag }}
   
   check-container:
     runs-on: ubuntu-latest
     env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+      antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -70,18 +70,18 @@ jobs:
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.registry_url }}
+          registry: ${{ env.antithesis_registry_url }}
           username: _json_key
           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
       - name: Build & Push Image Check Container
         run: |
-          registry_url="${{ env.registry_url }}" make build-check
-          docker push ${{ env.registry_url }}/check:latest
+          registry_url="${{ env.antithesis_registry_url }}" make build-check
+          docker push ${{ env.antithesis_registry_url }}/check:latest
 
   workload-container:
     runs-on: ubuntu-latest
     env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+      antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -92,18 +92,18 @@ jobs:
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.registry_url }}
+          registry: ${{ env.antithesis_registry_url }}
           username: _json_key
           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
       - name: Build & Push Image Check Container
         run: |
-          registry_url="${{ env.registry_url }}" make build-workload
-          docker push ${{ env.registry_url }}/workload:latest
+          registry_url="${{ env.antithesis_registry_url }}" make build-workload
+          docker push ${{ env.antithesis_registry_url }}/workload:latest
 
   masp-indexer:
     runs-on: ubuntu-latest
     env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+      antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -114,12 +114,12 @@ jobs:
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.registry_url }}
+          registry: ${{ env.antithesis_registry_url }}
           username: _json_key
           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
       - name: Build & Push Image Masp Indexer Containers
         run: |
-          registry_url="${{ env.registry_url }}" masp_sha=${{ github.event.inputs.masp_commit }} make build-masp-indexer
-          docker push ${{ env.registry_url }}/masp-indexer-webserver:latest
-          docker push ${{ env.registry_url }}/masp-indexer-chain:latest
-          docker push ${{ env.registry_url }}/masp-indexer-block-filter:latest
+          registry_url="${{ env.antithesis_registry_url }}" masp_sha=${{ github.event.inputs.masp_commit }} make build-masp-indexer
+          docker push ${{ env.antithesis_registry_url }}/masp-indexer-webserver:latest
+          docker push ${{ env.antithesis_registry_url }}/masp-indexer-chain:latest
+          docker push ${{ env.antithesis_registry_url }}/masp-indexer-block-filter:latest
