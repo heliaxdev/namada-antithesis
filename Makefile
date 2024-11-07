@@ -17,6 +17,6 @@ build-workload:
 	docker build --no-cache -t ${registry_url}/workload:latest -f workload/Dockerfile workload
 
 build-masp-indexer:
-	docker build --no-cache -t ${registry_url}/masp-indexer-webserver:latest --build-arg GIT_SHA=${masp_sha} masp-indexer/block-filter
+	docker build --no-cache -t ${registry_url}/masp-indexer-webserver:latest --build-arg GIT_SHA=${masp_sha} masp-indexer/webserver
 	docker build --no-cache -t ${registry_url}/masp-indexer-chain:latest --build-arg GIT_SHA=${masp_sha} masp-indexer/chain
-	docker build --no-cache -t ${registry_url}/masp-indexer-block-filter:latest --build-arg GIT_SHA=${masp_sha} masp-indexer/webserver
+	docker build --no-cache -t ${registry_url}/masp-indexer-block-filter:latest --build-arg GIT_SHA=${masp_sha} masp-indexer/block-filter
