@@ -190,6 +190,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      namada-net:
+        ipv4_address: 30.0.0.22
   masp-webserver:
     container_name: masp-webserver
     hostname: masp-webserver
@@ -213,6 +216,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      namada-net:
+        ipv4_address: 30.0.0.23
 networks:
   namada-net:
     driver: bridge
