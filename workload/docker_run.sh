@@ -2,7 +2,7 @@
 
 set -e
 
-if [[ ! -v ANTITHESIS ]]; then
+if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
     while true
     do
         ./opt/antithesis/test/v1/namada/first_get_chainid.sh
@@ -30,7 +30,7 @@ if [[ ! -v ANTITHESIS ]]; then
         ./opt/antithesis/test/v1/namada/parallel_driver_random_batch.sh
     done
 else
-    echo "ANTITHESIS has the value: $ANTITHESIS"
+    echo "ANTITHESIS_OUTPUT_DIR has the value: $ANTITHESIS_OUTPUT_DIR"
 
     sleep infinity
 fi
