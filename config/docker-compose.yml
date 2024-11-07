@@ -114,7 +114,6 @@ services:
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
-    entrypoint: /app/entrypoint.sh
     networks:
       namada-net:
         ipv4_address: 30.0.0.16
@@ -131,7 +130,6 @@ services:
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
-    entrypoint: /app/entrypoint.sh
     networks:
       namada-net:
         ipv4_address: 30.0.0.17
@@ -148,7 +146,6 @@ services:
     volumes:
       - ./container_ready/:/container_ready
       - ./workload.sh:/app/entrypoint.sh
-    entrypoint: /app/entrypoint.sh
     networks:
       namada-net:
         ipv4_address: 30.0.0.18
