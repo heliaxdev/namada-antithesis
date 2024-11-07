@@ -136,6 +136,13 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
                     &json!({ "details": e })
                 );
             }
+            "MaspIndexerHeightCheck" => {
+                antithesis_sdk::assert_always!(
+                    res.is_ok(),
+                    "masp_indexer_height_check",
+                    &json!({ "details": e })
+                );
+            }
             _ => (),
         }
         tracing::error!("{}", format!("Error! {}: {}", check_name, e));
@@ -149,6 +156,13 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             }
             "InflationCheck" => {
                 antithesis_sdk::assert_always!(res.is_ok(), "inflation_check", &json!({}));
+            }
+            "MaspIndexerHeightCheck" => {
+                antithesis_sdk::assert_always!(
+                    res.is_ok(),
+                    "masp_indexer_height_check",
+                    &json!({})
+                );
             }
             _ => (),
         }
