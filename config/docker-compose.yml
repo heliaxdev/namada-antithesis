@@ -92,6 +92,7 @@ services:
       - NAMADA_LOG_FMT=json
       - NAMADA_TM_STDOUT="true"
       - CMT_LOG_LEVEL=info
+      - NAMADA_CMT_STDOUT=true
       - BASE_DIR=/fullnode
     volumes:
       - ./fullnode/:/fullnode
