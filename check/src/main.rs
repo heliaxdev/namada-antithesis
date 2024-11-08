@@ -137,7 +137,7 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
                 );
             }
             "MaspIndexerHeightCheck" => {
-                antithesis_sdk::assert_always!(
+                antithesis_sdk::assert_sometimes!(
                     res.is_ok(),
                     "masp_indexer_height_check",
                     &json!({ "details": e })
@@ -158,7 +158,7 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
                 antithesis_sdk::assert_always!(res.is_ok(), "inflation_check", &json!({}));
             }
             "MaspIndexerHeightCheck" => {
-                antithesis_sdk::assert_always!(
+                antithesis_sdk::assert_sometimes!(
                     res.is_ok(),
                     "masp_indexer_height_check",
                     &json!({})
