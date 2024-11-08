@@ -12,6 +12,7 @@ use namada_sdk::{
 };
 use namada_wallet::fs::FsWalletUtils;
 use tendermint_rpc::{HttpClient, Url};
+use tokio::time::sleep;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -109,6 +110,8 @@ async fn main() {
         tracing::info!("Invalid step: {}", next_step);
         return;
     }
+    
+    let init_block_height = fetch_current_block_height(&sdk).await;
 
     tracing::info!("Step is: {:?}...", next_step);
     let tasks = match workload_executor.build(next_step, &sdk, &mut state).await {
@@ -147,6 +150,15 @@ async fn main() {
                 namada_chain_workload::steps::StepError::Execution(_) => {
                     tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
                 }
+                namada_chain_workload::steps::StepError::Broadcast(e) => {
+                    tracing::info!("Broadcasting error {:?} -> {}, waiting for next block", next_step, e.to_string());
+                    loop {
+                        let current_block_height = fetch_current_block_height(&sdk).await;
+                        if current_block_height > init_block_height {
+                            break
+                        }
+                    };
+                }
                 _ => {
                     tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
                 }
@@ -176,4 +188,16 @@ async fn main() {
     let file = File::open(path).unwrap();
     file.unlock().unwrap();
     tracing::info!("Done {:?}!", next_step);
+}
+
+
+async fn fetch_current_block_height(sdk: &Sdk) -> u64 {
+    let client = sdk.namada.clone_client();
+    loop {
+        let latest_block = client.latest_block().await;
+        if let Ok(block) = latest_block {
+            return block.block.header.height.into();
+        }
+        sleep(Duration::from_secs_f64(1.0f64)).await
+    };
 }
