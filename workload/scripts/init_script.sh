@@ -21,8 +21,5 @@ done
 
 CHAIN_ID=$(basename $CHAIN_ID)
 
-echo "Workload: the chain ID is $CHAIN_ID"
-echo "Using rpc: ${RPC}"
-
 # Ready to start workload
 echo "Ready to start the workload"
