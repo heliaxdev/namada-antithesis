@@ -25,12 +25,12 @@ impl DoCheck for MaspIndexerHeightCheck {
                             Ok(parsed) => {
                                 let current_block_height = u64::from(parsed.block_height);
                                 if state.last_block_height_masp_indexer <= current_block_height {
-                                    tracing::info!("Block height ok ({} -> {})", state.last_block_height_masp_indexer, current_block_height);
+                                    tracing::info!("Masp indexer block height ok ({} -> {})", state.last_block_height_masp_indexer, current_block_height);
                                     state.last_block_height_masp_indexer = current_block_height;
                                     Ok(())
                                 } else {
                                     Err(format!(
-                                        "Block height didnt increase: before: {} -> after {}",
+                                        "Masp indexer height didnt increase: before: {} -> after {}",
                                         state.last_block_height_masp_indexer, current_block_height
                                     ))
                                 }
