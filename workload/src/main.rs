@@ -129,7 +129,7 @@ async fn main() {
             return;
         }
     };
-    tracing::info!("Built {:?}...", next_step);
+    tracing::info!("Built {:?} -> {:?}", next_step, tasks.iter().map(|task| task.to_string()).collect::<Vec<String>>());
 
     let checks = workload_executor
         .build_check(&sdk, tasks.clone(), &state)
