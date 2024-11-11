@@ -135,7 +135,7 @@ impl WorkloadExecutor {
             StepType::InitAccount => state.min_n_implicit_accounts(3),
             StepType::Redelegate => state.any_bond(),
             StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
-            StepType::BatchRandom => state.min_n_account_with_min_balance(3, 2),
+            StepType::BatchRandom => state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3),
         }
     }
 

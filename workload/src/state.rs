@@ -158,8 +158,8 @@ impl State {
         self.at_least_accounts(1)
     }
 
-    pub fn at_least_accounts(&self, min_accounts: u64) -> bool {
-        self.accounts.len() >= min_accounts as usize
+    pub fn at_least_accounts(&self, sample: u64) -> bool {
+        self.accounts.len() >= sample as usize
     }
 
     pub fn any_account_with_min_balance(&self, min_balance: u64) -> bool {
@@ -168,12 +168,12 @@ impl State {
             .any(|(_, balance)| balance >= &min_balance)
     }
 
-    pub fn min_n_account_with_min_balance(&self, total_accounts: usize, min_balance: u64) -> bool {
+    pub fn min_n_account_with_min_balance(&self, sample: usize, min_balance: u64) -> bool {
         self.balances
             .iter()
             .filter(|(_, balance)| **balance >= min_balance)
             .count()
-            >= total_accounts
+            >= sample
     }
 
     pub fn any_account_can_pay_fees(&self) -> bool {
@@ -202,15 +202,13 @@ impl State {
     }
 
     pub fn any_bond(&self) -> bool {
-        self.bonds.values().any(|data| {
-            data.values().any(|data| *data > 2)
-        })
+        self.min_bonds(1)
     }
 
     pub fn min_bonds(&self, sample: usize) -> bool {
         self.bonds.values().filter(|data| {
             data.values().any(|data| *data > 2)
-        }).flatten().count() > sample
+        }).flatten().count() >= sample
     }
 
     /// GET
