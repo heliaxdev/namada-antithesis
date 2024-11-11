@@ -53,7 +53,8 @@ pub struct Bond {
 pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub balances: HashMap<Alias, u64>,
-    pub bonds: HashMap<Alias, HashMap<String, u64>>,
+    pub bonds: HashMap<Alias, HashMap<String, u64>>,  
+    pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
     pub validators: HashMap<Alias, String>,
     pub seed: u64,
@@ -68,6 +69,7 @@ impl State {
             accounts: HashMap::default(),
             balances: HashMap::default(),
             bonds: HashMap::default(),
+            unbonds: HashMap::default(),
             redelegations: HashMap::default(),
             validators: HashMap::default(),
             seed,
@@ -105,18 +107,26 @@ impl State {
                     }
                 }
                 Task::Redelegate(source, from, to, amount, _epoch, setting) => {
-                    self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
-                    self.modify_redeleagte(source, from, to, amount)
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.modify_redelegate(source, from, to, amount)
                 }
                 Task::Batch(tasks, setting) => {
                     self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     self.update(tasks, false);
                 }
-                Task::InitAccount(alias, sources, threshold, setting) => {
-                    self.add_enstablished_account(alias, sources, threshold);
+                Task::Unbond(source, validator, amount, _epoch, setting) => {
                     if with_fee {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     }
+                    self.modify_unbonds(source, validator, amount);
+                }
+                Task::InitAccount(alias, sources, threshold, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.add_enstablished_account(alias, sources, threshold);
                 }
             }
         }
@@ -351,7 +361,7 @@ impl State {
             .or_insert(0) += amount;
     }
 
-    pub fn modify_redeleagte(&mut self, source: Alias, from: String, to: String, amount: u64) {
+    pub fn modify_redelegate(&mut self, source: Alias, from: String, to: String, amount: u64) {
         let default = HashMap::from_iter([(to.clone(), 0u64)]);
         *self
             .redelegations
@@ -362,5 +372,18 @@ impl State {
         self.bonds
             .entry(source.clone())
             .and_modify(|bond| *bond.get_mut(&from).unwrap() -= amount);
+    }
+
+    pub fn modify_unbonds(&mut self, source: Alias, validator: String, amount: u64) {
+        let default = HashMap::from_iter([(validator.clone(), 0u64)]);
+        *self
+            .unbonds
+            .entry(source.clone())
+            .or_insert(default)
+            .entry(validator.clone())
+            .or_insert(0) += amount;
+        self.bonds
+            .entry(source.clone())
+            .and_modify(|bond| *bond.get_mut(&validator).unwrap() -= amount);
     }
 }

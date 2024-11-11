@@ -48,6 +48,7 @@ pub enum Task {
     FaucetTransfer(Target, Amount, TaskSettings),
     TransparentTransfer(Source, Target, Amount, TaskSettings),
     Bond(Source, Address, Amount, Epoch, TaskSettings),
+    Unbond(Source, Address, Amount, Epoch, TaskSettings),
     Redelegate(Source, Address, Address, Amount, Epoch, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
@@ -63,6 +64,9 @@ impl Display for Task {
             }
             Task::Bond(source, validator, amount, _, _) => {
                 write!(f, "bond/{}/{}/{}", source.name, validator, amount)
+            }
+            Task::Unbond(source, validator, amount, _, _) => {
+                write!(f, "unbondd/{}/{}/{}", source.name, validator, amount)
             }
             Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
             Task::Redelegate(source, from, to, amount, _, _) => write!(f, "redelegate/{}/{}/{}/{}", source.name, from, to, amount),
