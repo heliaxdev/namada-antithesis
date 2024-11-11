@@ -319,7 +319,6 @@ impl WorkloadExecutor {
                             ));
                         }
                     }
-                    println!("{:>?}", checks);
                     checks
                 }
             };

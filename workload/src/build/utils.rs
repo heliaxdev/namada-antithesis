@@ -15,7 +15,7 @@ pub(crate) fn random_between(state: &mut State, from: u64, to: u64) -> u64 {
 
 pub(crate) fn random_alias(state: &mut State) -> Alias {
     format!(
-        "load-tester-{}",
+        "workload-generator-{}",
         Alphanumeric.sample_string(&mut state.rng, 8)
     )
     .into()
