@@ -42,11 +42,20 @@ impl Account {
     }
 }
 
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Bond {
+    pub alias: Alias,
+    pub validator: String,
+    pub amount: u64
+}
+
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub balances: HashMap<Alias, u64>,
     pub bonds: HashMap<Alias, HashMap<String, u64>>,
+    pub redelegations: HashMap<Alias, HashMap<String, u64>>,
     pub seed: u64,
     pub rng: ChaCha20Rng,
     pub path: PathBuf,
@@ -59,6 +68,7 @@ impl State {
             accounts: HashMap::default(),
             balances: HashMap::default(),
             bonds: HashMap::default(),
+            redelegations: HashMap::default(),
             seed,
             rng: ChaCha20Rng::seed_from_u64(seed),
             path: env::current_dir()
@@ -92,6 +102,10 @@ impl State {
                     if with_fee {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     }
+                }
+                Task::Redelegate(source, from, to, amount, _epoch, setting) => {
+                    self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    self.modify_redeleagte(source, from, to, amount)
                 }
                 Task::Batch(tasks, setting) => {
                     self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
@@ -187,6 +201,12 @@ impl State {
             > sample_size
     }
 
+    pub fn any_bond(&self) -> bool {
+        self.bonds.values().any(|data| {
+            data.values().any(|data| *data > 0)
+        })
+    }
+
     /// GET
 
     pub fn random_account(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
@@ -212,6 +232,22 @@ impl State {
             .collect()
     }
 
+    pub fn random_bond(
+        &mut self,
+    ) -> Bond {
+        self.bonds
+            .iter()
+            .map(|(source, bonds)| {
+                bonds.iter().map(|(validator, amount)| {
+                    Bond {
+                        alias: source.to_owned(),
+                        validator: validator.to_owned(),
+                        amount: *amount,
+                    }
+                }) 
+            }).flatten().choose(&mut self.rng).unwrap()
+    }
+
     pub fn random_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
         self.balances
             .iter()
@@ -226,6 +262,10 @@ impl State {
                 }
             })
             .choose(&mut self.rng)
+    }
+
+    pub fn get_account_by_alias(&self, alias: &Alias) -> Account {
+        self.accounts.get(alias).unwrap().to_owned()
     }
 
     pub fn get_balance_for(&self, alias: &Alias) -> u64 {
@@ -289,5 +329,19 @@ impl State {
             .or_insert(default)
             .entry(validator)
             .or_insert(0) += amount;
+    }
+
+    pub fn modify_redeleagte(&mut self, source: Alias, from: String, to: String, amount: u64) {
+        let default = HashMap::from_iter([(to.clone(), 0u64)]);
+        *self
+            .redelegations
+            .entry(source.clone())
+            .or_insert(default)
+            .entry(to)
+            .or_insert(0) += amount;
+        self
+            .bonds
+            .entry(source.clone())
+            .and_modify(|bond| *bond.get_mut(&from).unwrap() -= amount);
     }
 }

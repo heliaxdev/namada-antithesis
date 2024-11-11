@@ -30,7 +30,7 @@ impl TaskSettings {
         Self {
             signers: BTreeSet::from_iter(vec![Alias::faucet()]),
             gas_payer: Alias::faucet(),
-            gas_limit: DEFAULT_GAS_LIMIT * size as u64,
+            gas_limit: DEFAULT_GAS_LIMIT * size as u64 * 10,
         }
     }
 }
@@ -48,6 +48,7 @@ pub enum Task {
     FaucetTransfer(Target, Amount, TaskSettings),
     TransparentTransfer(Source, Target, Amount, TaskSettings),
     Bond(Source, Address, Amount, Epoch, TaskSettings),
+    Redelegate(Source, Address, Address, Amount, Epoch, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
 }
@@ -64,6 +65,7 @@ impl Display for Task {
                 write!(f, "bond-{}-{}", source.name, validator)
             }
             Task::InitAccount(_sources, _, _, _) => write!(f, "init-account"),
+            Task::Redelegate(_, _, _, _, _, _) => write!(f, "redelegate"),
             Task::Batch(_, _) => write!(f, "batch"),
         }
     }

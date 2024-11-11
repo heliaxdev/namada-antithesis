@@ -14,7 +14,7 @@ pub async fn bond(
     let bond_check = if let Some(pre_bond) =
         super::utils::get_bond(sdk, source.clone(), validator.clone(), epoch, retry_config).await
     {
-        Check::Bond(source, validator, pre_bond, amount, state.clone())
+        Check::BondIncrease(source, validator, pre_bond, amount, state.clone())
     } else {
         tracing::info!("retrying ...");
         return vec![];
