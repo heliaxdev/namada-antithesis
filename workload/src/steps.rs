@@ -7,6 +7,7 @@ use crate::{
         faucet_transfer::build_faucet_transfer,
         init_account::build_init_account,
         new_wallet_keypair::build_new_wallet_keypair,
+        redelegate::build_redelegate,
         transparent_transfer::build_transparent_transfer,
     },
     build_checks,
@@ -18,6 +19,7 @@ use crate::{
         faucet_transfer::execute_faucet_transfer,
         init_account::build_tx_init_account,
         new_wallet_keypair::execute_new_wallet_key_pair,
+        redelegate::{build_tx_redelegate, execute_tx_redelegate},
         reveal_pk::execute_reveal_pk,
         transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
     },
@@ -62,6 +64,7 @@ pub enum StepType {
     TransparentTransfer,
     Bond,
     InitAccount,
+    Redelegate,
     BatchBond,
     BatchRandom,
 }
@@ -74,6 +77,7 @@ impl Display for StepType {
             StepType::TransparentTransfer => write!(f, "transparent-transfer"),
             StepType::Bond => write!(f, "bond"),
             StepType::InitAccount => write!(f, "init-account"),
+            StepType::Redelegate => write!(f, "redelegate"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
         }
@@ -129,6 +133,7 @@ impl WorkloadExecutor {
             }
             StepType::Bond => state.any_account_with_min_balance(2),
             StepType::InitAccount => state.min_n_implicit_accounts(3),
+            StepType::Redelegate => state.any_bond(),
             StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
             StepType::BatchRandom => state.min_n_account_with_min_balance(3, 2),
         }
@@ -146,6 +151,7 @@ impl WorkloadExecutor {
             StepType::TransparentTransfer => build_transparent_transfer(state).await?,
             StepType::Bond => build_bond(sdk, state).await?,
             StepType::InitAccount => build_init_account(state).await?,
+            StepType::Redelegate => build_redelegate(sdk, state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
         };
@@ -203,15 +209,28 @@ impl WorkloadExecutor {
                     )
                     .await
                 }
+                Task::Redelegate(source, from, to, amount, epoch, _) => {
+                    build_checks::redelegate::redelegate(
+                        sdk,
+                        source,
+                        from,
+                        to,
+                        amount,
+                        epoch,
+                        retry_config,
+                        state,
+                    )
+                    .await
+                }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
 
                     let mut reveal_pks: HashMap<Alias, Alias> = HashMap::default();
                     let mut balances: HashMap<Alias, i64> = HashMap::default();
                     let mut bond: HashMap<String, (u64, u64)> = HashMap::default();
+                    let mut redelegate: HashMap<String, (u64, u64)> = HashMap::default();
 
                     for task in tasks {
-                        println!("{:>?}", task);
                         match &task {
                             Task::NewWalletKeyPair(source) => {
                                 reveal_pks.insert(source.clone(), source.to_owned());
@@ -240,6 +259,15 @@ impl WorkloadExecutor {
                                     .entry(source.clone())
                                     .and_modify(|balance| *balance -= *amount as i64)
                                     .or_insert(-(*amount as i64));
+                            }
+                            Task::Redelegate(source, from, to, amount, epoch, _settings) => {
+                                redelegate
+                                    .entry(format!("{}@{}", source.name, to))
+                                    .and_modify(|(_epoch, balance)| *balance += amount)
+                                    .or_insert((*epoch, *amount));
+                                bond.entry(format!("{}@{}", source.name, from))
+                                    .and_modify(|(_epoch, balance)| *balance -= amount)
+                                    .or_insert((*epoch, *amount));
                             }
                             _ => panic!(),
                         };
@@ -282,7 +310,7 @@ impl WorkloadExecutor {
                         )
                         .await
                         {
-                            checks.push(Check::Bond(
+                            checks.push(Check::BondIncrease(
                                 Alias::from(source),
                                 validator.to_owned(),
                                 pre_bond,
@@ -335,7 +363,7 @@ impl WorkloadExecutor {
                     );
                 }
             }
-            sleep(Duration::from_secs_f64(1.0f64)).await
+            sleep(Duration::from_secs_f64(2.0f64)).await
         };
 
         for check in checks {
@@ -509,7 +537,7 @@ impl WorkloadExecutor {
                         Err(e) => return Err(format!("BalanceSource check error: {}", e)),
                     }
                 }
-                Check::Bond(target, validator, pre_bond, amount, pre_state) => {
+                Check::BondIncrease(target, validator, pre_bond, amount, pre_state) => {
                     let wallet = sdk.namada.wallet.read().await;
                     let source_address = wallet.find_address(&target.name).unwrap().into_owned();
 
@@ -553,7 +581,9 @@ impl WorkloadExecutor {
                             {
                                 bond
                             } else {
-                                return Err("Bond check error: bond is negative".to_string());
+                                return Err(
+                                    "Bond increase check error: bond is negative".to_string()
+                                );
                             };
                             antithesis_sdk::assert_always!(
                                 post_bond.eq(&check_bond),
@@ -589,7 +619,95 @@ impl WorkloadExecutor {
                                         "check_height": latest_block
                                     })
                                 );
-                                return Err(format!("Bond check error: post target amount is not equal to pre balance: pre {}, post {}, amount: {}", pre_bond, post_bond, amount));
+                                return Err(format!("Bond increase check error: post target amount is not equal to pre balance: pre {}, post {}, amount: {}", pre_bond, post_bond, amount));
+                            }
+                        }
+                        Err(e) => return Err(format!("Bond check error: {}", e)),
+                    }
+                }
+                Check::BondDecrease(target, validator, pre_bond, amount, pre_state) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let source_address = wallet.find_address(&target.name).unwrap().into_owned();
+
+                    let validator_address = Address::from_str(&validator).unwrap();
+
+                    let epoch = if let Ok(epoch) = tryhard::retry_fn(|| rpc::query_epoch(client))
+                        .with_config(config)
+                        .on_retry(|attempt, _, error| {
+                            let error = error.to_string();
+                            async move {
+                                tracing::info!("Retry {} due to {}...", attempt, error);
+                            }
+                        })
+                        .await
+                    {
+                        epoch
+                    } else {
+                        continue;
+                    };
+
+                    match tryhard::retry_fn(|| {
+                        rpc::get_bond_amount_at(
+                            client,
+                            &source_address,
+                            &validator_address,
+                            Epoch(epoch.0 + 2),
+                        )
+                    })
+                    .with_config(config)
+                    .on_retry(|attempt, _, error| {
+                        let error = error.to_string();
+                        async move {
+                            tracing::info!("Retry {} due to {}...", attempt, error);
+                        }
+                    })
+                    .await
+                    {
+                        Ok(post_bond) => {
+                            let check_bond = if let Some(bond) =
+                                pre_bond.checked_sub(token::Amount::from_u64(amount))
+                            {
+                                bond
+                            } else {
+                                return Err(
+                                    "Bond decrease check error: bond is negative".to_string()
+                                );
+                            };
+                            antithesis_sdk::assert_always!(
+                                post_bond.eq(&check_bond),
+                                "Bond source didn't decrease.",
+                                &json!({
+                                    "target_alias": target,
+                                    "target": source_address.to_pretty_string(),
+                                    "validator": validator_address.to_pretty_string(),
+                                    "pre_bond": pre_bond,
+                                    "amount": amount,
+                                    "post_bond": post_bond,
+                                    "pre_state": pre_state,
+                                    "epoch": epoch,
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block
+                                })
+                            );
+                            if !post_bond.eq(&check_bond) {
+                                tracing::error!(
+                                    "{}",
+                                    json!({
+                                        "target_alias": target,
+                                        "target": source_address.to_pretty_string(),
+                                        "validator": validator_address.to_pretty_string(),
+                                        "pre_bond": pre_bond,
+                                        "amount": amount,
+                                        "post_bond": post_bond,
+                                        "pre_state": pre_state,
+                                        "epoch": epoch,
+                                        "timeout": random_timeout,
+                                        "execution_height": execution_height,
+                                        "check_height": latest_block
+                                    })
+                                );
+                                return Err(format!("Bond decrease check error: post target amount is not equal to pre balance: pre {}, post {}, amount: {}", pre_bond, post_bond, amount));
                             }
                         }
                         Err(e) => return Err(format!("Bond check error: {}", e)),
@@ -703,7 +821,7 @@ impl WorkloadExecutor {
                             .await?;
                     execute_tx_transparent_transfer(sdk, &mut tx, signing_data, &tx_args).await?
                 }
-                Task::Bond(source, validator, amount, _, settings) => {
+                Task::Bond(source, validator, amount, _epoch, settings) => {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_bond(sdk, source, validator, amount, settings).await?;
                     execute_tx_bond(sdk, &mut tx, signing_data, &tx_args).await?
@@ -713,6 +831,11 @@ impl WorkloadExecutor {
                         build_tx_init_account(sdk, source, sources, threshold, settings).await?;
                     execute_tx_bond(sdk, &mut tx, signing_data, &tx_args).await?
                 }
+                Task::Redelegate(source, from, to, amount, _epoch, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_redelegate(sdk, source, from, to, amount, settings).await?;
+                    execute_tx_redelegate(sdk, &mut tx, signing_data, &tx_args).await?
+                }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];
                     for task in tasks {
@@ -721,8 +844,12 @@ impl WorkloadExecutor {
                                 build_tx_transparent_transfer(sdk, source, target, amount, settings)
                                     .await?
                             }
-                            Task::Bond(source, validator, amount, _, settings) => {
+                            Task::Bond(source, validator, amount, _epoch, settings) => {
                                 build_tx_bond(sdk, source, validator, amount, settings).await?
+                            }
+                            Task::Redelegate(source, from, to, amount, _epoch, task_settings) => {
+                                build_tx_redelegate(sdk, source, from, to, amount, task_settings)
+                                    .await?
                             }
                             _ => panic!(),
                         };

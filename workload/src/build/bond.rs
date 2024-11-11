@@ -21,7 +21,7 @@ pub async fn build_bond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepE
 
     let current_epoch = rpc::query_epoch(&client)
         .await
-        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?;
+        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?.next().next();
     let validators = rpc::get_all_consensus_validators(&client, current_epoch)
         .await
         .map_err(|e| StepError::Rpc(format!("query consensus validators: {}", e)))?;

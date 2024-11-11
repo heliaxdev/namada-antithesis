@@ -8,15 +8,16 @@ touch /opt/antithesis/test/v1/namada/state-$WORKLOAD_ID.json
 echo "" > /opt/antithesis/test/v1/namada/state-$WORKLOAD_ID.json
 
 if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
+    source /opt/antithesis/test/v1/namada/first_get_chainid.sh
+    if [ $? -eq 0 ] 
+    then 
+        echo "<OK> init" 
+    else 
+        echo "<ERROR> init"
+    fi
+    
     while true
     do
-        source /opt/antithesis/test/v1/namada/first_get_chainid.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> init" 
-        else 
-            echo "<ERROR> init" >&2 
-        fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
         source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
@@ -27,7 +28,7 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         then 
             echo "<OK> wallet" 
         else 
-            echo "<ERROR> wallet" >&2 
+            echo "<ERROR> wallet"
         fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
@@ -39,7 +40,7 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         then 
             echo "<OK> faucet" 
         else 
-            echo "<ERROR> faucet" >&2 
+            echo "<ERROR> faucet"
         fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
@@ -47,7 +48,7 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         then 
             echo "<OK> bond" 
         else 
-            echo "<ERROR> bond" >&2 
+            echo "<ERROR> bond"
         fi
         
         source /opt/antithesis/test/v1/namada/parallel_driver_transparent_transfer.sh
@@ -55,7 +56,7 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         then 
             echo "<OK> transparent transfer" 
         else 
-            echo "<ERROR> transparent transfer" >&2 
+            echo "<ERROR> transparent transfer"
         fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
@@ -63,7 +64,7 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         then 
             echo "<OK> init accout" 
         else 
-            echo "<ERROR> init account" >&2 
+            echo "<ERROR> init account"
         fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
@@ -71,7 +72,7 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         then 
             echo "<OK> bond batch" 
         else 
-            echo "<ERROR> bond batch" >&2 
+            echo "<ERROR> bond batch"
         fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_random_batch.sh
@@ -79,7 +80,7 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         then 
             echo "<OK> random batch" 
         else 
-            echo "<ERROR> random batch" >&2 
+            echo "<ERROR> random batch"
         fi
     done
 else

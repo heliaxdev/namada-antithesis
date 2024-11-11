@@ -7,7 +7,7 @@ use crate::{
     task::{Task, TaskSettings},
 };
 
-use super::{bond::build_bond, transparent_transfer::build_transparent_transfer};
+use super::{bond::build_bond, redelegate::build_redelegate, transparent_transfer::build_transparent_transfer};
 
 pub async fn build_bond_batch(
     sdk: &Sdk,
@@ -24,7 +24,7 @@ pub async fn build_random_batch(
 ) -> Result<Vec<Task>, StepError> {
     _build_batch(
         sdk,
-        vec![BatchType::TransparentTransfer, BatchType::Bond],
+        vec![BatchType::TransparentTransfer, BatchType::Bond, BatchType::Redelegate],
         max_size,
         state,
     )
@@ -53,7 +53,13 @@ async fn _build_batch(
                 tmp_state.update(tasks.clone(), false);
                 tasks
             }
+            BatchType::Redelegate => {
+                let tasks = build_redelegate(sdk, &mut tmp_state).await?;
+                tmp_state.update(tasks.clone(), false);
+                tasks
+            }
         };
+        tracing::info!("Added {:?} tx type to the batch...", step);
         batch_tasks.extend(tasks);
     }
 
@@ -65,13 +71,15 @@ async fn _build_batch(
 #[derive(Debug, Clone)]
 enum BatchType {
     TransparentTransfer,
+    Redelegate,
     Bond,
 }
 
 impl Distribution<BatchType> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> BatchType {
-        match rng.gen_range(0..2) {
+        match rng.gen_range(0..3) {
             0 => BatchType::TransparentTransfer,
+            1 => BatchType::Redelegate,
             _ => BatchType::Bond,
         }
     }
