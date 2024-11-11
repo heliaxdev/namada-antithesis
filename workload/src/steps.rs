@@ -9,6 +9,7 @@ use crate::{
         new_wallet_keypair::build_new_wallet_keypair,
         redelegate::build_redelegate,
         transparent_transfer::build_transparent_transfer,
+        unbond::build_unbond,
     },
     build_checks,
     check::Check,
@@ -22,6 +23,7 @@ use crate::{
         redelegate::{build_tx_redelegate, execute_tx_redelegate},
         reveal_pk::execute_reveal_pk,
         transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
+        unbond::{build_tx_unbond, execute_tx_unbond},
     },
     sdk::namada::Sdk,
     state::State,
@@ -65,6 +67,7 @@ pub enum StepType {
     Bond,
     InitAccount,
     Redelegate,
+    Unbond,
     BatchBond,
     BatchRandom,
 }
@@ -78,6 +81,7 @@ impl Display for StepType {
             StepType::Bond => write!(f, "bond"),
             StepType::InitAccount => write!(f, "init-account"),
             StepType::Redelegate => write!(f, "redelegate"),
+            StepType::Unbond => write!(f, "unbond"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
         }
@@ -132,10 +136,13 @@ impl WorkloadExecutor {
                 state.at_least_accounts(2) && state.any_account_can_make_transfer()
             }
             StepType::Bond => state.any_account_with_min_balance(2),
+            StepType::Unbond => state.any_bond(),
             StepType::InitAccount => state.min_n_implicit_accounts(3),
             StepType::Redelegate => state.any_bond(),
             StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
-            StepType::BatchRandom => state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3),
+            StepType::BatchRandom => {
+                state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
+            }
         }
     }
 
@@ -152,6 +159,7 @@ impl WorkloadExecutor {
             StepType::Bond => build_bond(sdk, state).await?,
             StepType::InitAccount => build_init_account(state).await?,
             StepType::Redelegate => build_redelegate(sdk, state).await?,
+            StepType::Unbond => build_unbond(sdk, state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
         };
@@ -222,6 +230,18 @@ impl WorkloadExecutor {
                     )
                     .await
                 }
+                Task::Unbond(source, validator, amount, epoch, _) => {
+                    build_checks::unbond::unbond(
+                        sdk,
+                        source,
+                        validator,
+                        amount,
+                        epoch,
+                        retry_config,
+                        state,
+                    )
+                    .await
+                }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
 
@@ -229,6 +249,7 @@ impl WorkloadExecutor {
                     let mut balances: HashMap<Alias, i64> = HashMap::default();
                     let mut bond: HashMap<String, (u64, i64)> = HashMap::default();
                     let mut redelegate: HashMap<String, (u64, i64)> = HashMap::default();
+                    let mut unbonds: HashMap<String, (u64, i64)> = HashMap::default();
 
                     for task in tasks {
                         match &task {
@@ -260,7 +281,15 @@ impl WorkloadExecutor {
                                     .and_modify(|balance| *balance -= *amount as i64)
                                     .or_insert(-(*amount as i64));
                             }
-                            Task::Redelegate(source, from, to, amount, epoch, _settings) => {
+                            Task::Unbond(source, validator, amount, epoch, _task_settings) => {
+                                bond.entry(format!("{}@{}", source.name, validator))
+                                    .and_modify(|(_epoch, balance)| *balance -= *amount as i64)
+                                    .or_insert((*epoch, *amount as i64));
+                                unbonds.entry(format!("{}@{}", source.name, validator))
+                                    .and_modify(|(_epoch, balance)| *balance += *amount as i64)
+                                    .or_insert((*epoch, *amount as i64));
+                            }
+                            Task::Redelegate(source, from, to, amount, epoch, _task_settings) => {
                                 redelegate
                                     .entry(format!("{}@{}", source.name, to))
                                     .and_modify(|(_epoch, balance)| *balance += *amount as i64)
@@ -877,6 +906,11 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_redelegate(sdk, source, from, to, amount, settings).await?;
                     execute_tx_redelegate(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::Unbond(source, validator, amount, _epoch, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_unbond(sdk, source, validator, amount, settings).await?;
+                    execute_tx_unbond(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];
