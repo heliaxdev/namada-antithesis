@@ -203,8 +203,14 @@ impl State {
 
     pub fn any_bond(&self) -> bool {
         self.bonds.values().any(|data| {
-            data.values().any(|data| *data > 0)
+            data.values().any(|data| *data > 2)
         })
+    }
+
+    pub fn min_bonds(&self, sample: usize) -> bool {
+        self.bonds.values().filter(|data| {
+            data.values().any(|data| *data > 2)
+        }).flatten().count() > sample
     }
 
     /// GET
