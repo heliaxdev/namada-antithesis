@@ -57,15 +57,15 @@ impl Display for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Task::NewWalletKeyPair(source) => write!(f, "wallet-key-pair/{}", source.name),
-            Task::FaucetTransfer(target, _, _) => write!(f, "faucet-transfer/{}", target.name),
-            Task::TransparentTransfer(source, target, _, _) => {
-                write!(f, "transparent-transfer/{}/{}", source.name, target.name)
+            Task::FaucetTransfer(target, amount, _) => write!(f, "faucet-transfer/{}/{}", target.name, amount),
+            Task::TransparentTransfer(source, target, amount, _) => {
+                write!(f, "transparent-transfer/{}/{}/{}", source.name, target.name, amount)
             }
-            Task::Bond(source, validator, _, _, _) => {
-                write!(f, "bond/{}/{}", source.name, validator)
+            Task::Bond(source, validator, amount, _, _) => {
+                write!(f, "bond/{}/{}/{}", source.name, validator, amount)
             }
             Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
-            Task::Redelegate(source, from, to, _, _, _) => write!(f, "redelegate/{}/{}/{}", source.name, from, to),
+            Task::Redelegate(source, from, to, amount, _, _) => write!(f, "redelegate/{}/{}/{}/{}", source.name, from, to, amount),
             Task::Batch(tasks, _) => {
                 let tasks = tasks.iter().map(|task| task.to_string()).collect::<Vec<String>>();
                 write!(f, "batch-{}", tasks.join(" -> "))
