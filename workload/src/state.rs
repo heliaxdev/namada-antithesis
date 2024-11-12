@@ -19,7 +19,7 @@ use crate::{
 pub enum AddressType {
     Enstablished,
     #[default]
-    Implicit,
+    Implicit
 }
 
 impl AddressType {
@@ -34,6 +34,12 @@ pub struct Account {
     pub public_keys: BTreeSet<Alias>,
     pub threshold: u64,
     pub address_type: AddressType,
+}
+
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MaspAccount {
+    pub spending_key: Alias,
+    pub payment_address: Alias,
 }
 
 impl Account {
@@ -52,7 +58,9 @@ pub struct Bond {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub accounts: HashMap<Alias, Account>,
+    pub masp_accounts: HashMap<Alias, MaspAccount>,
     pub balances: HashMap<Alias, u64>,
+    pub masp_balances: HashMap<Alias, u64>,
     pub bonds: HashMap<Alias, HashMap<String, u64>>,  
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
@@ -67,7 +75,9 @@ impl State {
     pub fn new(id: u64, seed: u64) -> Self {
         Self {
             accounts: HashMap::default(),
+            masp_accounts: HashMap::default(),
             balances: HashMap::default(),
+            masp_balances: HashMap::default(),
             bonds: HashMap::default(),
             unbonds: HashMap::default(),
             redelegations: HashMap::default(),
@@ -85,7 +95,8 @@ impl State {
         for task in tasks {
             match task {
                 Task::NewWalletKeyPair(alias) => {
-                    self.add_implicit_account(alias);
+                    self.add_implicit_account(alias.clone());
+                    self.add_masp_account(alias);
                 }
                 Task::FaucetTransfer(target, amount, settings) => {
                     let source_alias = Alias::faucet();
@@ -315,6 +326,17 @@ impl State {
             },
         );
         self.balances.insert(alias.clone(), 0);
+    }
+
+    pub fn add_masp_account(&mut self, alias: Alias) {
+        self.masp_accounts.insert(
+            alias.clone(),
+            MaspAccount {
+                spending_key: format!("{}-spending-key", alias.name).into(),
+                payment_address: format!("{}-payment-address", alias.name).into(),
+            }
+        );
+        self.masp_balances.insert(alias.clone(), 0);
     }
 
     pub fn add_enstablished_account(
