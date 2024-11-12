@@ -44,13 +44,6 @@ pub async fn build_redelegate(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>,
                 Some(v.address)
             }
         })
-        .filter_map(|v| {
-            if source_redelegations.contains(&v.to_string()) {
-                None
-            } else {
-                Some(v)
-            }
-        })
         .choose(&mut state.rng)
     {
         validator
