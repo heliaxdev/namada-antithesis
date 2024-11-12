@@ -247,9 +247,7 @@ impl WorkloadExecutor {
 
                     let mut reveal_pks: HashMap<Alias, Alias> = HashMap::default();
                     let mut balances: HashMap<Alias, i64> = HashMap::default();
-                    let mut bond: HashMap<String, (u64, i64)> = HashMap::default();
-                    let mut redelegate: HashMap<String, (u64, i64)> = HashMap::default();
-                    let mut unbonds: HashMap<String, (u64, i64)> = HashMap::default();
+                    let mut bonds: HashMap<String, (u64, i64)> = HashMap::default();
 
                     for task in tasks {
                         match &task {
@@ -273,30 +271,25 @@ impl WorkloadExecutor {
                                     .or_insert(-(*amount as i64));
                             }
                             Task::Bond(source, validator, amount, epoch, _task_settings) => {
-                                bond.entry(format!("{}@{}", source.name, validator))
-                                    .and_modify(|(_epoch, balance)| *balance += *amount as i64)
+                                bonds.entry(format!("{}@{}", source.name, validator))
+                                    .and_modify(|(_epoch, bond_amount)| *bond_amount += *amount as i64)
                                     .or_insert((*epoch, *amount as i64));
                                 balances
                                     .entry(source.clone())
                                     .and_modify(|balance| *balance -= *amount as i64)
                                     .or_insert(-(*amount as i64));
                             }
-                            Task::Unbond(source, validator, amount, epoch, _task_settings) => {
-                                bond.entry(format!("{}@{}", source.name, validator))
-                                    .and_modify(|(_epoch, balance)| *balance -= *amount as i64)
-                                    .or_insert((*epoch, *amount as i64));
-                                unbonds.entry(format!("{}@{}", source.name, validator))
-                                    .and_modify(|(_epoch, balance)| *balance += *amount as i64)
-                                    .or_insert((*epoch, *amount as i64));
+                            Task::Unbond(source, validator, amount, _epoch, _task_settings) => {
+                                bonds.entry(format!("{}@{}", source.name, validator))
+                                    .and_modify(|(_epoch, bond_amount)| *bond_amount -= *amount as i64);
                             }
                             Task::Redelegate(source, from, to, amount, epoch, _task_settings) => {
-                                redelegate
+                                bonds
                                     .entry(format!("{}@{}", source.name, to))
-                                    .and_modify(|(_epoch, balance)| *balance += *amount as i64)
+                                    .and_modify(|(_epoch, bond_amount)| *bond_amount += *amount as i64)
                                     .or_insert((*epoch, *amount as i64));
-                                bond.entry(format!("{}@{}", source.name, from))
-                                    .and_modify(|(_epoch, balance)| *balance -= *amount as i64)
-                                    .or_insert((*epoch, -(*amount as i64)));
+                                bonds.entry(format!("{}@{}", source.name, from))
+                                    .and_modify(|(_epoch, bond_amount)| *bond_amount -= *amount as i64);
                             }
                             _ => panic!(),
                         };
@@ -328,7 +321,7 @@ impl WorkloadExecutor {
                         }
                     }
 
-                    for (key, (epoch, amount)) in bond {
+                    for (key, (epoch, amount)) in bonds {
                         let (source, validator) = key.split_once('@').unwrap();
                         if let Some(pre_bond) = build_checks::utils::get_bond(
                             sdk,
@@ -348,68 +341,6 @@ impl WorkloadExecutor {
                                     state.clone(),
                                 ));
                             } else {
-                                checks.push(Check::BondDecrease(
-                                    Alias::from(source),
-                                    validator.to_owned(),
-                                    pre_bond,
-                                    amount.unsigned_abs(),
-                                    state.clone(),
-                                ));
-                            }
-                        }
-                    }
-
-                    for (key, (epoch, amount)) in redelegate {
-                        let (source, validator) = key.split_once('@').unwrap();
-                        if let Some(pre_bond) = build_checks::utils::get_bond(
-                            sdk,
-                            Alias::from(source),
-                            validator.to_owned(),
-                            epoch,
-                            retry_config,
-                        )
-                        .await
-                        {
-                            if amount > 0 {
-                                checks.push(Check::BondIncrease(
-                                    Alias::from(source),
-                                    validator.to_owned(),
-                                    pre_bond,
-                                    amount.unsigned_abs(),
-                                    state.clone(),
-                                ));
-                            } else {
-                                checks.push(Check::BondDecrease(
-                                    Alias::from(source),
-                                    validator.to_owned(),
-                                    pre_bond,
-                                    amount.unsigned_abs(),
-                                    state.clone(),
-                                ));
-                            }
-                        }
-                    }
-
-                    for (key, (epoch, amount)) in unbonds {
-                        let (source, validator) = key.split_once('@').unwrap();
-                        if let Some(pre_bond) = build_checks::utils::get_bond(
-                            sdk,
-                            Alias::from(source),
-                            validator.to_owned(),
-                            epoch,
-                            retry_config,
-                        )
-                        .await
-                        {
-                            if amount < 0 {  // opposited but bond-decrease should be enough, dont need bond increase
-                                checks.push(Check::BondIncrease(
-                                    Alias::from(source),
-                                    validator.to_owned(),
-                                    pre_bond,
-                                    amount.unsigned_abs(),
-                                    state.clone(),
-                                ));
-                            } else {  // opposited but bond-decrease should be enough, dont need bond increase
                                 checks.push(Check::BondDecrease(
                                     Alias::from(source),
                                     validator.to_owned(),
@@ -957,6 +888,9 @@ impl WorkloadExecutor {
                             Task::Redelegate(source, from, to, amount, _epoch, task_settings) => {
                                 build_tx_redelegate(sdk, source, from, to, amount, task_settings)
                                     .await?
+                            }
+                            Task::Unbond(source, validator, amount, _epoch, settings) => {
+                                build_tx_unbond(sdk, source, validator, amount, settings).await?
                             }
                             _ => panic!(),
                         };

@@ -124,7 +124,7 @@ pub async fn merge_tx(
 
     tracing::info!("Built batch with {} txs.", txs.len());
 
-    let tx_args = tx_args.wrapper_fee_payer(gas_payer);
+    let tx_args = tx_args.wrapper_fee_payer(gas_payer).force(true);
 
     Ok((tx, signing_datas, tx_args))
 }
