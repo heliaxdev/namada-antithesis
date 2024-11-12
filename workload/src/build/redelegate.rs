@@ -21,9 +21,7 @@ pub async fn build_redelegate(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>,
 
     let current_epoch = rpc::query_epoch(&client)
         .await
-        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?
-        .next()
-        .next();
+        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?;
     let validators = rpc::get_all_consensus_validators(&client, current_epoch)
         .await
         .map_err(|e| StepError::Rpc(format!("query consensus validators: {}", e)))?;
@@ -32,7 +30,7 @@ pub async fn build_redelegate(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>,
 
     let source_redelegations = state.get_redelegations_targets_for(&source_account.alias);
     if source_redelegations.contains(&source_bond.validator) {
-        return  Ok(vec![]);
+        return Ok(vec![]);
     }
 
     let to_validator = if let Some(validator) = validators
@@ -59,7 +57,7 @@ pub async fn build_redelegate(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>,
         source_bond.validator.to_string(),
         to_validator.to_string(),
         amount,
-        current_epoch.into(),
+        current_epoch.next().next().next().next().next().next().into(),
         task_settings,
     )])
 }

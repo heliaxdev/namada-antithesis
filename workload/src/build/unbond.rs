@@ -18,7 +18,7 @@ pub async fn build_unbond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, Ste
 
     let current_epoch = rpc::query_epoch(&client)
         .await
-        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?.next().next();
+        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?;
 
     let mut task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
     task_settings.gas_limit *= 3;
@@ -27,7 +27,7 @@ pub async fn build_unbond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, Ste
         source_account.alias,
         source_bond.validator,
         amount,
-        current_epoch.into(),
+        current_epoch.next().next().next().next().next().next().into(),
         task_settings,
     )])
 }

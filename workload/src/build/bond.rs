@@ -38,7 +38,7 @@ pub async fn build_bond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepE
         source_account.alias,
         validator.to_string(),
         amount,
-        current_epoch.into(),
+        current_epoch.next().next().next().next().next().next().into(),
         task_settings,
     )])
 }
