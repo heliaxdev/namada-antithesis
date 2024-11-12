@@ -31,6 +31,9 @@ pub async fn build_redelegate(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>,
     let source_bond_validator_address = Address::from_str(&source_bond.validator).unwrap();
 
     let source_redelegations = state.get_redelegations_targets_for(&source_account.alias);
+    if source_redelegations.contains(&source_bond.validator) {
+        return  Ok(vec![]);
+    }
 
     let to_validator = if let Some(validator) = validators
         .into_iter()
