@@ -48,6 +48,7 @@ pub enum Task {
     FaucetTransfer(Target, Amount, TaskSettings),
     TransparentTransfer(Source, Target, Amount, TaskSettings),
     Bond(Source, Address, Amount, Epoch, TaskSettings),
+    Unbond(Source, Address, Amount, Epoch, TaskSettings),
     Redelegate(Source, Address, Address, Amount, Epoch, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
