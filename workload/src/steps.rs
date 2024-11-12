@@ -227,8 +227,8 @@ impl WorkloadExecutor {
 
                     let mut reveal_pks: HashMap<Alias, Alias> = HashMap::default();
                     let mut balances: HashMap<Alias, i64> = HashMap::default();
-                    let mut bond: HashMap<String, (u64, u64)> = HashMap::default();
-                    let mut redelegate: HashMap<String, (u64, u64)> = HashMap::default();
+                    let mut bond: HashMap<String, (u64, i64)> = HashMap::default();
+                    let mut redelegate: HashMap<String, (u64, i64)> = HashMap::default();
 
                     for task in tasks {
                         match &task {
@@ -253,8 +253,8 @@ impl WorkloadExecutor {
                             }
                             Task::Bond(source, validator, amount, epoch, _task_settings) => {
                                 bond.entry(format!("{}@{}", source.name, validator))
-                                    .and_modify(|(_epoch, balance)| *balance += amount)
-                                    .or_insert((*epoch, *amount));
+                                    .and_modify(|(_epoch, balance)| *balance += *amount as i64)
+                                    .or_insert((*epoch, *amount as i64));
                                 balances
                                     .entry(source.clone())
                                     .and_modify(|balance| *balance -= *amount as i64)
@@ -263,11 +263,11 @@ impl WorkloadExecutor {
                             Task::Redelegate(source, from, to, amount, epoch, _settings) => {
                                 redelegate
                                     .entry(format!("{}@{}", source.name, to))
-                                    .and_modify(|(_epoch, balance)| *balance += amount)
-                                    .or_insert((*epoch, *amount));
+                                    .and_modify(|(_epoch, balance)| *balance += *amount as i64)
+                                    .or_insert((*epoch, *amount as i64));
                                 bond.entry(format!("{}@{}", source.name, from))
-                                    .and_modify(|(_epoch, balance)| *balance -= amount)
-                                    .or_insert((*epoch, *amount));
+                                    .and_modify(|(_epoch, balance)| *balance -= *amount as i64)
+                                    .or_insert((*epoch, -(*amount as i64)));
                             }
                             _ => panic!(),
                         };
@@ -310,15 +310,57 @@ impl WorkloadExecutor {
                         )
                         .await
                         {
-                            checks.push(Check::BondIncrease(
-                                Alias::from(source),
-                                validator.to_owned(),
-                                pre_bond,
-                                amount,
-                                state.clone(),
-                            ));
+                            if amount > 0 {
+                                checks.push(Check::BondIncrease(
+                                    Alias::from(source),
+                                    validator.to_owned(),
+                                    pre_bond,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            } else {
+                                checks.push(Check::BondDecrease(
+                                    Alias::from(source),
+                                    validator.to_owned(),
+                                    pre_bond,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            }
                         }
                     }
+
+                    for (key, (epoch, amount)) in redelegate {
+                        let (source, validator) = key.split_once('@').unwrap();
+                        if let Some(pre_bond) = build_checks::utils::get_bond(
+                            sdk,
+                            Alias::from(source),
+                            validator.to_owned(),
+                            epoch,
+                            retry_config,
+                        )
+                        .await
+                        {
+                            if amount > 0 {
+                                checks.push(Check::BondIncrease(
+                                    Alias::from(source),
+                                    validator.to_owned(),
+                                    pre_bond,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            } else {
+                                checks.push(Check::BondDecrease(
+                                    Alias::from(source),
+                                    validator.to_owned(),
+                                    pre_bond,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            }
+                        }
+                    }
+
                     checks
                 }
             };
@@ -366,6 +408,7 @@ impl WorkloadExecutor {
         };
 
         for check in checks {
+            tracing::info!("Running {} check...", check.to_string());
             match check {
                 Check::RevealPk(alias) => {
                     let wallet = sdk.namada.wallet.read().await;
