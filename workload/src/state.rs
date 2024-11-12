@@ -55,6 +55,7 @@ pub struct State {
     pub balances: HashMap<Alias, u64>,
     pub bonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
+    pub validators: HashMap<Alias, String>,
     pub seed: u64,
     pub rng: ChaCha20Rng,
     pub path: PathBuf,
@@ -68,6 +69,7 @@ impl State {
             balances: HashMap::default(),
             bonds: HashMap::default(),
             redelegations: HashMap::default(),
+            validators: HashMap::default(),
             seed,
             rng: ChaCha20Rng::seed_from_u64(seed),
             path: env::current_dir()
@@ -242,10 +244,16 @@ impl State {
         self.bonds
             .iter()
             .map(|(source, bonds)| {
-                bonds.iter().map(|(validator, amount)| Bond {
-                    alias: source.to_owned(),
-                    validator: validator.to_owned(),
-                    amount: *amount,
+                bonds.iter().filter_map(|(validator, amount)| {
+                    if *amount > 1 {
+                        Some(Bond {
+                            alias: source.to_owned(),
+                            validator: validator.to_owned(),
+                            amount: *amount,
+                        })
+                    } else {
+                        None
+                    }
                 })
             })
             .flatten()
@@ -277,10 +285,11 @@ impl State {
         self.balances.get(alias).cloned().unwrap_or_default()
     }
 
-    pub fn get_redelegations_targets_for(&self, alias: &Alias) -> HashSet<String> {
-        self.redelegations.get(alias).map(|data| {
-            data.keys().map(|a| a.clone())
-        }).unwrap_or_default().flatten().collect()
+    pub fn get_redelegations_targets_for(&mut self, alias: &Alias) -> HashSet<String> {
+        self.redelegations
+            .get(alias)
+            .map(|data| data.keys().map(|a| a.clone()).collect::<HashSet<String>>())
+            .unwrap_or_default()
     }
 
     /// UPDATE
