@@ -390,6 +390,37 @@ impl WorkloadExecutor {
                         }
                     }
 
+                    for (key, (epoch, amount)) in unbonds {
+                        let (source, validator) = key.split_once('@').unwrap();
+                        if let Some(pre_bond) = build_checks::utils::get_bond(
+                            sdk,
+                            Alias::from(source),
+                            validator.to_owned(),
+                            epoch,
+                            retry_config,
+                        )
+                        .await
+                        {
+                            if amount < 0 {  // opposited but bond-decrease should be enough, dont need bond increase
+                                checks.push(Check::BondIncrease(
+                                    Alias::from(source),
+                                    validator.to_owned(),
+                                    pre_bond,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            } else {  // opposited but bond-decrease should be enough, dont need bond increase
+                                checks.push(Check::BondDecrease(
+                                    Alias::from(source),
+                                    validator.to_owned(),
+                                    pre_bond,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            }
+                        }
+                    }
+
                     checks
                 }
             };

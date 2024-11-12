@@ -20,7 +20,8 @@ pub async fn build_unbond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, Ste
         .await
         .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?.next().next();
 
-    let task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
+    let mut task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
+    task_settings.gas_limit *= 3;
 
     Ok(vec![Task::Unbond(
         source_account.alias,
