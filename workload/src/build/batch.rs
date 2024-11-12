@@ -59,8 +59,12 @@ async fn _build_batch(
                 tasks
             }
         };
-        tracing::info!("Added {:?} tx type to the batch...", step);
-        batch_tasks.extend(tasks);
+        if tasks.is_empty() {
+            continue
+        } else {
+            tracing::info!("Added {:?} tx type to the batch...", step);
+            batch_tasks.extend(tasks);   
+        }
     }
 
     let settings = TaskSettings::faucet_batch(batch_tasks.len());
