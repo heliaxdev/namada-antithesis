@@ -115,6 +115,10 @@ async fn main() {
 
     tracing::info!("Step is: {:?}...", next_step);
     let tasks = match workload_executor.build(next_step, &sdk, &mut state).await {
+        Ok(tasks) if tasks.len() == 0 => {
+            tracing::info!("Couldn't build {:?}, skipping...", next_step);
+            return;
+        }
         Ok(tasks) => tasks,
         Err(e) => {
             match e {
@@ -125,7 +129,6 @@ async fn main() {
                     tracing::warn!("Warning build {:?} -> {}", next_step, e.to_string());
                 }
             }
-            state.serialize_to_file();
             return;
         }
     };

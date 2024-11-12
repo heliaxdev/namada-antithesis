@@ -21,21 +21,42 @@ pub async fn build_redelegate(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>,
 
     let current_epoch = rpc::query_epoch(&client)
         .await
-        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?.next().next();
+        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?
+        .next()
+        .next();
     let validators = rpc::get_all_consensus_validators(&client, current_epoch)
         .await
         .map_err(|e| StepError::Rpc(format!("query consensus validators: {}", e)))?;
 
     let source_bond_validator_address = Address::from_str(&source_bond.validator).unwrap();
 
-    let to_validator = validators
+    let source_redelegations = state.get_redelegations_targets_for(&source_account.alias);
+
+    let to_validator = if let Some(validator) = validators
         .into_iter()
-        .filter_map(|v| if v.address.eq(&source_bond_validator_address) { None } else { Some(v.address) })
+        .filter_map(|v| {
+            if v.address.eq(&source_bond_validator_address) {
+                None
+            } else {
+                Some(v.address)
+            }
+        })
+        .filter_map(|v| {
+            if source_redelegations.contains(&v.to_string()) {
+                None
+            } else {
+                Some(v)
+            }
+        })
         .choose(&mut state.rng)
-        .unwrap(); // safe as there is always at least a validator
+    {
+        validator
+    } else {
+        return Ok(vec![]);
+    };
 
     let mut task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
-    task_settings.gas_limit *= 3;
+    task_settings.gas_limit *= 5;
 
     Ok(vec![Task::Redelegate(
         source_account.alias,
