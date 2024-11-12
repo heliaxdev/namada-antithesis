@@ -37,6 +37,7 @@ impl TaskSettings {
 
 pub type Target = Alias;
 pub type Source = Alias;
+pub type PaymentAddress = Alias;
 pub type Amount = u64;
 pub type Address = String;
 pub type Epoch = u64;
@@ -51,6 +52,7 @@ pub enum Task {
     Unbond(Source, Address, Amount, Epoch, TaskSettings),
     Redelegate(Source, Address, Address, Amount, Epoch, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
+    Shielding(Source, PaymentAddress, Amount, TaskSettings),
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
 }
 
@@ -67,6 +69,9 @@ impl Display for Task {
             }
             Task::Unbond(source, validator, amount, _, _) => {
                 write!(f, "unbond/{}/{}/{}", source.name, validator, amount)
+            }
+            Task::Shielding(source, target, amount, _) => {
+                write!(f, "shielding/{}/{}/{}", source.name, target.name, amount)
             }
             Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
             Task::Redelegate(source, from, to, amount, _, _) => write!(f, "redelegate/{}/{}/{}/{}", source.name, from, to, amount),
