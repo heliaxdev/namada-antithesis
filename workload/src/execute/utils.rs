@@ -85,8 +85,8 @@ async fn default_tx_arg(sdk: &Sdk) -> args::Tx {
         memo: None,
         use_device: false,
         device_transport: DeviceTransport::default(),
-        dump_wrapper_tx: false,
-        wrapper_signature: None
+        // dump_wrapper_tx: false,
+        // wrapper_signature: None
     }
 }
 
