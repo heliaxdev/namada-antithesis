@@ -19,7 +19,7 @@ use crate::{
 pub enum AddressType {
     Enstablished,
     #[default]
-    Implicit
+    Implicit,
 }
 
 impl AddressType {
@@ -62,7 +62,7 @@ pub struct State {
     pub masp_accounts: HashMap<Alias, MaspAccount>,
     pub balances: HashMap<Alias, u64>,
     pub masp_balances: HashMap<Alias, u64>,
-    pub bonds: HashMap<Alias, HashMap<String, u64>>,  
+    pub bonds: HashMap<Alias, HashMap<String, u64>>,
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
     pub validators: HashMap<Alias, String>,
