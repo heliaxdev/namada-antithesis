@@ -1,9 +1,15 @@
 use std::str::FromStr;
 
-use namada_sdk::{address::Address, rpc, token};
+use namada_sdk::{
+    address::Address,
+    control_flow::install_shutdown_signal,
+    io::DevNullProgressBar,
+    masp::{LedgerMaspClient, MaspLocalTaskEnv, ShieldedSyncConfig},
+    rpc, token, Namada,
+};
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
-use crate::{entities::Alias, sdk::namada::Sdk};
+use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError};
 
 pub async fn get_balance(
     sdk: &Sdk,
@@ -62,4 +68,39 @@ pub async fn get_bond(
     })
     .await
     .ok()
+}
+
+pub async fn shield_sync(sdk: &Sdk) -> Result<(), StepError> {
+    let wallet = sdk.namada.wallet.read().await;
+    let vks: Vec<_> = sdk
+        .namada
+        .wallet()
+        .await
+        .get_viewing_keys()
+        .values()
+        .map(|evk| evk.map(|key| key.as_viewing_key()))
+        .collect();
+    drop(wallet);
+
+    let mut shielded_ctx = sdk.namada.shielded_mut().await;
+
+    let masp_client = LedgerMaspClient::new(sdk.namada.clone_client(), 100);
+    let task_env = MaspLocalTaskEnv::new(4).map_err(|e| StepError::ShieldSync(e.to_string()))?;
+    let shutdown_signal = install_shutdown_signal(true);
+
+    let config = ShieldedSyncConfig::builder()
+        .client(masp_client)
+        .fetched_tracker(DevNullProgressBar)
+        .scanned_tracker(DevNullProgressBar)
+        .applied_tracker(DevNullProgressBar)
+        .shutdown_signal(shutdown_signal)
+        .wait_for_last_query_height(true)
+        .build();
+
+    shielded_ctx
+        .sync(task_env, config, None, &[], &vks)
+        .await
+        .map_err(|e| StepError::ShieldedSync(e.to_string()))?;
+
+    Ok(())
 }

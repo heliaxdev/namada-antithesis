@@ -139,6 +139,12 @@ impl State {
                     }
                     self.add_enstablished_account(alias, sources, threshold);
                 }
+                Task::Shielding(source, target, amount, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.modify_shielding(source, target, amount)
+                }
             }
         }
     }
@@ -240,6 +246,14 @@ impl State {
 
     pub fn random_account(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
         self.accounts
+            .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
+            .choose(&mut self.rng)
+            .map(|(_, account)| account.clone())
+    }
+
+    pub fn random_payment_address(&mut self, blacklist: Vec<Alias>) -> Option<MaspAccount> {
+        self.masp_accounts
             .iter()
             .filter(|(alias, _)| !blacklist.contains(alias))
             .choose(&mut self.rng)
@@ -407,5 +421,10 @@ impl State {
         self.bonds
             .entry(source.clone())
             .and_modify(|bond| *bond.get_mut(&validator).unwrap() -= amount);
+    }
+
+    pub fn modify_shielding(&mut self, source: Alias, target: Alias, amount: u64) {
+        *self.balances.get_mut(&source).unwrap() -= amount;
+        *self.masp_balances.get_mut(&target).unwrap() += amount;
     }
 }

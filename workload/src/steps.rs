@@ -2,28 +2,13 @@ use std::{collections::HashMap, fmt::Display, str::FromStr, time::Instant};
 
 use crate::{
     build::{
-        batch::{build_bond_batch, build_random_batch},
-        bond::build_bond,
-        faucet_transfer::build_faucet_transfer,
-        init_account::build_init_account,
-        new_wallet_keypair::build_new_wallet_keypair,
-        redelegate::build_redelegate,
-        transparent_transfer::build_transparent_transfer,
-        unbond::build_unbond,
+        batch::{build_bond_batch, build_random_batch}, bond::build_bond, faucet_transfer::build_faucet_transfer, init_account::build_init_account, new_wallet_keypair::build_new_wallet_keypair, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
     },
     build_checks,
     check::Check,
     entities::Alias,
     execute::{
-        batch::execute_tx_batch,
-        bond::{build_tx_bond, execute_tx_bond},
-        faucet_transfer::execute_faucet_transfer,
-        init_account::build_tx_init_account,
-        new_wallet_keypair::execute_new_wallet_key_pair,
-        redelegate::{build_tx_redelegate, execute_tx_redelegate},
-        reveal_pk::execute_reveal_pk,
-        transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
-        unbond::{build_tx_unbond, execute_tx_unbond},
+        batch::execute_tx_batch, bond::{build_tx_bond, execute_tx_bond}, faucet_transfer::execute_faucet_transfer, init_account::build_tx_init_account, new_wallet_keypair::execute_new_wallet_key_pair, redelegate::{build_tx_redelegate, execute_tx_redelegate}, reveal_pk::execute_reveal_pk, shielding::{build_tx_shielding, execute_tx_shielding}, transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer}, unbond::{build_tx_unbond, execute_tx_unbond}
     },
     sdk::namada::Sdk,
     state::State,
@@ -57,6 +42,8 @@ pub enum StepError {
     Execution(String),
     #[error("error calling rpc `{0}`")]
     Rpc(String),
+    #[error("shield-sync `{0}`")]
+    ShieldSync(String),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -70,6 +57,7 @@ pub enum StepType {
     Unbond,
     BatchBond,
     BatchRandom,
+    Shielding
 }
 
 impl Display for StepType {
@@ -82,6 +70,7 @@ impl Display for StepType {
             StepType::InitAccount => write!(f, "init-account"),
             StepType::Redelegate => write!(f, "redelegate"),
             StepType::Unbond => write!(f, "unbond"),
+            StepType::Shielding => write!(f, "shielding"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
         }
@@ -139,6 +128,7 @@ impl WorkloadExecutor {
             StepType::Unbond => state.any_bond(),
             StepType::InitAccount => state.min_n_implicit_accounts(3),
             StepType::Redelegate => state.any_bond(),
+            StepType::Shielding => state.any_account_with_min_balance(2),
             StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
             StepType::BatchRandom => {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
@@ -160,6 +150,7 @@ impl WorkloadExecutor {
             StepType::InitAccount => build_init_account(state).await?,
             StepType::Redelegate => build_redelegate(sdk, state).await?,
             StepType::Unbond => build_unbond(sdk, state).await?,
+            StepType::Shielding => build_shielding(state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
         };
@@ -241,6 +232,9 @@ impl WorkloadExecutor {
                         state,
                     )
                     .await
+                }
+                Task::Shielding(source, target, amount, _) => {
+                    vec![]
                 }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
@@ -413,7 +407,7 @@ impl WorkloadExecutor {
                         Ok(was_pk_revealed) => {
                             antithesis_sdk::assert_always!(
                                 was_pk_revealed,
-                                "The public key was not released correctly.",
+                                "The public key was revealed correctly.",
                                 &json!({
                                     "public-key": source.to_pretty_string(),
                                     "timeout": random_timeout,
@@ -472,7 +466,7 @@ impl WorkloadExecutor {
                             };
                             antithesis_sdk::assert_always!(
                                 post_amount.eq(&check_balance),
-                                "Balance target didn't increase.",
+                                "Balance target increased.",
                                 &json!({
                                     "target_alias": target,
                                     "target": target_address.to_pretty_string(),
@@ -536,7 +530,7 @@ impl WorkloadExecutor {
                             };
                             antithesis_sdk::assert_always!(
                                 post_amount.eq(&check_balance),
-                                "Balance source didn't decrease.",
+                                "Balance source decreased.",
                                 &json!({
                                     "target_alias": target,
                                     "target": target_address.to_pretty_string(),
@@ -620,7 +614,7 @@ impl WorkloadExecutor {
                             };
                             antithesis_sdk::assert_always!(
                                 post_bond.eq(&check_bond),
-                                "Bond source didn't increase.",
+                                "Bond source increased.",
                                 &json!({
                                     "target_alias": target,
                                     "target": source_address.to_pretty_string(),
@@ -708,7 +702,7 @@ impl WorkloadExecutor {
                             };
                             antithesis_sdk::assert_always!(
                                 post_bond.eq(&check_bond),
-                                "Bond source didn't decrease.",
+                                "Bond source decreased.",
                                 &json!({
                                     "target_alias": target,
                                     "target": source_address.to_pretty_string(),
@@ -767,7 +761,7 @@ impl WorkloadExecutor {
                                 sources.len() == account.public_keys_map.idx_to_pk.len();
                             antithesis_sdk::assert_always!(
                                 is_sources_ok && is_threshold_ok,
-                                "OnChain account is invalid.",
+                                "OnChain account is valid.",
                                 &json!({
                                     "target_alias": target,
                                     "target": source_address.to_pretty_string(),
@@ -872,6 +866,11 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_unbond(sdk, source, validator, amount, settings).await?;
                     execute_tx_unbond(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::Shielding(source, target, amount, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_shielding(sdk, source, target, amount, settings).await?;
+                    execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];
