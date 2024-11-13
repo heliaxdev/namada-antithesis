@@ -4,8 +4,9 @@ use namada_sdk::{
     address::Address,
     control_flow::install_shutdown_signal,
     io::DevNullProgressBar,
-    masp::{LedgerMaspClient, MaspLocalTaskEnv, ShieldedSyncConfig},
-    rpc, token, Namada,
+    masp::{shielded_wallet::ShieldedApi, LedgerMaspClient, MaspLocalTaskEnv, ShieldedSyncConfig},
+    masp_primitives::{transaction::components::ValueSum, zip32},
+    rpc, token::{self, MaspDigitPos}, Namada,
 };
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
@@ -34,6 +35,46 @@ pub async fn get_balance(
     })
     .await
     .ok()
+}
+
+pub async fn get_shielded_balance(
+    sdk: &Sdk,
+    source: Alias,
+    retry_config: RetryFutureConfig<ExponentialBackoff, NoOnRetry>,
+) -> Result<Option<token::Amount>, StepError> {
+    shield_sync(sdk).await?;
+
+    let client = sdk.namada.clone_client();
+    let mut wallet = sdk.namada.wallet.write().await;
+    let target_spending_key = wallet
+        .find_spending_key(&source.name, None)
+        .unwrap()
+        .to_owned()
+        .key;
+    drop(wallet);
+
+    let mut shielded_ctx = sdk.namada.shielded_mut().await;
+
+    let viewing_key = zip32::ExtendedFullViewingKey::from(&target_spending_key.into())
+        .fvk
+        .vk;
+
+    let balance = shielded_ctx
+        .compute_shielded_balance(&viewing_key)
+        .await
+        .unwrap()
+        .unwrap_or_else(|| ValueSum::zero());
+
+    let mut amount = 0 as u64;
+    for (asset_type, value) in balance.components() {
+        let decoded = shielded_ctx.decode_asset_type(&client, *asset_type).await.unwrap();
+        assert!(matches!(decoded.position, MaspDigitPos::Zero));
+        amount += u64::try_from(*value).unwrap()
+    }
+
+    let token_balance = token::Amount::from_u64(amount);
+
+    Ok(Some(token_balance))
 }
 
 pub async fn get_bond(

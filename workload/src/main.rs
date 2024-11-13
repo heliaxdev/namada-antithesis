@@ -81,6 +81,7 @@ async fn main() {
         // Setup shielded context storage
         let shielded_ctx_path = state.base_dir.join(format!("masp-{}", config.id));
         let shielded_ctx = ShieldedContext::new(FsShieldedUtils::new(shielded_ctx_path));
+        shielded_ctx.save().await.unwrap();
 
         let io = NullIo;
 

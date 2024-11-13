@@ -19,7 +19,7 @@ use crate::{
 pub enum AddressType {
     Enstablished,
     #[default]
-    Implicit
+    Implicit,
 }
 
 impl AddressType {
@@ -38,6 +38,7 @@ pub struct Account {
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaspAccount {
+    pub alias: Alias,
     pub spending_key: Alias,
     pub payment_address: Alias,
 }
@@ -61,7 +62,7 @@ pub struct State {
     pub masp_accounts: HashMap<Alias, MaspAccount>,
     pub balances: HashMap<Alias, u64>,
     pub masp_balances: HashMap<Alias, u64>,
-    pub bonds: HashMap<Alias, HashMap<String, u64>>,  
+    pub bonds: HashMap<Alias, HashMap<String, u64>>,
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
     pub validators: HashMap<Alias, String>,
@@ -346,9 +347,10 @@ impl State {
         self.masp_accounts.insert(
             alias.clone(),
             MaspAccount {
+                alias: alias.clone(),
                 spending_key: format!("{}-spending-key", alias.name).into(),
                 payment_address: format!("{}-payment-address", alias.name).into(),
-            }
+            },
         );
         self.masp_balances.insert(alias.clone(), 0);
     }
@@ -425,6 +427,10 @@ impl State {
 
     pub fn modify_shielding(&mut self, source: Alias, target: Alias, amount: u64) {
         *self.balances.get_mut(&source).unwrap() -= amount;
-        *self.masp_balances.get_mut(&target).unwrap() += amount;
+        let target_alias = Alias { name: target.name.strip_suffix("-payment-address").unwrap().to_string() };
+        *self
+            .masp_balances
+            .get_mut(&target_alias)
+            .unwrap() += amount;
     }
 }
