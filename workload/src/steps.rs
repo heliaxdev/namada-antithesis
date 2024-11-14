@@ -2,13 +2,30 @@ use std::{collections::HashMap, fmt::Display, str::FromStr, time::Instant};
 
 use crate::{
     build::{
-        batch::{build_bond_batch, build_random_batch}, bond::build_bond, faucet_transfer::build_faucet_transfer, init_account::build_init_account, new_wallet_keypair::build_new_wallet_keypair, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
+        batch::{build_bond_batch, build_random_batch},
+        bond::build_bond,
+        faucet_transfer::build_faucet_transfer,
+        init_account::build_init_account,
+        new_wallet_keypair::build_new_wallet_keypair,
+        redelegate::build_redelegate,
+        shielding::build_shielding,
+        transparent_transfer::build_transparent_transfer,
+        unbond::build_unbond,
     },
     build_checks,
     check::Check,
     entities::Alias,
     execute::{
-        batch::execute_tx_batch, bond::{build_tx_bond, execute_tx_bond}, faucet_transfer::execute_faucet_transfer, init_account::build_tx_init_account, new_wallet_keypair::execute_new_wallet_key_pair, redelegate::{build_tx_redelegate, execute_tx_redelegate}, reveal_pk::execute_reveal_pk, shielding::{build_tx_shielding, execute_tx_shielding}, transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer}, unbond::{build_tx_unbond, execute_tx_unbond}
+        batch::execute_tx_batch,
+        bond::{build_tx_bond, execute_tx_bond},
+        faucet_transfer::execute_faucet_transfer,
+        init_account::build_tx_init_account,
+        new_wallet_keypair::execute_new_wallet_key_pair,
+        redelegate::{build_tx_redelegate, execute_tx_redelegate},
+        reveal_pk::execute_reveal_pk,
+        shielding::{build_tx_shielding, execute_tx_shielding},
+        transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
+        unbond::{build_tx_unbond, execute_tx_unbond},
     },
     sdk::namada::Sdk,
     state::State,
@@ -57,7 +74,7 @@ pub enum StepType {
     Unbond,
     BatchBond,
     BatchRandom,
-    Shielding
+    Shielding,
 }
 
 impl Display for StepType {
@@ -101,7 +118,26 @@ impl WorkloadExecutor {
         let client = sdk.namada.client();
         let wallet = sdk.namada.wallet.write().await;
         let faucet_address = wallet.find_address("faucet").unwrap().into_owned();
+        let nam_address = wallet.find_address("nam").unwrap().into_owned();
         let faucet_public_key = wallet.find_public_key("faucet").unwrap().to_owned();
+        drop(wallet);
+
+        loop {
+            if let Ok(res) =
+                rpc::get_token_balance(client, &nam_address, &faucet_address, None).await
+            {
+                if res.is_zero() {
+                    tracing::error!("Faucet has no money RIP.");
+                    std::process::exit(1);
+                } else {
+                    tracing::info!("Faucet has $$$ ({})", res);
+                    break;
+                }
+            } else {
+                tracing::warn!("Retry querying for  faucet balance...");
+                sleep(Duration::from_secs(2)).await;
+            }
+        }
 
         loop {
             if let Ok(res) = rpc::is_public_key_revealed(client, &faucet_address).await {
@@ -234,13 +270,22 @@ impl WorkloadExecutor {
                     .await
                 }
                 Task::Shielding(source, target, amount, _) => {
-                    vec![]
+                    build_checks::shielding::shielding(
+                        sdk,
+                        source,
+                        target,
+                        amount,
+                        retry_config,
+                        state,
+                    )
+                    .await
                 }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
 
                     let mut reveal_pks: HashMap<Alias, Alias> = HashMap::default();
                     let mut balances: HashMap<Alias, i64> = HashMap::default();
+                    let mut shielded_balances: HashMap<Alias, i64> = HashMap::default();
                     let mut bonds: HashMap<String, (u64, i64)> = HashMap::default();
 
                     for task in tasks {
@@ -265,8 +310,11 @@ impl WorkloadExecutor {
                                     .or_insert(-(*amount as i64));
                             }
                             Task::Bond(source, validator, amount, epoch, _task_settings) => {
-                                bonds.entry(format!("{}@{}", source.name, validator))
-                                    .and_modify(|(_epoch, bond_amount)| *bond_amount += *amount as i64)
+                                bonds
+                                    .entry(format!("{}@{}", source.name, validator))
+                                    .and_modify(|(_epoch, bond_amount)| {
+                                        *bond_amount += *amount as i64
+                                    })
                                     .or_insert((*epoch, *amount as i64));
                                 balances
                                     .entry(source.clone())
@@ -274,16 +322,32 @@ impl WorkloadExecutor {
                                     .or_insert(-(*amount as i64));
                             }
                             Task::Unbond(source, validator, amount, _epoch, _task_settings) => {
-                                bonds.entry(format!("{}@{}", source.name, validator))
-                                    .and_modify(|(_epoch, bond_amount)| *bond_amount -= *amount as i64);
+                                bonds
+                                    .entry(format!("{}@{}", source.name, validator))
+                                    .and_modify(|(_epoch, bond_amount)| {
+                                        *bond_amount -= *amount as i64
+                                    });
                             }
                             Task::Redelegate(source, from, to, amount, epoch, _task_settings) => {
                                 bonds
                                     .entry(format!("{}@{}", source.name, to))
-                                    .and_modify(|(_epoch, bond_amount)| *bond_amount += *amount as i64)
+                                    .and_modify(|(_epoch, bond_amount)| {
+                                        *bond_amount += *amount as i64
+                                    })
                                     .or_insert((*epoch, *amount as i64));
-                                bonds.entry(format!("{}@{}", source.name, from))
-                                    .and_modify(|(_epoch, bond_amount)| *bond_amount -= *amount as i64);
+                                bonds.entry(format!("{}@{}", source.name, from)).and_modify(
+                                    |(_epoch, bond_amount)| *bond_amount -= *amount as i64,
+                                );
+                            }
+                            Task::Shielding(source, target, amount, _task_settings) => {
+                                balances
+                                    .entry(source.clone())
+                                    .and_modify(|balance| *balance -= *amount as i64)
+                                    .or_insert(-(*amount as i64));
+                                shielded_balances
+                                    .entry(target.clone())
+                                    .and_modify(|balance| *balance += *amount as i64)
+                                    .or_insert(*amount as i64);
                             }
                             _ => panic!(),
                         };
@@ -339,6 +403,21 @@ impl WorkloadExecutor {
                                     Alias::from(source),
                                     validator.to_owned(),
                                     pre_bond,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            }
+                        }
+                    }
+
+                    for (alias, amount) in shielded_balances {
+                        if let Ok(Some(pre_balance)) =
+                            build_checks::utils::get_shielded_balance(sdk, alias.clone()).await
+                        {
+                            if amount >= 0 {
+                                checks.push(Check::BalanceShieldedTarget(
+                                    alias,
+                                    pre_balance,
                                     amount.unsigned_abs(),
                                     state.clone(),
                                 ));
@@ -461,7 +540,7 @@ impl WorkloadExecutor {
                                 balance
                             } else {
                                 return Err(
-                                    "BalanceTarget check error: balance is negative".to_string()
+                                    "BalanceTarget check error: balance is overflowing".to_string()
                                 );
                             };
                             antithesis_sdk::assert_always!(
@@ -499,6 +578,63 @@ impl WorkloadExecutor {
                         }
                         Err(e) => return Err(format!("BalanceTarget check error: {}", e)),
                     }
+                }
+                Check::BalanceShieldedTarget(target, pre_balance, amount, pre_state) => {
+                    match build_checks::utils::get_shielded_balance(sdk, target.clone()).await {
+                        Ok(Some(post_balance)) => {
+                            let check_balance = if let Some(balance) =
+                                pre_balance.checked_add(token::Amount::from_u64(amount))
+                            {
+                                balance
+                            } else {
+                                return Err(
+                                    "BalanceShieldedTarget check error: balance is overflowing"
+                                        .to_string(),
+                                );
+                            };
+                            antithesis_sdk::assert_always!(
+                                post_balance.eq(&check_balance),
+                                "BalanceShielded target decreased.",
+                                &json!({
+                                    "target_alias": target,
+                                    "pre_balance": pre_balance,
+                                    "amount": amount,
+                                    "post_balance": post_balance,
+                                    "pre_state": pre_state,
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block
+                                })
+                            );
+                            if !post_balance.eq(&check_balance) {
+                                tracing::error!(
+                                    "{}",
+                                    json!({
+                                        "target_alias": target,
+                                        "pre_balance": pre_balance,
+                                        "amount": amount,
+                                        "post_balance": post_balance,
+                                        "pre_state": pre_state,
+                                        "timeout": random_timeout,
+                                        "execution_height": execution_height,
+                                        "check_height": latest_block
+                                    })
+                                );
+                                return Err(format!("BalanceShieldedTarget check error: post target amount is not equal to pre balance: pre {}, post: {}, {}", pre_balance, post_balance, amount));
+                            }
+                        }
+                        Ok(None) => {
+                            return Err(format!(
+                                "BalanceShieldedTarget check error: amount doesn't exist"
+                            ));
+                        }
+                        Err(e) => {
+                            return Err(format!(
+                                "BalanceShieldedTarget check error: {}",
+                                e.to_string()
+                            ));
+                        }
+                    };
                 }
                 Check::BalanceSource(target, pre_balance, amount, pre_state) => {
                     let wallet = sdk.namada.wallet.read().await;
@@ -889,6 +1025,9 @@ impl WorkloadExecutor {
                             }
                             Task::Unbond(source, validator, amount, _epoch, settings) => {
                                 build_tx_unbond(sdk, source, validator, amount, settings).await?
+                            }
+                            Task::Shielding(source, target, amount, settings) => {
+                                build_tx_shielding(sdk, source, target, amount, settings).await?
                             }
                             _ => panic!(),
                         };

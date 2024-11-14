@@ -14,7 +14,7 @@ impl TaskSettings {
         Self {
             signers,
             gas_payer,
-            gas_limit: DEFAULT_GAS_LIMIT,
+            gas_limit: DEFAULT_GAS_LIMIT * 2,
         }
     }
 
@@ -22,7 +22,7 @@ impl TaskSettings {
         Self {
             signers: BTreeSet::from_iter(vec![Alias::faucet()]),
             gas_payer: Alias::faucet(),
-            gas_limit: DEFAULT_GAS_LIMIT,
+            gas_limit: DEFAULT_GAS_LIMIT * 2,
         }
     }
 

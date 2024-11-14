@@ -32,6 +32,9 @@ async fn main() {
         .with_ansi(false)
         .init();
 
+    rlimit::increase_nofile_limit(10240).unwrap();
+    rlimit::increase_nofile_limit(u64::MAX).unwrap();
+
     let config = AppConfig::parse();
     tracing::info!("Using config: {:#?}", config);
     tracing::info!("Sha commit: {}", env!("VERGEN_GIT_SHA").to_string());

@@ -7,6 +7,12 @@ echo "" > state-$WORKLOAD_ID.json
 touch /opt/antithesis/test/v1/namada/state-$WORKLOAD_ID.json
 echo "" > /opt/antithesis/test/v1/namada/state-$WORKLOAD_ID.json
 
+mkdir -p base/wallet-$WORKLOAD_ID
+mkdir -p base/masp-$WORKLOAD_ID
+
+mkdir -p /opt/antithesis/test/v1/namada/wallet-$WORKLOAD_ID
+mkdir -p /opt/antithesis/test/v1/namada/masp-$WORKLOAD_ID
+
 if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
     source /opt/antithesis/test/v1/namada/first_get_chainid.sh
     if [ $? -eq 0 ] 

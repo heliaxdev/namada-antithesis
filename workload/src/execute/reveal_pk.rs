@@ -1,9 +1,9 @@
 use namada_sdk::{
-    args::TxBuilder, key::common, rpc::TxResponse, signing::default_sign, tx::ProcessTxResponse,
+    args::TxBuilder, key::common, rpc::TxResponse, signing::default_sign, tx::{data::GasLimit, ProcessTxResponse},
     Namada,
 };
 
-use crate::{sdk::namada::Sdk, steps::StepError};
+use crate::{constants::DEFAULT_GAS_LIMIT, sdk::namada::Sdk, steps::StepError};
 
 use super::utils;
 
@@ -19,6 +19,7 @@ pub async fn execute_reveal_pk(
         .namada
         .new_reveal_pk(public_key.clone())
         .signing_keys(vec![public_key.clone()])
+        .gas_limit(GasLimit::from(DEFAULT_GAS_LIMIT * 2))
         .wrapper_fee_payer(fee_payer);
 
     let (mut reveal_tx, signing_data) = reveal_pk_tx_builder

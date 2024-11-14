@@ -8,8 +8,7 @@ use crate::{
 };
 
 use super::{
-    bond::build_bond, redelegate::build_redelegate,
-    transparent_transfer::build_transparent_transfer, unbond::build_unbond,
+    bond::build_bond, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
 };
 
 pub async fn build_bond_batch(
@@ -31,7 +30,8 @@ pub async fn build_random_batch(
             BatchType::TransparentTransfer,
             BatchType::Bond,
             BatchType::Redelegate,
-            BatchType::Unbond
+            BatchType::Unbond,
+            BatchType::Shielding
         ],
         max_size,
         state,
@@ -71,6 +71,11 @@ async fn _build_batch(
                 tmp_state.update(tasks.clone(), false);
                 tasks
             }
+            BatchType::Shielding => {
+                let tasks = build_shielding(&mut tmp_state).await?;
+                tmp_state.update(tasks.clone(), false);
+                tasks
+            }
         };
         if tasks.is_empty() {
             continue;
@@ -91,14 +96,16 @@ enum BatchType {
     Redelegate,
     Bond,
     Unbond,
+    Shielding
 }
 
 impl Distribution<BatchType> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> BatchType {
-        match rng.gen_range(0..4) {
+        match rng.gen_range(0..5) {
             0 => BatchType::TransparentTransfer,
             1 => BatchType::Redelegate,
             2 => BatchType::Unbond,
+            3 => BatchType::Shielding,
             _ => BatchType::Bond,
         }
     }

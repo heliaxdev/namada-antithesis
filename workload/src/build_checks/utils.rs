@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, thread, time::Duration};
 
 use namada_sdk::{
     address::Address,
@@ -6,7 +6,9 @@ use namada_sdk::{
     io::DevNullProgressBar,
     masp::{shielded_wallet::ShieldedApi, LedgerMaspClient, MaspLocalTaskEnv, ShieldedSyncConfig},
     masp_primitives::{transaction::components::ValueSum, zip32},
-    rpc, token::{self, MaspDigitPos}, Namada,
+    rpc,
+    token::{self, MaspDigitPos},
+    Namada,
 };
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
@@ -40,14 +42,14 @@ pub async fn get_balance(
 pub async fn get_shielded_balance(
     sdk: &Sdk,
     source: Alias,
-    retry_config: RetryFutureConfig<ExponentialBackoff, NoOnRetry>,
 ) -> Result<Option<token::Amount>, StepError> {
     shield_sync(sdk).await?;
 
     let client = sdk.namada.clone_client();
     let mut wallet = sdk.namada.wallet.write().await;
+    let spending_key = format!("{}-spending-key", source.name.strip_suffix("-payment-address").unwrap());
     let target_spending_key = wallet
-        .find_spending_key(&source.name, None)
+        .find_spending_key(&spending_key, None)
         .unwrap()
         .to_owned()
         .key;
@@ -66,8 +68,20 @@ pub async fn get_shielded_balance(
         .unwrap_or_else(|| ValueSum::zero());
 
     let mut amount = 0 as u64;
+    let mut retry = 0;
     for (asset_type, value) in balance.components() {
-        let decoded = shielded_ctx.decode_asset_type(&client, *asset_type).await.unwrap();
+        let decoded = loop {
+            let decoded = shielded_ctx.decode_asset_type(&client, *asset_type).await;
+            if decoded.is_some() {
+                break decoded.unwrap();
+            } else {
+                retry += 1;
+                if retry == 6 {
+                    return Ok(None);
+                }
+                thread::sleep(Duration::from_millis(100 * retry));
+            }
+        };
         assert!(matches!(decoded.position, MaspDigitPos::Zero));
         amount += u64::try_from(*value).unwrap()
     }

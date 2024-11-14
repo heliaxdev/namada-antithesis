@@ -16,6 +16,7 @@ pub enum Check {
     RevealPk(Target),
     BalanceTarget(Target, PreBalance, Amount, State),
     BalanceSource(Target, PreBalance, Amount, State),
+    BalanceShieldedTarget(Target, PreBalance, Amount, State),
     BondIncrease(Target, Address, PreBalance, Amount, State),
     BondDecrease(Target, Address, PreBalance, Amount, State),
     AccountExist(Target, Threshold, BTreeSet<Target>, State),
@@ -30,6 +31,9 @@ impl Display for Check {
             }
             Check::BalanceTarget(target, _pre_balance, _amount, _) => {
                 write!(f, "balance/target/{}", target.name)
+            }
+            Check::BalanceShieldedTarget(target, _pre_balance, _amount, _) => {
+                write!(f, "balance-shielded/target/{}", target.name)
             }
             Check::BondIncrease(source, validator, _pre_balance, _amount, _) => {
                 write!(f, "bond/{}/{}/increase", source.name, validator)

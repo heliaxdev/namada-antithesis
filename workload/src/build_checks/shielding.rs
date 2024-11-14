@@ -18,10 +18,10 @@ pub async fn shielding(
         return vec![];
     };
 
-    let target_check = if let Some(pre_balance) =
-        super::utils::get_balance(sdk, target.clone(), retry_config).await
+    let target_check = if let Ok(Some(pre_balance)) =
+        super::utils::get_shielded_balance(sdk, target.clone()).await
     {
-        Check::BalanceTarget(target, pre_balance, amount, state.clone())
+        Check::BalanceShieldedTarget(target, pre_balance, amount, state.clone())
     } else {
         return vec![];
     };
