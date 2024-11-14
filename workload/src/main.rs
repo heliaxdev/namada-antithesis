@@ -199,6 +199,8 @@ async fn main() {
         tracing::info!("Checks were successful, updating state...");
     }
 
+    tracing::info!("Statistics: {:>?}", state.stats);
+
     state.serialize_to_file();
     let path = env::current_dir()
         .unwrap()

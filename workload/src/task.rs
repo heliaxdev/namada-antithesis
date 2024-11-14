@@ -56,6 +56,22 @@ pub enum Task {
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
 }
 
+impl Task {
+    pub fn raw_type(&self) -> String {
+        match self {
+            Task::NewWalletKeyPair(_) => "new-wallet-keypair".to_string(),
+            Task::FaucetTransfer(_, _, _) => "faucet-transfer".to_string(),
+            Task::TransparentTransfer(_, _, _, _) => "transparent-transfer".to_string(),
+            Task::Bond(_, _, _, _, _) => "bond".to_string(),
+            Task::Unbond(_, _, _, _, _) => "unbond".to_string(),
+            Task::Redelegate(_, _, _, _, _, _) => "relegate".to_string(),
+            Task::Batch(_, _) => "batch".to_string(),
+            Task::Shielding(_, _, _, _) => "shielding".to_string(),
+            Task::InitAccount(_, _, _, _) => "init-account".to_string(),
+        }
+    }
+}
+
 impl Display for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -70,6 +70,7 @@ pub struct State {
     pub rng: ChaCha20Rng,
     pub path: PathBuf,
     pub base_dir: PathBuf,
+    pub stats: HashMap<String, u64>,
 }
 
 impl State {
@@ -89,12 +90,13 @@ impl State {
                 .unwrap()
                 .join(format!("state-{}.json", id)),
             base_dir: env::current_dir().unwrap().join("base"),
+            stats: HashMap::default(),
         }
     }
 
     pub fn update(&mut self, tasks: Vec<Task>, with_fee: bool) {
         for task in tasks {
-            match task {
+            match task.clone() {
                 Task::NewWalletKeyPair(alias) => {
                     self.add_implicit_account(alias.clone());
                     self.add_masp_account(alias);
@@ -147,6 +149,10 @@ impl State {
                     self.modify_shielding(source, target, amount)
                 }
             }
+            self.stats
+                .entry(task.raw_type())
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
         }
     }
 
@@ -427,10 +433,13 @@ impl State {
 
     pub fn modify_shielding(&mut self, source: Alias, target: Alias, amount: u64) {
         *self.balances.get_mut(&source).unwrap() -= amount;
-        let target_alias = Alias { name: target.name.strip_suffix("-payment-address").unwrap().to_string() };
-        *self
-            .masp_balances
-            .get_mut(&target_alias)
-            .unwrap() += amount;
+        let target_alias = Alias {
+            name: target
+                .name
+                .strip_suffix("-payment-address")
+                .unwrap()
+                .to_string(),
+        };
+        *self.masp_balances.get_mut(&target_alias).unwrap() += amount;
     }
 }
