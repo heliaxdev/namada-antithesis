@@ -21,7 +21,9 @@ pub async fn build_bond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepE
 
     let current_epoch = rpc::query_epoch(&client)
         .await
-        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?.next().next();
+        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?
+        .next()
+        .next();
     let validators = rpc::get_all_consensus_validators(&client, current_epoch)
         .await
         .map_err(|e| StepError::Rpc(format!("query consensus validators: {}", e)))?;
@@ -38,7 +40,14 @@ pub async fn build_bond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepE
         source_account.alias,
         validator.to_string(),
         amount,
-        current_epoch.next().next().next().next().next().next().into(),
+        current_epoch
+            .next()
+            .next()
+            .next()
+            .next()
+            .next()
+            .next()
+            .into(),
         task_settings,
     )])
 }

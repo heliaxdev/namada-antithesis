@@ -2,7 +2,16 @@ use std::{collections::HashMap, fmt::Display, str::FromStr, time::Instant};
 
 use crate::{
     build::{
-        batch::{build_bond_batch, build_random_batch}, bond::build_bond, claim_rewards::build_claim_rewards, faucet_transfer::build_faucet_transfer, init_account::build_init_account, new_wallet_keypair::build_new_wallet_keypair, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
+        batch::{build_bond_batch, build_random_batch},
+        bond::build_bond,
+        claim_rewards::build_claim_rewards,
+        faucet_transfer::build_faucet_transfer,
+        init_account::build_init_account,
+        new_wallet_keypair::build_new_wallet_keypair,
+        redelegate::build_redelegate,
+        shielding::build_shielding,
+        transparent_transfer::build_transparent_transfer,
+        unbond::build_unbond,
     },
     build_checks,
     check::Check,
@@ -349,9 +358,7 @@ impl WorkloadExecutor {
                                     .and_modify(|balance| *balance += *amount as i64)
                                     .or_insert(*amount as i64);
                             }
-                            Task::ClaimRewards(_source, _validator, _task_settings) => {
-
-                            }
+                            Task::ClaimRewards(_source, _validator, _task_settings) => {}
                             _ => panic!(),
                         };
                     }

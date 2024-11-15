@@ -18,7 +18,7 @@ use crate::config::AppConfig;
 pub struct Sdk {
     pub base_dir: PathBuf,
     pub namada: NamadaImpl<HttpClient, FsWalletUtils, FsShieldedUtils, NullIo>,
-    pub masp_indexer_url: String
+    pub masp_indexer_url: String,
 }
 
 impl Sdk {
@@ -55,7 +55,7 @@ impl Sdk {
         Ok(Self {
             base_dir: base_dir.to_owned(),
             namada,
-            masp_indexer_url: config.masp_indexer_url.clone()
+            masp_indexer_url: config.masp_indexer_url.clone(),
         })
     }
 }

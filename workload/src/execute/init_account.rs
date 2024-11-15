@@ -9,7 +9,6 @@ use namada_sdk::{
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSettings};
 
-
 pub async fn build_tx_init_account(
     sdk: &Sdk,
     target: Alias,

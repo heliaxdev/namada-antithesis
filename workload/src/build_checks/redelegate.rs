@@ -12,15 +12,33 @@ pub async fn redelegate(
     retry_config: RetryFutureConfig<ExponentialBackoff, NoOnRetry>,
     state: &State,
 ) -> Vec<Check> {
-    let from_validator_bond_check = if let Some(pre_bond) =
-        super::utils::get_bond(sdk, source.clone(), from_validator.clone(), epoch, retry_config).await
+    let from_validator_bond_check = if let Some(pre_bond) = super::utils::get_bond(
+        sdk,
+        source.clone(),
+        from_validator.clone(),
+        epoch,
+        retry_config,
+    )
+    .await
     {
-        Check::BondDecrease(source.clone(), from_validator, pre_bond, amount, state.clone())
+        Check::BondDecrease(
+            source.clone(),
+            from_validator,
+            pre_bond,
+            amount,
+            state.clone(),
+        )
     } else {
         return vec![];
     };
-    let to_validator_bond_check = if let Some(pre_bond) =
-        super::utils::get_bond(sdk, source.clone(), to_validator.clone(), epoch, retry_config).await
+    let to_validator_bond_check = if let Some(pre_bond) = super::utils::get_bond(
+        sdk,
+        source.clone(),
+        to_validator.clone(),
+        epoch,
+        retry_config,
+    )
+    .await
     {
         Check::BondIncrease(source, to_validator, pre_bond, amount, state.clone())
     } else {

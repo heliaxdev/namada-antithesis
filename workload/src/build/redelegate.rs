@@ -57,7 +57,14 @@ pub async fn build_redelegate(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>,
         source_bond.validator.to_string(),
         to_validator.to_string(),
         amount,
-        current_epoch.next().next().next().next().next().next().into(),
+        current_epoch
+            .next()
+            .next()
+            .next()
+            .next()
+            .next()
+            .next()
+            .into(),
         task_settings,
     )])
 }

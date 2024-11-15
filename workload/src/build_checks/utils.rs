@@ -4,10 +4,7 @@ use namada_sdk::{
     address::Address,
     control_flow::install_shutdown_signal,
     io::DevNullProgressBar,
-    masp::{
-        shielded_wallet::ShieldedApi, IndexerMaspClient, MaspLocalTaskEnv,
-        ShieldedSyncConfig,
-    },
+    masp::{shielded_wallet::ShieldedApi, IndexerMaspClient, MaspLocalTaskEnv, ShieldedSyncConfig},
     masp_primitives::{transaction::components::ValueSum, zip32},
     rpc,
     token::{self, MaspDigitPos},

@@ -27,7 +27,14 @@ pub async fn build_unbond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, Ste
         source_account.alias,
         source_bond.validator,
         amount,
-        current_epoch.next().next().next().next().next().next().into(),
+        current_epoch
+            .next()
+            .next()
+            .next()
+            .next()
+            .next()
+            .next()
+            .into(),
         task_settings,
     )])
 }

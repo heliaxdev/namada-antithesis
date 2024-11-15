@@ -29,9 +29,9 @@ pub async fn build_tx_redelegate(
     let from_validator = Address::from_str(&from_validator).unwrap(); // safe
     let to_validator = Address::from_str(&to_validator).unwrap(); // safe
 
-    let mut redelegate_tx_builder = sdk
-        .namada
-        .new_redelegation(source_address, from_validator, to_validator, token_amount);
+    let mut redelegate_tx_builder =
+        sdk.namada
+            .new_redelegation(source_address, from_validator, to_validator, token_amount);
     redelegate_tx_builder = redelegate_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
     redelegate_tx_builder = redelegate_tx_builder.wrapper_fee_payer(fee_payer);
     let mut signing_keys = vec![];

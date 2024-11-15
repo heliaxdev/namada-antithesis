@@ -78,9 +78,15 @@ impl Display for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Task::NewWalletKeyPair(source) => write!(f, "wallet-key-pair/{}", source.name),
-            Task::FaucetTransfer(target, amount, _) => write!(f, "faucet-transfer/{}/{}", target.name, amount),
+            Task::FaucetTransfer(target, amount, _) => {
+                write!(f, "faucet-transfer/{}/{}", target.name, amount)
+            }
             Task::TransparentTransfer(source, target, amount, _) => {
-                write!(f, "transparent-transfer/{}/{}/{}", source.name, target.name, amount)
+                write!(
+                    f,
+                    "transparent-transfer/{}/{}/{}",
+                    source.name, target.name, amount
+                )
             }
             Task::Bond(source, validator, amount, _, _) => {
                 write!(f, "bond/{}/{}/{}", source.name, validator, amount)
@@ -92,12 +98,19 @@ impl Display for Task {
                 write!(f, "shielding/{}/{}/{}", source.name, target.name, amount)
             }
             Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
-            Task::ClaimRewards(alias, validator, _) => write!(f, "claim-rewards/{}/{}", alias.name, validator),
-            Task::Redelegate(source, from, to, amount, _, _) => write!(f, "redelegate/{}/{}/{}/{}", source.name, from, to, amount),
+            Task::ClaimRewards(alias, validator, _) => {
+                write!(f, "claim-rewards/{}/{}", alias.name, validator)
+            }
+            Task::Redelegate(source, from, to, amount, _, _) => {
+                write!(f, "redelegate/{}/{}/{}/{}", source.name, from, to, amount)
+            }
             Task::Batch(tasks, _) => {
-                let tasks = tasks.iter().map(|task| task.to_string()).collect::<Vec<String>>();
+                let tasks = tasks
+                    .iter()
+                    .map(|task| task.to_string())
+                    .collect::<Vec<String>>();
                 write!(f, "batch-{} -> {}", tasks.len(), tasks.join(" -> "))
-            },
+            }
         }
     }
 }
