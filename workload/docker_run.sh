@@ -68,9 +68,33 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
         if [ $? -eq 0 ] 
         then 
-            echo "<OK> init accout" 
+            echo "<OK> init account" 
         else 
             echo "<ERROR> init account"
+        fi
+
+        source /opt/antithesis/test/v1/namada/parallel_redelegate.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> redelegate" 
+        else 
+            echo "<ERROR> redelegate"
+        fi
+
+        source /opt/antithesis/test/v1/namada/parallel_unbond.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> unbond" 
+        else 
+            echo "<ERROR> unbond"
+        fi
+
+        source /opt/antithesis/test/v1/namada/parallel_driver_shielding.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> shielding" 
+        else 
+            echo "<ERROR> shielding"
         fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
