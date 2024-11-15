@@ -51,6 +51,7 @@ pub enum Task {
     Bond(Source, Address, Amount, Epoch, TaskSettings),
     Unbond(Source, Address, Amount, Epoch, TaskSettings),
     Redelegate(Source, Address, Address, Amount, Epoch, TaskSettings),
+    ClaimRewards(Source, Address, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
     Shielding(Source, PaymentAddress, Amount, TaskSettings),
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
@@ -65,6 +66,7 @@ impl Task {
             Task::Bond(_, _, _, _, _) => "bond".to_string(),
             Task::Unbond(_, _, _, _, _) => "unbond".to_string(),
             Task::Redelegate(_, _, _, _, _, _) => "relegate".to_string(),
+            Task::ClaimRewards(_, _, _) => "claim-rewards".to_string(),
             Task::Batch(_, _) => "batch".to_string(),
             Task::Shielding(_, _, _, _) => "shielding".to_string(),
             Task::InitAccount(_, _, _, _) => "init-account".to_string(),
@@ -90,6 +92,7 @@ impl Display for Task {
                 write!(f, "shielding/{}/{}/{}", source.name, target.name, amount)
             }
             Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
+            Task::ClaimRewards(alias, validator, _) => write!(f, "claim-rewards/{}/{}", alias.name, validator),
             Task::Redelegate(source, from, to, amount, _, _) => write!(f, "redelegate/{}/{}/{}/{}", source.name, from, to, amount),
             Task::Batch(tasks, _) => {
                 let tasks = tasks.iter().map(|task| task.to_string()).collect::<Vec<String>>();

@@ -8,3 +8,4 @@ pub mod utils;
 pub mod redelegate;
 pub mod unbond;
 pub mod shielding;
+pub mod claim_rewards;

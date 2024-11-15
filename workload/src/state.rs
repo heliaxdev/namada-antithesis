@@ -136,6 +136,11 @@ impl State {
                     }
                     self.modify_unbonds(source, validator, amount);
                 }
+                Task::ClaimRewards(_source, _validator, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                }
                 Task::InitAccount(alias, sources, threshold, setting) => {
                     if with_fee {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);

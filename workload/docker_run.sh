@@ -97,6 +97,14 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> shielding"
         fi
 
+        source /opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> claim rewards" 
+        else 
+            echo "<ERROR> claim rewards"
+        fi
+
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
         if [ $? -eq 0 ] 
         then 
