@@ -30,7 +30,7 @@ impl Sdk {
         Self {
             base_dir: base_dir.to_owned(),
             namada,
-            masp_indexer_url: format!("http://{}", masp_indexer_url)
+            masp_indexer_url: masp_indexer_url
         }
     }
 }
