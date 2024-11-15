@@ -349,6 +349,9 @@ impl WorkloadExecutor {
                                     .and_modify(|balance| *balance += *amount as i64)
                                     .or_insert(*amount as i64);
                             }
+                            Task::ClaimRewards(_source, _validator, _task_settings) => {
+
+                            }
                             _ => panic!(),
                         };
                     }
@@ -1033,6 +1036,9 @@ impl WorkloadExecutor {
                             }
                             Task::Shielding(source, target, amount, settings) => {
                                 build_tx_shielding(sdk, source, target, amount, settings).await?
+                            }
+                            Task::ClaimRewards(source, validator, settings) => {
+                                build_tx_claim_rewards(sdk, source, validator, settings).await?
                             }
                             _ => panic!(),
                         };

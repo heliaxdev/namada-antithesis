@@ -8,7 +8,9 @@ use crate::{
 };
 
 use super::{
-    bond::build_bond, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
+    bond::build_bond, claim_rewards::build_claim_rewards, redelegate::build_redelegate,
+    shielding::build_shielding, transparent_transfer::build_transparent_transfer,
+    unbond::build_unbond,
 };
 
 pub async fn build_bond_batch(
@@ -31,7 +33,8 @@ pub async fn build_random_batch(
             BatchType::Bond,
             BatchType::Redelegate,
             BatchType::Unbond,
-            BatchType::Shielding
+            BatchType::Shielding,
+            // BatchType::ClaimRewards, introducing this would be every balance check :(
         ],
         max_size,
         state,
@@ -76,6 +79,11 @@ async fn _build_batch(
                 tmp_state.update(tasks.clone(), false);
                 tasks
             }
+            BatchType::ClaimRewards => {
+                let tasks = build_claim_rewards(&mut tmp_state);
+                tmp_state.update(tasks.clone(), false);
+                tasks
+            }
         };
         if tasks.is_empty() {
             continue;
@@ -96,16 +104,18 @@ enum BatchType {
     Redelegate,
     Bond,
     Unbond,
-    Shielding
+    Shielding,
+    ClaimRewards,
 }
 
 impl Distribution<BatchType> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> BatchType {
-        match rng.gen_range(0..5) {
+        match rng.gen_range(0..6) {
             0 => BatchType::TransparentTransfer,
             1 => BatchType::Redelegate,
             2 => BatchType::Unbond,
             3 => BatchType::Shielding,
+            4 => BatchType::ClaimRewards,
             _ => BatchType::Bond,
         }
     }
