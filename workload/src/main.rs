@@ -162,7 +162,7 @@ async fn main() {
         Err(e) => {
             match e {
                 namada_chain_workload::steps::StepError::Execution(_) => {
-                    tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
+                    tracing::error!("Error executing {:?} -> {}", next_step, e.to_string());
                 }
                 namada_chain_workload::steps::StepError::Broadcast(e) => {
                     tracing::info!(
