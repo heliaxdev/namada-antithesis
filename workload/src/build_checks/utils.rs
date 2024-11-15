@@ -4,12 +4,16 @@ use namada_sdk::{
     address::Address,
     control_flow::install_shutdown_signal,
     io::DevNullProgressBar,
-    masp::{shielded_wallet::ShieldedApi, LedgerMaspClient, MaspLocalTaskEnv, ShieldedSyncConfig},
+    masp::{
+        shielded_wallet::ShieldedApi, IndexerMaspClient, MaspLocalTaskEnv,
+        ShieldedSyncConfig,
+    },
     masp_primitives::{transaction::components::ValueSum, zip32},
     rpc,
     token::{self, MaspDigitPos},
     Namada,
 };
+use reqwest::Url;
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError};
@@ -47,7 +51,10 @@ pub async fn get_shielded_balance(
 
     let client = sdk.namada.clone_client();
     let mut wallet = sdk.namada.wallet.write().await;
-    let spending_key = format!("{}-spending-key", source.name.strip_suffix("-payment-address").unwrap());
+    let spending_key = format!(
+        "{}-spending-key",
+        source.name.strip_suffix("-payment-address").unwrap()
+    );
     let target_spending_key = wallet
         .find_spending_key(&spending_key, None)
         .unwrap()
@@ -139,7 +146,13 @@ pub async fn shield_sync(sdk: &Sdk) -> Result<(), StepError> {
 
     let mut shielded_ctx = sdk.namada.shielded_mut().await;
 
-    let masp_client = LedgerMaspClient::new(sdk.namada.clone_client(), 100);
+    // let masp_client = LedgerMaspClient::new(sdk.namada.clone_client(), 100);
+    let masp_client = IndexerMaspClient::new(
+        reqwest::Client::new(),
+        Url::parse(&sdk.masp_indexer_url).unwrap(),
+        true,
+        100,
+    );
     let task_env = MaspLocalTaskEnv::new(4).map_err(|e| StepError::ShieldSync(e.to_string()))?;
     let shutdown_signal = install_shutdown_signal(true);
 

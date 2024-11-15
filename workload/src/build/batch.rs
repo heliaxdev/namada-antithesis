@@ -34,7 +34,7 @@ pub async fn build_random_batch(
             BatchType::Redelegate,
             BatchType::Unbond,
             BatchType::Shielding,
-            // BatchType::ClaimRewards, introducing this would be every balance check :(
+            // BatchType::ClaimRewards, introducing this would fail every balance check :(
         ],
         max_size,
         state,
