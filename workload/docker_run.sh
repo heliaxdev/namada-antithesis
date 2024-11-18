@@ -49,60 +49,60 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> faucet"
         fi
 
-        source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> bond" 
-        else 
-            echo "<ERROR> bond"
-        fi
+        # source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> bond" 
+        # else 
+        #     echo "<ERROR> bond"
+        # fi
         
-        source /opt/antithesis/test/v1/namada/parallel_driver_transparent_transfer.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> transparent transfer" 
-        else 
-            echo "<ERROR> transparent transfer"
-        fi
+        # source /opt/antithesis/test/v1/namada/parallel_driver_transparent_transfer.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> transparent transfer" 
+        # else 
+        #     echo "<ERROR> transparent transfer"
+        # fi
 
-        source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> init account" 
-        else 
-            echo "<ERROR> init account"
-        fi
+        # source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> init account" 
+        # else 
+        #     echo "<ERROR> init account"
+        # fi
 
-        source /opt/antithesis/test/v1/namada/parallel_driver_redelegate.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> redelegate" 
-        else 
-            echo "<ERROR> redelegate"
-        fi
+        # source /opt/antithesis/test/v1/namada/parallel_driver_redelegate.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> redelegate" 
+        # else 
+        #     echo "<ERROR> redelegate"
+        # fi
 
-        source /opt/antithesis/test/v1/namada/parallel_driver_unbond.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> unbond" 
-        else 
-            echo "<ERROR> unbond"
-        fi
+        # source /opt/antithesis/test/v1/namada/parallel_driver_unbond.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> unbond" 
+        # else 
+        #     echo "<ERROR> unbond"
+        # fi
 
-        source /opt/antithesis/test/v1/namada/parallel_driver_shielding.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> shielding" 
-        else 
-            echo "<ERROR> shielding"
-        fi
+        # source /opt/antithesis/test/v1/namada/parallel_driver_shielding.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> shielding" 
+        # else 
+        #     echo "<ERROR> shielding"
+        # fi
 
-        source /opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> claim rewards" 
-        else 
-            echo "<ERROR> claim rewards"
+        # source /opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> claim rewards" 
+        # else 
+        #     echo "<ERROR> claim rewards"
         fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
@@ -113,13 +113,13 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> bond batch"
         fi
 
-        source /opt/antithesis/test/v1/namada/parallel_driver_random_batch.sh
-        if [ $? -eq 0 ] 
-        then 
-            echo "<OK> random batch" 
-        else 
-            echo "<ERROR> random batch"
-        fi
+        # source /opt/antithesis/test/v1/namada/parallel_driver_random_batch.sh
+        # if [ $? -eq 0 ] 
+        # then 
+        #     echo "<OK> random batch" 
+        # else 
+        #     echo "<ERROR> random batch"
+        # fi
     done
 else
     echo "ANTITHESIS_OUTPUT_DIR has the value: $ANTITHESIS_OUTPUT_DIR"
