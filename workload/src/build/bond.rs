@@ -16,8 +16,8 @@ pub async fn build_bond(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepE
     let source_account = state
         .random_account_with_min_balance(vec![])
         .ok_or(StepError::Build("No more accounts".to_string()))?;
-    let amount_account = state.get_balance_for(&source_account.alias);
-    let amount = utils::random_between(state, 1, amount_account);
+    let _amount_account = state.get_balance_for(&source_account.alias);
+    let amount = 1;
 
     let current_epoch = rpc::query_epoch(&client)
         .await
