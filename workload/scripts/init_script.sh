@@ -25,7 +25,7 @@ CHAIN_ID=$(basename $CHAIN_ID)
 json_rpc_ready=0
 while [ $json_rpc_ready -eq 0 ]
 do
-    json_rpc_ready=$(curl -I 30.0.0.20:5000/api/v1/health | grep 200 | wc -l)
+    json_rpc_ready=$(curl -I "${MASP_INDEXER_URL}/api/v1/health" | grep 200 | wc -l)
     sleep 2
 done
 
