@@ -21,4 +21,7 @@ pub struct AppConfig {
     #[arg(required = true)]
     #[arg(value_enum)]
     pub step_type: StepType,
+    #[clap(long, env)]
+    #[clap(default_value_t = false)]
+    pub no_check: bool,
 }

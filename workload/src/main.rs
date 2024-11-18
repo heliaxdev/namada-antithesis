@@ -51,6 +51,7 @@ async fn main() {
 
     tracing::info!("Using base dir: {}", state.base_dir.as_path().display());
     tracing::info!("Using seed: {}", state.seed);
+    tracing::info!("With checks: {}", config.no_check);
 
     let url = Url::from_str(&config.rpc).expect("invalid RPC address");
     let http_client = HttpClient::new(url).unwrap();
@@ -146,7 +147,7 @@ async fn main() {
     );
 
     let checks = workload_executor
-        .build_check(&sdk, tasks.clone(), &state)
+        .build_check(&sdk, tasks.clone(), &state, config.no_check)
         .await;
     tracing::info!("Built checks for {:?}", next_step);
 
