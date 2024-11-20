@@ -36,7 +36,7 @@ pub async fn build_bond_batch_bug(sdk: &Sdk, state: &mut State) -> Result<Vec<Ta
     for validator in validators {
         tasks.push(Task::Bond(
             source_account.alias.clone(),
-            validator.to_string(),
+            validator.address.to_string(),
             1,
             current_epoch
                 .next()
