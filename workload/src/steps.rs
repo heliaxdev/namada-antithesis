@@ -2,16 +2,7 @@ use std::{collections::HashMap, fmt::Display, str::FromStr, time::Instant};
 
 use crate::{
     build::{
-        batch::{build_bond_batch, build_random_batch},
-        bond::build_bond,
-        claim_rewards::build_claim_rewards,
-        faucet_transfer::build_faucet_transfer,
-        init_account::build_init_account,
-        new_wallet_keypair::build_new_wallet_keypair,
-        redelegate::build_redelegate,
-        shielding::build_shielding,
-        transparent_transfer::build_transparent_transfer,
-        unbond::build_unbond,
+        batch::{build_bond_batch, build_bond_batch_bug, build_random_batch}, bond::build_bond, claim_rewards::build_claim_rewards, faucet_transfer::build_faucet_transfer, init_account::build_init_account, new_wallet_keypair::build_new_wallet_keypair, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
     },
     build_checks,
     check::Check,
@@ -76,6 +67,7 @@ pub enum StepType {
     Unbond,
     ClaimRewards,
     BatchBond,
+    BatchBondBug,
     BatchRandom,
     Shielding,
 }
@@ -94,6 +86,7 @@ impl Display for StepType {
             StepType::Shielding => write!(f, "shielding"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
+            StepType::BatchBondBug => write!(f, "batch-bond-bug"),
         }
     }
 }
@@ -171,6 +164,7 @@ impl WorkloadExecutor {
             StepType::ClaimRewards => state.any_bond(),
             StepType::Shielding => state.any_account_with_min_balance(2),
             StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
+            StepType::BatchBondBug => state.min_n_account_with_min_balance(3, 2),
             StepType::BatchRandom => {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
             }
@@ -194,6 +188,7 @@ impl WorkloadExecutor {
             StepType::ClaimRewards => build_claim_rewards(state),
             StepType::Shielding => build_shielding(state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
+            StepType::BatchBondBug => build_bond_batch_bug(sdk, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
         };
         Ok(steps)

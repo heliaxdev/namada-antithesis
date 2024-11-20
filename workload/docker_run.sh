@@ -118,6 +118,14 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         else 
             echo "<ERROR> random batch"
         fi
+
+        source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch_bug.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> bond batch bug" 
+        else 
+            echo "<ERROR> bond batch bug"
+        fi
     done
 else
     echo "ANTITHESIS_OUTPUT_DIR has the value: $ANTITHESIS_OUTPUT_DIR"

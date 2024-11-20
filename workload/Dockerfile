@@ -42,6 +42,7 @@ COPY --chmod=0755 scripts/parallel_driver_unbond.sh /opt/antithesis/test/v1/nama
 COPY --chmod=0755 scripts/parallel_driver_shielding.sh /opt/antithesis/test/v1/namada/parallel_driver_shielding.sh
 COPY --chmod=0755 scripts/parallel_driver_claim_rewards.sh /opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh
 COPY --chmod=0755 scripts/parallel_driver_random_batch.sh /opt/antithesis/test/v1/namada/parallel_driver_random_batch.sh
+COPY --chmod=0755 scripts/parallel_driver_bond_batch_bug.sh /opt/antithesis/test/v1/namada/parallel_driver_bond_batch_bug.sh
 
 # download masp parameters
 RUN curl -o /app/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params\?raw\=true

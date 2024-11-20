@@ -1,6 +1,8 @@
+use namada_sdk::rpc;
 use rand::{distributions::Standard, prelude::Distribution, seq::SliceRandom, Rng};
 
 use crate::{
+    entities::Alias,
     sdk::namada::Sdk,
     state::State,
     steps::StepError,
@@ -12,6 +14,44 @@ use super::{
     shielding::build_shielding, transparent_transfer::build_transparent_transfer,
     unbond::build_unbond,
 };
+
+pub async fn build_bond_batch_bug(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepError> {
+    let client = sdk.namada.clone_client();
+    let source_account = state
+        .random_account_with_min_balance(vec![])
+        .ok_or(StepError::Build("No more accounts".to_string()))?;
+
+    let current_epoch = rpc::query_epoch(&client)
+        .await
+        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?
+        .next()
+        .next();
+    let validators = rpc::get_all_consensus_validators(&client, current_epoch)
+        .await
+        .map_err(|e| StepError::Rpc(format!("query consensus validators: {}", e)))?;
+
+    let task_settings = TaskSettings::new(source_account.public_keys.clone(), Alias::faucet());
+
+    let mut tasks = vec![];
+    for validator in validators {
+        tasks.push(Task::Bond(
+            source_account.alias.clone(),
+            validator.to_string(),
+            1,
+            current_epoch
+                .next()
+                .next()
+                .next()
+                .next()
+                .next()
+                .next()
+                .into(),
+            task_settings.clone(),
+        ));
+    }
+
+    Ok(tasks)
+}
 
 pub async fn build_bond_batch(
     sdk: &Sdk,
