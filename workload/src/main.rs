@@ -199,7 +199,7 @@ async fn inner_main() -> i32 {
     } else {
         workload_executor.update_state(tasks, &mut state);
         tracing::info!("Checks were successful, updating state...");
-        return 0_i32
+        0_i32
     };
 
     tracing::info!("Statistics: {:>?}", state.stats);

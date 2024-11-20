@@ -173,6 +173,7 @@ impl State {
             Ok(data) => match serde_json::from_str(&data) {
                 Ok(state) => state,
                 Err(_) => {
+                    tracing::warn!("Can't deserialize state file, creating new one.");
                     let state = State::new(
                         id,
                         seed.unwrap_or(rand::thread_rng().gen_range(0..u64::MAX)),
@@ -182,6 +183,7 @@ impl State {
                 }
             },
             Err(_) => {
+                tracing::warn!("Can't read state file, creating new one.");
                 let state = State::new(
                     id,
                     seed.unwrap_or(rand::thread_rng().gen_range(0..u64::MAX)),
