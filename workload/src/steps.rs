@@ -194,9 +194,15 @@ impl WorkloadExecutor {
         Ok(steps)
     }
 
-    pub async fn build_check(&self, sdk: &Sdk, tasks: Vec<Task>, state: &State, no_check: bool) -> Vec<Check> {
+    pub async fn build_check(
+        &self,
+        sdk: &Sdk,
+        tasks: Vec<Task>,
+        state: &State,
+        no_check: bool,
+    ) -> Vec<Check> {
         if no_check {
-            return vec![]
+            return vec![];
         }
         let retry_config = Self::retry_config();
 
@@ -343,9 +349,12 @@ impl WorkloadExecutor {
                                         *bond_amount += *amount as i64
                                     })
                                     .or_insert((*epoch, *amount as i64));
-                                bonds.entry(format!("{}@{}", source.name, from)).and_modify(
-                                    |(_epoch, bond_amount)| *bond_amount -= *amount as i64,
-                                );
+                                bonds
+                                    .entry(format!("{}@{}", source.name, from))
+                                    .and_modify(|(_epoch, bond_amount)| {
+                                        *bond_amount -= *amount as i64
+                                    })
+                                    .or_insert((*epoch, -(*amount as i64)));
                             }
                             Task::Shielding(source, target, amount, _task_settings) => {
                                 balances
