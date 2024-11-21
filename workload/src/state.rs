@@ -5,8 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use rand::{seq::IteratorRandom, Rng, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+use rand::{seq::IteratorRandom, Rng, RngCore};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -67,7 +66,7 @@ pub struct State {
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
     pub validators: HashMap<Alias, String>,
     pub seed: u64,
-    pub rng: ChaCha20Rng,
+    pub rng: AntithesisRng,
     pub path: PathBuf,
     pub base_dir: PathBuf,
     pub stats: HashMap<String, u64>,
@@ -85,7 +84,7 @@ impl State {
             redelegations: HashMap::default(),
             validators: HashMap::default(),
             seed,
-            rng: ChaCha20Rng::seed_from_u64(seed),
+            rng: AntithesisRng::default(),
             path: env::current_dir()
                 .unwrap()
                 .join(format!("state-{}.json", id)),
@@ -448,5 +447,37 @@ impl State {
                 .to_string(),
         };
         *self.masp_balances.get_mut(&target_alias).unwrap() += amount;
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AntithesisRng {}
+
+impl RngCore for AntithesisRng {
+    fn next_u32(&mut self) -> u32 {
+        (antithesis_sdk::random::get_random() & 0xFFFF_FFFF) as u32
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        antithesis_sdk::random::get_random() 
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let mut i = 0;
+        while i + 8 <= dest.len() {
+            let random = antithesis_sdk::random::get_random();
+            dest[i..i + 8].copy_from_slice(&random.to_le_bytes());
+            i += 8;
+        }
+        if i < dest.len() {
+            let random = antithesis_sdk::random::get_random();
+            let dest_len = dest.len();
+            dest[i..].copy_from_slice(&random.to_le_bytes()[..dest_len - i]);
+        }
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        self.fill_bytes(dest);
+        Ok(())
     }
 }

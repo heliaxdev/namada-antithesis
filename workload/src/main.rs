@@ -117,7 +117,7 @@ async fn inner_main() -> i32 {
 
     let next_step = config.step_type;
     if !workload_executor.is_valid(&next_step, &state) {
-        tracing::info!("Invalid step: {}", next_step);
+        tracing::info!("Invalid step: {} -> {:>?}", next_step, state);
         return 8_i32;
     }
 
