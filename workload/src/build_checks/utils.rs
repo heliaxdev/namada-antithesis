@@ -15,6 +15,7 @@ use namada_sdk::{
     Namada,
 };
 use reqwest::Url;
+use serde_json::json;
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError};
@@ -48,7 +49,15 @@ pub async fn get_shielded_balance(
     sdk: &Sdk,
     source: Alias,
 ) -> Result<Option<token::Amount>, StepError> {
-    shield_sync(sdk).await?;
+    let shiedsync_res = shield_sync(sdk).await;
+    antithesis_sdk::assert_always!(
+        shiedsync_res.is_ok(),
+        "Shieldsync was successful.",
+        &json!({
+            "source": source,
+        })
+    );
+    shiedsync_res?;
 
     let client = sdk.namada.clone_client();
     let mut wallet = sdk.namada.wallet.write().await;
