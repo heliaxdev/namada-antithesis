@@ -281,9 +281,9 @@ impl State {
         self.accounts
             .iter()
             .filter(|(alias, _)| !blacklist.contains(alias))
+            .filter(|(_, account)| account.is_implicit())
             .choose_multiple(&mut self.rng, sample_size)
             .into_iter()
-            .filter(|(_, account)| account.is_implicit())
             .map(|(_, account)| account.clone())
             .collect()
     }
