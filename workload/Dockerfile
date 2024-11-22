@@ -28,7 +28,7 @@ WORKDIR /app
 # copy the runtime files
 COPY --from=builder /app/repo/workload/target/release/namada-chain-workload /app/namada-chain-workload 
 
-COPY --chmod=0755 docker_run.sh /app/run.sh
+COPY --chmod=0755 --from=builder /app/repo/workload/docker_run.sh /app/run.sh
 
 COPY --chmod=0755 --from=builder /app/repo/workload/scripts/init_script.sh /opt/antithesis/test/v1/namada/first_get_chainid.sh
 COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_create_wallet.sh /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
