@@ -180,7 +180,7 @@ pub async fn shield_sync(sdk: &Sdk) -> Result<(), StepError> {
         .scanned_tracker(DevNullProgressBar)
         .applied_tracker(DevNullProgressBar)
         .shutdown_signal(shutdown_signal)
-        .wait_for_last_query_height(true)
+        // .wait_for_last_query_height(true)
         .build();
 
     shielded_ctx
