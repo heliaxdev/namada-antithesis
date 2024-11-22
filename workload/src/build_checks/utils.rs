@@ -57,6 +57,12 @@ pub async fn get_shielded_balance(
             "source": source,
         })
     );
+    if shiedsync_res.is_err() {
+        tracing::info!(
+            "Shieldsync error: {}",
+            shiedsync_res.clone().err().unwrap().to_string()
+        );
+    }
     shiedsync_res?;
 
     let client = sdk.namada.clone_client();
@@ -158,7 +164,7 @@ pub async fn shield_sync(sdk: &Sdk) -> Result<(), StepError> {
 
     let mut shielded_ctx = sdk.namada.shielded_mut().await;
 
-    // let masp_client = LedgerMaspClient::new(sdk.namada.clone_client(), 100);
+    // let masp_client = LedgerMaspClient::new(sdk.namada.clone_client(), 10);
     let masp_client = IndexerMaspClient::new(
         reqwest::Client::new(),
         Url::parse(&sdk.masp_indexer_url).unwrap(),

@@ -38,7 +38,7 @@ use thiserror::Error;
 use tokio::time::{sleep, Duration};
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum StepError {
     #[error("error wallet `{0}`")]
     Wallet(String),
