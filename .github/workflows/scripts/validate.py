@@ -2,6 +2,8 @@ import subprocess
 import yaml
 import os
 
+IS_CI = os.environ.get('CI', False)
+
 default_image_map = {
     "namada-genesis": os.environ.get("NAMADA_TAG", "main"),
     "namada": os.environ.get("NAMADA_TAG", "main"),
@@ -24,7 +26,8 @@ for service in current_docker_compose['services']:
         tag = default_image_map[current_image]
         updated_image = "ghcr.io/heliaxdev/ant-{}:{}".format(current_image, tag)
         current_docker_compose['services'][service]['image'] = updated_image
-        # subprocess.run(["docker", "pull", updated_image]) 
+        if not IS_CI:
+            subprocess.run(["docker", "pull", updated_image]) 
 
 
 updated_docker_compose_path = "config/docker-compose-test.yml"

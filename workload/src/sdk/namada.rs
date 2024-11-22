@@ -55,7 +55,7 @@ impl Sdk {
         Ok(Self {
             base_dir: base_dir.to_owned(),
             namada,
-            masp_indexer_url: config.masp_indexer_url.clone(),
+            masp_indexer_url: format!("{}/api/v1", config.masp_indexer_url.clone()),
         })
     }
 }

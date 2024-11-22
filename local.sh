@@ -16,4 +16,5 @@ touch config/validator-2/DO_NOT_REMOVE
 touch config/fullnode/DO_NOT_REMOVE
 touch config/container_ready/DO_NOT_REMOVE
 
+docker-compose -f config/docker-compose-test.yml down
 docker-compose -f config/docker-compose-test.yml up
