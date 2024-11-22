@@ -89,8 +89,13 @@ async fn inner_main() -> i32 {
 
         // Setup shielded context storage
         let shielded_ctx_path = state.base_dir.join(format!("masp-{}", config.id));
-        let shielded_ctx = ShieldedContext::new(FsShieldedUtils::new(shielded_ctx_path));
-        shielded_ctx.save().await.unwrap();
+
+        let mut shielded_ctx = ShieldedContext::new(FsShieldedUtils::new(shielded_ctx_path.clone()));
+        if shielded_ctx_path.join("shielded.dat").exists() {
+            shielded_ctx.load().await.expect("Should be able to load shielded context");
+        } else {
+            shielded_ctx.save().await.unwrap();
+        }
 
         let io = NullIo;
 

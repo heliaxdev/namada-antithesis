@@ -188,6 +188,8 @@ pub async fn shield_sync(sdk: &Sdk) -> Result<(), StepError> {
         .await
         .map_err(|e| StepError::ShieldedSync(e.to_string()))?;
 
+    shielded_ctx.save().await.map_err(|e| StepError::ShieldedSync(e.to_string()))?;
+
     tracing::info!("Done shieldsync (took {}s)!", now.elapsed().as_secs());
 
     Ok(())
