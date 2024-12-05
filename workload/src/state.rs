@@ -146,6 +146,9 @@ impl State {
                     }
                     self.add_enstablished_account(alias, sources, threshold);
                 }
+                Task::ShieldedTransfer(source, target, amount, setting) => {
+
+                }
                 Task::Shielding(source, target, amount, setting) => {
                     if with_fee {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
@@ -263,6 +266,22 @@ impl State {
             .filter(|(alias, _)| !blacklist.contains(alias))
             .choose(&mut self.rng)
             .map(|(_, account)| account.clone())
+    }
+
+    pub fn random_masp_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
+        self.masp_balances
+            .iter()
+            .filter_map(|(alias, balance)| {
+                if blacklist.contains(alias) {
+                    return None;
+                }
+                if balance >= &DEFAULT_FEE_IN_NATIVE_TOKEN {
+                    Some(self.accounts.get(alias).unwrap().clone())
+                } else {
+                    None
+                }
+            })
+            .choose(&mut self.rng)
     }
 
     pub fn random_payment_address(&mut self, blacklist: Vec<Alias>) -> Option<MaspAccount> {
@@ -448,6 +467,26 @@ impl State {
         };
         *self.masp_balances.get_mut(&target_alias).unwrap() += amount;
     }
+    pub fn modify_shielded_transfer(&mut self, source: Alias, target: Alias, amount: u64) {
+        let target_alias = Alias {
+            name: target
+                .name
+                .strip_suffix("-payment-address")
+                .unwrap()
+                .to_string(),
+        };
+        *self.masp_balances.get_mut(&target_alias).unwrap() += amount;
+
+        let source_alias = Alias {
+            name: source
+                .name
+                .strip_suffix("-payment-address")
+                .unwrap()
+                .to_string(),
+        };
+        *self.masp_balances.get_mut(&source_alias).unwrap() -= amount;
+    }
+
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
