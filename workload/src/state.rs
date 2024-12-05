@@ -147,7 +147,10 @@ impl State {
                     self.add_enstablished_account(alias, sources, threshold);
                 }
                 Task::ShieldedTransfer(source, target, amount, setting) => {
-
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.modify_shielded_transfer(source, target, amount);
                 }
                 Task::Shielding(source, target, amount, setting) => {
                     if with_fee {
@@ -204,6 +207,10 @@ impl State {
 
     pub fn at_least_accounts(&self, sample: u64) -> bool {
         self.accounts.len() >= sample as usize
+    }
+
+    pub fn at_least_masp_accounts(&self, sample: u64) -> bool {
+        self.masp_accounts.len() >= sample as usize
     }
 
     pub fn any_account_with_min_balance(&self, min_balance: u64) -> bool {
@@ -268,7 +275,7 @@ impl State {
             .map(|(_, account)| account.clone())
     }
 
-    pub fn random_masp_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
+    pub fn random_masp_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<MaspAccount> {
         self.masp_balances
             .iter()
             .filter_map(|(alias, balance)| {
@@ -276,7 +283,7 @@ impl State {
                     return None;
                 }
                 if balance >= &DEFAULT_FEE_IN_NATIVE_TOKEN {
-                    Some(self.accounts.get(alias).unwrap().clone())
+                    Some(self.masp_accounts.get(alias).unwrap().clone())
                 } else {
                     None
                 }
