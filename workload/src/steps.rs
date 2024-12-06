@@ -12,24 +12,13 @@ use crate::{
         shielded_transfer::build_shielded_transfer,
         shielding::build_shielding,
         transparent_transfer::build_transparent_transfer,
-        unbond::build_unbond,
+        unbond::build_unbond, unshielding::build_unshielding,
     },
     build_checks,
     check::Check,
     entities::Alias,
     execute::{
-        batch::execute_tx_batch,
-        bond::{build_tx_bond, execute_tx_bond},
-        claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards},
-        faucet_transfer::execute_faucet_transfer,
-        init_account::{build_tx_init_account, execute_tx_init_account},
-        new_wallet_keypair::execute_new_wallet_key_pair,
-        redelegate::{build_tx_redelegate, execute_tx_redelegate},
-        reveal_pk::execute_reveal_pk,
-        shielding::{build_tx_shielding, execute_tx_shielding},
-        transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
-        unbond::{build_tx_unbond, execute_tx_unbond},
-        shielded_transfer::{build_tx_shielded_transfer, execute_tx_shielded_transfer},
+        batch::execute_tx_batch, bond::{build_tx_bond, execute_tx_bond}, claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards}, faucet_transfer::execute_faucet_transfer, init_account::{build_tx_init_account, execute_tx_init_account}, new_wallet_keypair::execute_new_wallet_key_pair, redelegate::{build_tx_redelegate, execute_tx_redelegate}, reveal_pk::execute_reveal_pk, shielded_transfer::{build_tx_shielded_transfer, execute_tx_shielded_transfer}, shielding::{build_tx_shielding, execute_tx_shielding}, transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer}, unbond::{build_tx_unbond, execute_tx_unbond}, unshielding::{build_tx_unshielding, execute_tx_unshielding}
 
     },
     sdk::namada::Sdk,
@@ -82,6 +71,7 @@ pub enum StepType {
     BatchRandom,
     Shielding,
     ShieldedTransfer,
+    Unshielding,
 }
 
 impl Display for StepType {
@@ -99,6 +89,7 @@ impl Display for StepType {
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
             StepType::ShieldedTransfer => write!(f, "shielded-transfer"),
+            StepType::Unshielding => write!(f, "unshielding"),
         }
     }
 }
@@ -180,8 +171,10 @@ impl WorkloadExecutor {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
             }
             StepType::ShieldedTransfer => {
+                // FIXME
                 state.at_least_masp_accounts(2)
             }
+            StepType::Unshielding => state.any_account_with_min_balance(2) //FIXME no masp checks in there
         }
     }
 
@@ -204,6 +197,7 @@ impl WorkloadExecutor {
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
             StepType::ShieldedTransfer => build_shielded_transfer(state).await?,
+            StepType::Unshielding => build_unshielding(state).await?,
         };
         Ok(steps)
     }
@@ -320,6 +314,19 @@ impl WorkloadExecutor {
                     )
                     .await
                 }
+                Task::Unshielding(source, target, amount, _) => {
+                    build_checks::unshielding::unshielding(
+                        sdk,
+                        source,
+                        target,
+                        amount,
+                        false,
+                        retry_config,
+                        state,
+                    )
+                    .await
+                }
+
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
 
@@ -1175,6 +1182,11 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_shielding(sdk, source, target, amount, settings).await?;
                     execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::Unshielding(source, target, amount, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_unshielding(sdk, source, target, amount, settings).await?;
+                    execute_tx_unshielding(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];
