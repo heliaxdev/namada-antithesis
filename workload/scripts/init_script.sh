@@ -46,5 +46,16 @@ source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+
 # Ready to start workload
 echo "Ready to start the workload"
