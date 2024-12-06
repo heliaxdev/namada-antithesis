@@ -8,6 +8,7 @@ pub mod redelegate;
 pub mod reveal_pk;
 pub mod shielded_transfer;
 pub mod shielding;
+pub mod unshielding;
 pub mod transparent_transfer;
 pub mod unbond;
 mod utils;

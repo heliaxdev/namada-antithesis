@@ -60,7 +60,7 @@ pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub masp_accounts: HashMap<Alias, MaspAccount>,
     pub balances: HashMap<Alias, u64>,
-    pub masp_balances: HashMap<Alias, u64>,
+    pub masp_balances: HashMap<Alias, u64>, // why do we have masp balances if tha aliases for masp accounts has a sufix?
     pub bonds: HashMap<Alias, HashMap<String, u64>>,
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
@@ -158,6 +158,13 @@ impl State {
                     }
                     self.modify_shielding(source, target, amount)
                 }
+                Task::Unshielding(source, target, amount, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.modify_unshielding(source, target, amount)
+                }
+ 
             }
             self.stats
                 .entry(task.raw_type())
@@ -359,6 +366,17 @@ impl State {
         self.balances.get(alias).cloned().unwrap_or_default()
     }
 
+    pub fn get_shielded_balance_for(&self, alias: &Alias) -> u64 {
+        let stripped_alias = Alias {
+            name: alias
+                .name
+                .strip_suffix("-payment-address")
+                .unwrap()
+                .to_string(),
+        };
+        self.masp_balances.get(&stripped_alias).cloned().unwrap_or_default()
+    }
+
     pub fn get_redelegations_targets_for(&mut self, alias: &Alias) -> HashSet<String> {
         self.redelegations
             .get(alias)
@@ -474,6 +492,21 @@ impl State {
         };
         *self.masp_balances.get_mut(&target_alias).unwrap() += amount;
     }
+
+    pub fn modify_unshielding(&mut self, source: Alias, target: Alias, amount: u64) {
+        let source_alias = Alias {
+            name: source
+                .name
+                .strip_suffix("-payment-address")
+                .unwrap()
+                .to_string(),
+        };
+
+        *self.masp_balances.get_mut(&source_alias).unwrap() -= amount;
+        *self.balances.get_mut(&target).unwrap() += amount;
+    }
+
+
     pub fn modify_shielded_transfer(&mut self, source: Alias, target: Alias, amount: u64) {
         let target_alias = Alias {
             name: target
