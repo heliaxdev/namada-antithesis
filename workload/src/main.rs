@@ -7,8 +7,7 @@ use namada_chain_workload::{
     config::AppConfig, sdk::namada::Sdk, state::State, steps::WorkloadExecutor,
 };
 use namada_sdk::{
-    io::{Client, NullIo},
-    masp::{fs::FsShieldedUtils, ShieldedContext},
+    ibc::core::channel::types::error, io::{Client, NullIo}, masp::{fs::FsShieldedUtils, ShieldedContext}
 };
 use namada_wallet::fs::FsWalletUtils;
 use tendermint_rpc::{HttpClient, Url};
@@ -48,7 +47,9 @@ async fn inner_main() -> i32 {
     let path = env::current_dir()
         .unwrap()
         .join(format!("state-{}.json", config.id));
-    let file = File::open(&path).unwrap();
+
+    let file = match File::open(&path).expect(&format!("Could not open {:?}", path));
+
     file.lock_exclusive().unwrap();
     tracing::info!("State locked.");
 
@@ -59,23 +60,27 @@ async fn inner_main() -> i32 {
     tracing::info!("With checks: {}", !config.no_check);
 
     let url = Url::from_str(&config.rpc).expect("invalid RPC address");
+    tracing::info!("Opening connection agains {:?}", url);
     let http_client = HttpClient::new(url).unwrap();
 
     // Wait for the first 2 blocks
     loop {
         let latest_blocked = http_client.latest_block().await;
-        if let Ok(block) = latest_blocked {
-            if block.block.header.height.value() >= 2 {
-                break;
-            } else {
-                tracing::info!(
-                    "block height {}, waiting to be > 2...",
-                    block.block.header.height
-                );
+        match latest_blocked { 
+            Ok(block) => {
+                if block.block.header.height.value() >= 2 {
+                    break;
+                } else {
+                    tracing::info!(
+                        "block height {}, waiting to be > 2...",
+                        block.block.header.height
+                    );
+                }
+            },
+            Err(err) => {
+                tracing::info!("no response from cometbft, retrying in 5... {}", err);
+                thread::sleep(Duration::from_secs(5));
             }
-        } else {
-            tracing::info!("no response from cometbft, retrying in 5...");
-            thread::sleep(Duration::from_secs(5));
         }
     }
 
