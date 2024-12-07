@@ -61,7 +61,7 @@ pub async fn get_shielded_balance(
         Err(e) => (false, e.to_string()),
     };
 
-    tracing::warn!("First shieldsync result: {}/{}", res, error);
+    tracing::warn!("First shieldsync result: {}, err: {}", res, error);
 
     if with_indexer {
         antithesis_sdk::assert_sometimes!(
