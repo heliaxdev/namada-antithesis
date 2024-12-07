@@ -26,6 +26,11 @@ jobs:
             masp_indexer: "master"
             faults: true
             duration: 3
+          - image: "v1.0.0"
+            genesis: "v1.0.0"
+            masp_indexer: "master"
+            faults: true
+            duration: 3
             
     steps:
       - uses: antithesishq/antithesis-trigger-action@v0.5
