@@ -185,7 +185,7 @@ pub async fn shield_sync(
     with_indexer: bool,
 ) -> Result<(), StepError> {
     let now = Instant::now();
-    tracing::info!("Started shieldsync...");
+    tracing::info!("Started shieldsync (using indexer: {})...", with_indexer);
 
     let wallet = sdk.namada.wallet.read().await;
     let vks: Vec<_> = sdk
@@ -227,9 +227,12 @@ pub async fn shield_sync(
             };
 
             let height = height.map(|h| h.into());
+
+            tracing::info!("Using height with shieldsync: {:?}", height);
+
             let res = shielded_ctx.sync(task_env, config, height, &[], &vks).await;
             if res.is_err() {
-                tracing::info!("Retry shieldsyncing ({}/3)...", max_retries);
+                tracing::info!("Retry (masp) shieldsyncing ({}/3)...", max_retries);
                 if max_retries == 0 {
                     res.map_err(|e| StepError::ShieldedSync(e.to_string()))?
                 }
@@ -261,9 +264,12 @@ pub async fn shield_sync(
             };
 
             let height = height.map(|h| h.into());
+
+            tracing::info!("Using height with shieldsync: {:?}", height);
+
             let res = shielded_ctx.sync(task_env, config, height, &[], &vks).await;
             if res.is_err() {
-                tracing::info!("Retry shieldsyncing ({}/3)...", max_retries);
+                tracing::info!("Retry (node) shieldsyncing ({}/3)...", max_retries);
                 if max_retries == 0 {
                     res.map_err(|e| StepError::ShieldedSync(e.to_string()))?
                 }
@@ -280,7 +286,11 @@ pub async fn shield_sync(
         .await
         .map_err(|e| StepError::ShieldedSync(e.to_string()))?;
 
-    tracing::info!("Done shieldsync (took {}s)!", now.elapsed().as_secs());
+    tracing::info!(
+        "Done shieldsync (took {}s, with indexer: {})!",
+        now.elapsed().as_secs(),
+        with_indexer
+    );
 
     Ok(())
 }
