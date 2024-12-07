@@ -220,6 +220,13 @@ impl State {
         self.masp_accounts.len() >= sample as usize
     }
 
+    pub fn at_least_masp_account_with_minimal_balance(&self, number_of_accounts: usize, min_balance:u64) -> bool {
+        self.masp_accounts
+            .iter()
+            .filter(|(_, account)| self.get_shielded_balance_for(&account.payment_address) >= min_balance)
+            .count() >= number_of_accounts
+    }
+
     pub fn any_account_with_min_balance(&self, min_balance: u64) -> bool {
         self.balances
             .iter()
@@ -282,14 +289,14 @@ impl State {
             .map(|(_, account)| account.clone())
     }
 
-    pub fn random_masp_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<MaspAccount> {
+    pub fn random_masp_account_with_min_balance(&mut self, blacklist: Vec<Alias>, min_value: u64) -> Option<MaspAccount> {
         self.masp_balances
             .iter()
             .filter_map(|(alias, balance)| {
                 if blacklist.contains(alias) {
                     return None;
                 }
-                if balance >= &DEFAULT_FEE_IN_NATIVE_TOKEN {
+                if balance >= &min_value {
                     Some(self.masp_accounts.get(alias).unwrap().clone())
                 } else {
                     None

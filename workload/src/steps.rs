@@ -171,10 +171,13 @@ impl WorkloadExecutor {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
             }
             StepType::ShieldedTransfer => {
-                // FIXME
-                state.at_least_masp_accounts(2)
+                state.at_least_masp_accounts(2) &&
+                state.at_least_masp_account_with_minimal_balance(1, 2)
+
             }
-            StepType::Unshielding => state.any_account_with_min_balance(2) //FIXME no masp checks in there
+            StepType::Unshielding => { state.at_least_masp_account_with_minimal_balance(1, 2)
+                                        && state.min_n_implicit_accounts(1)
+                                     }
         }
     }
 
