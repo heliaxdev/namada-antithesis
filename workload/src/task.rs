@@ -53,8 +53,10 @@ pub enum Task {
     Redelegate(Source, Address, Address, Amount, Epoch, TaskSettings),
     ClaimRewards(Source, Address, TaskSettings),
     Batch(Vec<Task>, TaskSettings),
+    ShieldedTransfer(Source, Target, Amount, TaskSettings),
     Shielding(Source, PaymentAddress, Amount, TaskSettings),
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
+    Unshielding(PaymentAddress, Target, Amount, TaskSettings),
 }
 
 impl Task {
@@ -69,6 +71,8 @@ impl Task {
             Task::ClaimRewards(_, _, _) => "claim-rewards".to_string(),
             Task::Batch(_, _) => "batch".to_string(),
             Task::Shielding(_, _, _, _) => "shielding".to_string(),
+            Task::Unshielding(_, _, _, _) => "unshielding".to_string(),
+            Task::ShieldedTransfer(_, _, _, _) => "shielded-transfer".to_string(),
             Task::InitAccount(_, _, _, _) => "init-account".to_string(),
         }
     }
@@ -94,8 +98,18 @@ impl Display for Task {
             Task::Unbond(source, validator, amount, _, _) => {
                 write!(f, "unbond/{}/{}/{}", source.name, validator, amount)
             }
+            Task::ShieldedTransfer(source, target, amount, _) => {
+                write!(
+                    f,
+                    "shielded-transfer/{}/{}/{}",
+                    source.name, target.name, amount
+                )
+            }
             Task::Shielding(source, target, amount, _) => {
                 write!(f, "shielding/{}/{}/{}", source.name, target.name, amount)
+            }
+            Task::Unshielding(source, target, amount, _) => {
+                write!(f, "unshielding/{}/{}/{}", source.name, target.name, amount)
             }
             Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
             Task::ClaimRewards(alias, validator, _) => {

@@ -9,25 +9,17 @@ use crate::{
         init_account::build_init_account,
         new_wallet_keypair::build_new_wallet_keypair,
         redelegate::build_redelegate,
+        shielded_transfer::build_shielded_transfer,
         shielding::build_shielding,
         transparent_transfer::build_transparent_transfer,
-        unbond::build_unbond,
+        unbond::build_unbond, unshielding::build_unshielding,
     },
     build_checks,
     check::Check,
     entities::Alias,
     execute::{
-        batch::execute_tx_batch,
-        bond::{build_tx_bond, execute_tx_bond},
-        claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards},
-        faucet_transfer::execute_faucet_transfer,
-        init_account::{build_tx_init_account, execute_tx_init_account},
-        new_wallet_keypair::execute_new_wallet_key_pair,
-        redelegate::{build_tx_redelegate, execute_tx_redelegate},
-        reveal_pk::execute_reveal_pk,
-        shielding::{build_tx_shielding, execute_tx_shielding},
-        transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
-        unbond::{build_tx_unbond, execute_tx_unbond},
+        batch::execute_tx_batch, bond::{build_tx_bond, execute_tx_bond}, claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards}, faucet_transfer::execute_faucet_transfer, init_account::{build_tx_init_account, execute_tx_init_account}, new_wallet_keypair::execute_new_wallet_key_pair, redelegate::{build_tx_redelegate, execute_tx_redelegate}, reveal_pk::execute_reveal_pk, shielded_transfer::{build_tx_shielded_transfer, execute_tx_shielded_transfer}, shielding::{build_tx_shielding, execute_tx_shielding}, transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer}, unbond::{build_tx_unbond, execute_tx_unbond}, unshielding::{build_tx_unshielding, execute_tx_unshielding}
+
     },
     sdk::namada::Sdk,
     state::State,
@@ -78,6 +70,8 @@ pub enum StepType {
     BatchBond,
     BatchRandom,
     Shielding,
+    ShieldedTransfer,
+    Unshielding,
 }
 
 impl Display for StepType {
@@ -94,6 +88,8 @@ impl Display for StepType {
             StepType::Shielding => write!(f, "shielding"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
+            StepType::ShieldedTransfer => write!(f, "shielded-transfer"),
+            StepType::Unshielding => write!(f, "unshielding"),
         }
     }
 }
@@ -174,6 +170,14 @@ impl WorkloadExecutor {
             StepType::BatchRandom => {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
             }
+            StepType::ShieldedTransfer => {
+                state.at_least_masp_accounts(2) &&
+                state.at_least_masp_account_with_minimal_balance(1, 2)
+
+            }
+            StepType::Unshielding => { state.at_least_masp_account_with_minimal_balance(1, 2)
+                                        && state.min_n_implicit_accounts(1)
+                                     }
         }
     }
 
@@ -195,6 +199,8 @@ impl WorkloadExecutor {
             StepType::Shielding => build_shielding(state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
+            StepType::ShieldedTransfer => build_shielded_transfer(state).await?,
+            StepType::Unshielding => build_unshielding(state).await?,
         };
         Ok(steps)
     }
@@ -287,6 +293,18 @@ impl WorkloadExecutor {
                 Task::ClaimRewards(_source, _validator, _) => {
                     vec![]
                 }
+                Task::ShieldedTransfer(source, target, amount, _) => {
+                    build_checks::shielded_transfer::shielded_transfer(
+                        sdk,
+                        source,
+                        target,
+                        amount,
+                        false,
+                        retry_config,
+                        state,
+                    )
+                    .await
+                }
                 Task::Shielding(source, target, amount, _) => {
                     build_checks::shielding::shielding(
                         sdk,
@@ -299,6 +317,19 @@ impl WorkloadExecutor {
                     )
                     .await
                 }
+                Task::Unshielding(source, target, amount, _) => {
+                    build_checks::unshielding::unshielding(
+                        sdk,
+                        source,
+                        target,
+                        amount,
+                        false,
+                        retry_config,
+                        state,
+                    )
+                    .await
+                }
+
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
 
@@ -361,6 +392,16 @@ impl WorkloadExecutor {
                                         *bond_amount -= *amount as i64
                                     })
                                     .or_insert((*epoch, -(*amount as i64)));
+                            }
+                            Task::ShieldedTransfer(source, target, amount, _task_settings) => {
+                                shielded_balances
+                                    .entry(source.clone())
+                                    .and_modify(|balance| *balance -= *amount as i64)
+                                    .or_insert(-(*amount as i64));
+                                shielded_balances
+                                    .entry(target.clone())
+                                    .and_modify(|balance| *balance += *amount as i64)
+                                    .or_insert(*amount as i64);
                             }
                             Task::Shielding(source, target, amount, _task_settings) => {
                                 balances
@@ -440,6 +481,13 @@ impl WorkloadExecutor {
                         {
                             if amount >= 0 {
                                 checks.push(Check::BalanceShieldedTarget(
+                                    alias,
+                                    pre_balance,
+                                    amount.unsigned_abs(),
+                                    state.clone(),
+                                ));
+                            }else{
+                                checks.push(Check::BalanceShieldedSource(
                                     alias,
                                     pre_balance,
                                     amount.unsigned_abs(),
@@ -602,6 +650,82 @@ impl WorkloadExecutor {
                         }
                         Err(e) => return Err(format!("BalanceTarget check error: {}", e)),
                     }
+                }
+                Check::BalanceShieldedSource(target, pre_balance, amount, pre_state) => {
+                    match build_checks::utils::get_shielded_balance(
+                        sdk,
+                        target.clone(),
+                        Some(execution_height),
+                        false
+                    )
+                    .await
+                    {
+                        Ok(Some(post_balance)) => {
+                            let check_balance = if let Some(balance) =
+                                pre_balance.checked_sub(token::Amount::from_u64(amount))
+                            {
+                                balance
+                            } else {
+                                return Err(
+                                    "BalanceShieldedSource check error: balance is underflowing"
+                                        .to_string(),
+                                );
+                            };
+                            antithesis_sdk::assert_always!(
+                                post_balance.eq(&check_balance),
+                                "BalanceShielded source decreased.",
+                                &json!({
+                                    "source_alias": target,
+                                    "pre_balance": pre_balance,
+                                    "amount": amount,
+                                    "post_balance": post_balance,
+                                    "pre_state": pre_state,
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block
+                                })
+                            );
+                            if !post_balance.eq(&check_balance) {
+                                tracing::error!(
+                                    "{}",
+                                    json!({
+                                        "source_alias": target,
+                                        "pre_balance": pre_balance,
+                                        "amount": amount,
+                                        "post_balance": post_balance,
+                                        "pre_state": pre_state,
+                                        "timeout": random_timeout,
+                                        "execution_height": execution_height,
+                                        "check_height": latest_block
+                                    })
+                                );
+                                return Err(format!("BalanceShieldedSource check error: post source amount is not equal to pre balance - amount: {} - {} = {} != {}", pre_balance, amount, check_balance, post_balance));
+                            }
+                        }
+                        Ok(None) => {
+                            antithesis_sdk::assert_unreachable!(
+                                "BalanceShieldedSource target doesn't exist.",
+                                &json!({
+                                    "source_alias": target,
+                                    "pre_balance": pre_balance,
+                                    "amount": amount,
+                                    "pre_state": pre_state,
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block
+                                })
+                            );
+                            return Err(format!(
+                                "BalanceShieldedSource check error: amount doesn't exist"
+                            ));
+                        }
+                        Err(e) => {
+                            return Err(format!(
+                                "BalanceShieldedSource check error: {}",
+                                e.to_string()
+                            ));
+                        }
+                    };
                 }
                 Check::BalanceShieldedTarget(target, pre_balance, amount, pre_state) => {
                     match build_checks::utils::get_shielded_balance(
@@ -1052,10 +1176,20 @@ impl WorkloadExecutor {
                         build_tx_claim_rewards(sdk, source, validator, settings).await?;
                     execute_tx_claim_rewards(sdk, &mut tx, signing_data, &tx_args).await?
                 }
+                Task::ShieldedTransfer(source, target, amount, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_shielded_transfer(sdk, source, target, amount, settings).await?;
+                    execute_tx_shielded_transfer(sdk, &mut tx, signing_data, &tx_args).await?
+                }
                 Task::Shielding(source, target, amount, settings) => {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_shielding(sdk, source, target, amount, settings).await?;
                     execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::Unshielding(source, target, amount, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_unshielding(sdk, source, target, amount, settings).await?;
+                    execute_tx_unshielding(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];
@@ -1074,6 +1208,9 @@ impl WorkloadExecutor {
                             }
                             Task::Unbond(source, validator, amount, _epoch, settings) => {
                                 build_tx_unbond(sdk, source, validator, amount, settings).await?
+                            }
+                            Task::ShieldedTransfer(source, target, amount, settings) => {
+                                build_tx_shielded_transfer(sdk, source, target, amount, settings).await?
                             }
                             Task::Shielding(source, target, amount, settings) => {
                                 build_tx_shielding(sdk, source, target, amount, settings).await?
