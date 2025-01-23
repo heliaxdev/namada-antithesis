@@ -1,7 +1,7 @@
 # Deprecated in favor of the instrumented version
 # Following the instruction from https://docs.namada.net/introduction/install/source
 # This is so we can do the localnet setup
-FROM docker.io/rust:1.76-slim-bullseye as builder
+FROM docker.io/rust:1.81-slim-bullseye as builder
 
 # Pinning a release tag
 ARG GIT_SHA
@@ -30,7 +30,7 @@ RUN wget -O /root/.masp-params/masp-output.params https://github.com/anoma/masp-
 RUN wget -O /root/.masp-params/masp-spend.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params
 
 # Try to slim down the runner
-FROM docker.io/rust:1.76-slim-bullseye
+FROM docker.io/rust:1.81-slim-bullseye
 
 RUN apt-get -y update
 RUN apt-get install -y curl
