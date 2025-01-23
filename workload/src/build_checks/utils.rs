@@ -1,26 +1,24 @@
 use std::{
-    collections::BTreeMap,
     str::FromStr,
-    thread,
     time::{Duration, Instant},
 };
 
 use namada_sdk::{
     address::Address,
     control_flow::install_shutdown_signal,
-    io::{DevNullProgressBar, Io, NullIo},
+    io::DevNullProgressBar,
     masp::{
         shielded_wallet::ShieldedApi, IndexerMaspClient, LedgerMaspClient, MaspLocalTaskEnv,
         ShieldedSyncConfig,
     },
-    masp_primitives::{transaction::components::ValueSum, zip32},
+    masp_primitives::zip32,
     rpc,
-    token::{self, DenominatedAmount, MaspDigitPos, MaspEpoch},
+    token::{self, MaspEpoch},
     Namada,
 };
+use namada_wallet::DatedKeypair;
 use reqwest::Url;
 use serde_json::json;
-use tokio::time::sleep;
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError};
@@ -119,8 +117,7 @@ pub async fn get_shielded_balance(
     let target_spending_key = wallet
         .find_spending_key(&spending_key, None)
         .unwrap()
-        .to_owned()
-        .key;
+        .to_owned();
     drop(wallet);
 
     let mut shielded_ctx = sdk.namada.shielded_mut().await;
@@ -192,14 +189,14 @@ pub async fn shield_sync(
     tracing::info!("Started shieldsync (using indexer: {})...", with_indexer);
 
     let wallet = sdk.namada.wallet.read().await;
-    let vks: Vec<_> = sdk
+    let vks = sdk
         .namada
         .wallet()
         .await
         .get_viewing_keys()
         .values()
-        .map(|evk| evk.map(|key| key.as_viewing_key()))
-        .collect();
+        .map(|vk| DatedKeypair::new(vk.as_viewing_key(), None))
+        .collect::<Vec<_>>();
     drop(wallet);
 
     let mut shielded_ctx = sdk.namada.shielded_mut().await;

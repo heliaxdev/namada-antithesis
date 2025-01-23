@@ -7,7 +7,8 @@ use namada_chain_workload::{
     config::AppConfig, sdk::namada::Sdk, state::State, steps::WorkloadExecutor,
 };
 use namada_sdk::{
-    ibc::core::channel::types::error, io::{Client, NullIo}, masp::{fs::FsShieldedUtils, ShieldedContext}
+    io::{Client, NullIo},
+    masp::{fs::FsShieldedUtils, ShieldedContext},
 };
 use namada_wallet::fs::FsWalletUtils;
 use tendermint_rpc::{HttpClient, Url};
@@ -48,7 +49,7 @@ async fn inner_main() -> i32 {
         .unwrap()
         .join(format!("state-{}.json", config.id));
 
-    let file = match File::open(&path).expect(&format!("Could not open {:?}", path));
+    let file = File::open(&path).expect(&format!("Could not open {:?}", path));
 
     file.lock_exclusive().unwrap();
     tracing::info!("State locked.");
@@ -66,7 +67,7 @@ async fn inner_main() -> i32 {
     // Wait for the first 2 blocks
     loop {
         let latest_blocked = http_client.latest_block().await;
-        match latest_blocked { 
+        match latest_blocked {
             Ok(block) => {
                 if block.block.header.height.value() >= 2 {
                     break;
@@ -76,7 +77,7 @@ async fn inner_main() -> i32 {
                         block.block.header.height
                     );
                 }
-            },
+            }
             Err(err) => {
                 tracing::info!("no response from cometbft, retrying in 5... {}", err);
                 thread::sleep(Duration::from_secs(5));
@@ -95,9 +96,13 @@ async fn inner_main() -> i32 {
         // Setup shielded context storage
         let shielded_ctx_path = state.base_dir.join(format!("masp-{}", config.id));
 
-        let mut shielded_ctx = ShieldedContext::new(FsShieldedUtils::new(shielded_ctx_path.clone()));
+        let mut shielded_ctx =
+            ShieldedContext::new(FsShieldedUtils::new(shielded_ctx_path.clone()));
         if shielded_ctx_path.join("shielded.dat").exists() {
-            shielded_ctx.load().await.expect("Should be able to load shielded context");
+            shielded_ctx
+                .load()
+                .await
+                .expect("Should be able to load shielded context");
         } else {
             shielded_ctx.save().await.unwrap();
         }
@@ -168,32 +173,30 @@ async fn inner_main() -> i32 {
                 .filter_map(|execution| execution.execution_height)
                 .max()
         }
-        Err(e) => {
-            match e {
-                namada_chain_workload::steps::StepError::Execution(_) => {
-                    tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
-                    return 3_i32
-                }
-                namada_chain_workload::steps::StepError::Broadcast(e) => {
-                    tracing::info!(
-                        "Broadcasting error {:?} -> {}, waiting for next block",
-                        next_step,
-                        e.to_string()
-                    );
-                    loop {
-                        let current_block_height = fetch_current_block_height(&sdk).await;
-                        if current_block_height > init_block_height {
-                            break;
-                        }
-                    }
-                    return 4_i32
-                }
-                _ => {
-                    tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
-                    return 5_i32
-                }
+        Err(e) => match e {
+            namada_chain_workload::steps::StepError::Execution(_) => {
+                tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
+                return 3_i32;
             }
-        }
+            namada_chain_workload::steps::StepError::Broadcast(e) => {
+                tracing::info!(
+                    "Broadcasting error {:?} -> {}, waiting for next block",
+                    next_step,
+                    e.to_string()
+                );
+                loop {
+                    let current_block_height = fetch_current_block_height(&sdk).await;
+                    if current_block_height > init_block_height {
+                        break;
+                    }
+                }
+                return 4_i32;
+            }
+            _ => {
+                tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
+                return 5_i32;
+            }
+        },
     };
 
     let exit_code = if let Err(e) = workload_executor
@@ -222,7 +225,7 @@ async fn inner_main() -> i32 {
     file.unlock().unwrap();
     tracing::info!("Done {:?}!", next_step);
 
-    return exit_code
+    return exit_code;
 }
 
 async fn fetch_current_block_height(sdk: &Sdk) -> u64 {

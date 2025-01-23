@@ -175,7 +175,7 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             }
             _ => {
                 tracing::warn!("Check {} assertion not found (err)...", check_name);
-            },
+            }
         }
         tracing::error!("{}", format!("Error! {}: {}", check_name, e));
     } else {
@@ -198,7 +198,7 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             }
             _ => {
                 tracing::warn!("Check {} assertion not found...", check_name);
-            },
+            }
         }
         tracing::debug!("{}", format!("Check {} was successful.", check_name));
     }

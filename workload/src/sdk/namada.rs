@@ -18,7 +18,7 @@ use crate::config::AppConfig;
 pub struct Sdk {
     pub base_dir: PathBuf,
     pub namada: NamadaImpl<HttpClient, FsWalletUtils, FsShieldedUtils, NullIo>,
-    pub masp_indexer_url: String,
+    pub masp_indexer_url: String
 }
 
 impl Sdk {

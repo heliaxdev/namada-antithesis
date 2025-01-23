@@ -12,14 +12,26 @@ use crate::{
         shielded_transfer::build_shielded_transfer,
         shielding::build_shielding,
         transparent_transfer::build_transparent_transfer,
-        unbond::build_unbond, unshielding::build_unshielding,
+        unbond::build_unbond,
+        unshielding::build_unshielding,
     },
     build_checks,
     check::Check,
     entities::Alias,
     execute::{
-        batch::execute_tx_batch, bond::{build_tx_bond, execute_tx_bond}, claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards}, faucet_transfer::execute_faucet_transfer, init_account::{build_tx_init_account, execute_tx_init_account}, new_wallet_keypair::execute_new_wallet_key_pair, redelegate::{build_tx_redelegate, execute_tx_redelegate}, reveal_pk::execute_reveal_pk, shielded_transfer::{build_tx_shielded_transfer, execute_tx_shielded_transfer}, shielding::{build_tx_shielding, execute_tx_shielding}, transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer}, unbond::{build_tx_unbond, execute_tx_unbond}, unshielding::{build_tx_unshielding, execute_tx_unshielding}
-
+        batch::execute_tx_batch,
+        bond::{build_tx_bond, execute_tx_bond},
+        claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards},
+        faucet_transfer::execute_faucet_transfer,
+        init_account::{build_tx_init_account, execute_tx_init_account},
+        new_wallet_keypair::execute_new_wallet_key_pair,
+        redelegate::{build_tx_redelegate, execute_tx_redelegate},
+        reveal_pk::execute_reveal_pk,
+        shielded::{build_tx_shielded_transfer, execute_tx_shielded_transfer},
+        shielding::{build_tx_shielding, execute_tx_shielding},
+        transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
+        unbond::{build_tx_unbond, execute_tx_unbond},
+        unshielding::{build_tx_unshielding, execute_tx_unshielding},
     },
     sdk::namada::Sdk,
     state::State,
@@ -171,13 +183,13 @@ impl WorkloadExecutor {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
             }
             StepType::ShieldedTransfer => {
-                state.at_least_masp_accounts(2) &&
-                state.at_least_masp_account_with_minimal_balance(1, 2)
-
+                state.at_least_masp_accounts(2)
+                    && state.at_least_masp_account_with_minimal_balance(1, 2)
             }
-            StepType::Unshielding => { state.at_least_masp_account_with_minimal_balance(1, 2)
-                                        && state.min_n_implicit_accounts(1)
-                                     }
+            StepType::Unshielding => {
+                state.at_least_masp_account_with_minimal_balance(1, 2)
+                    && state.min_n_implicit_accounts(1)
+            }
         }
     }
 
@@ -476,8 +488,13 @@ impl WorkloadExecutor {
                     }
 
                     for (alias, amount) in shielded_balances {
-                        if let Ok(Some(pre_balance)) =
-                            build_checks::utils::get_shielded_balance(sdk, alias.clone(), None, false).await
+                        if let Ok(Some(pre_balance)) = build_checks::utils::get_shielded_balance(
+                            sdk,
+                            alias.clone(),
+                            None,
+                            false,
+                        )
+                        .await
                         {
                             if amount >= 0 {
                                 checks.push(Check::BalanceShieldedTarget(
@@ -486,7 +503,7 @@ impl WorkloadExecutor {
                                     amount.unsigned_abs(),
                                     state.clone(),
                                 ));
-                            }else{
+                            } else {
                                 checks.push(Check::BalanceShieldedSource(
                                     alias,
                                     pre_balance,
@@ -656,7 +673,7 @@ impl WorkloadExecutor {
                         sdk,
                         target.clone(),
                         Some(execution_height),
-                        false
+                        false,
                     )
                     .await
                     {
@@ -732,7 +749,7 @@ impl WorkloadExecutor {
                         sdk,
                         target.clone(),
                         Some(execution_height),
-                        false
+                        false,
                     )
                     .await
                     {
@@ -1210,7 +1227,8 @@ impl WorkloadExecutor {
                                 build_tx_unbond(sdk, source, validator, amount, settings).await?
                             }
                             Task::ShieldedTransfer(source, target, amount, settings) => {
-                                build_tx_shielded_transfer(sdk, source, target, amount, settings).await?
+                                build_tx_shielded_transfer(sdk, source, target, amount, settings)
+                                    .await?
                             }
                             Task::Shielding(source, target, amount, settings) => {
                                 build_tx_shielding(sdk, source, target, amount, settings).await?

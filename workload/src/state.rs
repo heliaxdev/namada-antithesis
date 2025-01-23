@@ -164,7 +164,6 @@ impl State {
                     }
                     self.modify_unshielding(source, target, amount)
                 }
- 
             }
             self.stats
                 .entry(task.raw_type())
@@ -220,11 +219,18 @@ impl State {
         self.masp_accounts.len() >= sample as usize
     }
 
-    pub fn at_least_masp_account_with_minimal_balance(&self, number_of_accounts: usize, min_balance:u64) -> bool {
+    pub fn at_least_masp_account_with_minimal_balance(
+        &self,
+        number_of_accounts: usize,
+        min_balance: u64,
+    ) -> bool {
         self.masp_accounts
             .iter()
-            .filter(|(_, account)| self.get_shielded_balance_for(&account.payment_address) >= min_balance)
-            .count() >= number_of_accounts
+            .filter(|(_, account)| {
+                self.get_shielded_balance_for(&account.payment_address) >= min_balance
+            })
+            .count()
+            >= number_of_accounts
     }
 
     pub fn any_account_with_min_balance(&self, min_balance: u64) -> bool {
@@ -289,7 +295,11 @@ impl State {
             .map(|(_, account)| account.clone())
     }
 
-    pub fn random_masp_account_with_min_balance(&mut self, blacklist: Vec<Alias>, min_value: u64) -> Option<MaspAccount> {
+    pub fn random_masp_account_with_min_balance(
+        &mut self,
+        blacklist: Vec<Alias>,
+        min_value: u64,
+    ) -> Option<MaspAccount> {
         self.masp_balances
             .iter()
             .filter_map(|(alias, balance)| {
@@ -381,7 +391,10 @@ impl State {
                 .unwrap()
                 .to_string(),
         };
-        self.masp_balances.get(&stripped_alias).cloned().unwrap_or_default()
+        self.masp_balances
+            .get(&stripped_alias)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn get_redelegations_targets_for(&mut self, alias: &Alias) -> HashSet<String> {
@@ -513,7 +526,6 @@ impl State {
         *self.balances.get_mut(&target).unwrap() += amount;
     }
 
-
     pub fn modify_shielded_transfer(&mut self, source: Alias, target: Alias, amount: u64) {
         let target_alias = Alias {
             name: target
@@ -533,7 +545,6 @@ impl State {
         };
         *self.masp_balances.get_mut(&source_alias).unwrap() -= amount;
     }
-
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -545,7 +556,7 @@ impl RngCore for AntithesisRng {
     }
 
     fn next_u64(&mut self) -> u64 {
-        antithesis_sdk::random::get_random() 
+        antithesis_sdk::random::get_random()
     }
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
