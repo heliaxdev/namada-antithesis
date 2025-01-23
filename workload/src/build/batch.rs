@@ -9,8 +9,9 @@ use crate::{
 
 use super::{
     bond::build_bond, claim_rewards::build_claim_rewards, redelegate::build_redelegate,
-    shielding::build_shielding, transparent_transfer::build_transparent_transfer,
-    unbond::build_unbond, unshielding::build_unshielding, shielded_transfer::build_shielded_transfer
+    shielded_transfer::build_shielded_transfer, shielding::build_shielding,
+    transparent_transfer::build_transparent_transfer, unbond::build_unbond,
+    unshielding::build_unshielding,
 };
 
 pub async fn build_bond_batch(
@@ -132,7 +133,6 @@ impl Distribution<BatchType> for Standard {
             5 => BatchType::Bond,
             6 => BatchType::ShieldedTransfer,
             _ => BatchType::Unshielding,
-
         }
     }
 }

@@ -7,7 +7,7 @@ pub mod new_wallet_keypair;
 pub mod redelegate;
 pub mod shielded_transfer;
 pub mod shielding;
-pub mod unshielding;
 pub mod transparent_transfer;
 pub mod unbond;
+pub mod unshielding;
 pub mod utils;

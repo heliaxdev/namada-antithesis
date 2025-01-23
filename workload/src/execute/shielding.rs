@@ -1,10 +1,7 @@
 use namada_sdk::{
-    args::{self, InputAmount, TxBuilder, TxShieldingTransferData},
-    signing::SigningTxData,
-    token::{self, DenominatedAmount},
-    tx::{data::GasLimit, Tx},
-    Namada,
+    args::{self, InputAmount, TxBuilder, TxShieldingTransferData}, masp_primitives::transaction::components::sapling::builder::RngBuildParams, signing::SigningTxData, token::{self, DenominatedAmount}, tx::{data::GasLimit, Tx}, Namada
 };
+use rand::rngs::OsRng;
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSettings};
 
@@ -17,6 +14,8 @@ pub async fn build_tx_shielding(
     amount: u64,
     settings: TaskSettings,
 ) -> Result<(Tx, SigningTxData, args::Tx), StepError> {
+    let mut bparams = RngBuildParams::new(OsRng);
+    
     let wallet = sdk.namada.wallet.write().await;
 
     let native_token_alias = Alias::nam();
@@ -51,7 +50,7 @@ pub async fn build_tx_shielding(
     drop(wallet);
 
     let (transfer_tx, signing_data, _epoch) = transfer_tx_builder
-        .build(&sdk.namada)
+        .build(&sdk.namada, &mut bparams)
         .await
         .map_err(|e| StepError::Build(e.to_string()))?;
 
