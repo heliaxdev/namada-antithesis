@@ -82,7 +82,7 @@ pub enum StepType {
     BatchBond,
     BatchRandom,
     Shielding,
-    ShieldedTransfer,
+    Shielded,
     Unshielding,
 }
 
@@ -100,7 +100,7 @@ impl Display for StepType {
             StepType::Shielding => write!(f, "shielding"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
-            StepType::ShieldedTransfer => write!(f, "shielded-transfer"),
+            StepType::Shielded => write!(f, "shielded"),
             StepType::Unshielding => write!(f, "unshielding"),
         }
     }
@@ -182,7 +182,7 @@ impl WorkloadExecutor {
             StepType::BatchRandom => {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
             }
-            StepType::ShieldedTransfer => {
+            StepType::Shielded => {
                 state.at_least_masp_accounts(2)
                     && state.at_least_masp_account_with_minimal_balance(1, 2)
             }
@@ -211,7 +211,7 @@ impl WorkloadExecutor {
             StepType::Shielding => build_shielding(state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
-            StepType::ShieldedTransfer => build_shielded_transfer(state).await?,
+            StepType::Shielded => build_shielded_transfer(state).await?,
             StepType::Unshielding => build_unshielding(state).await?,
         };
         Ok(steps)

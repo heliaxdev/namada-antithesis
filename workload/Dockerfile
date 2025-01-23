@@ -40,6 +40,8 @@ COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_bond
 COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_redelegate.sh /opt/antithesis/test/v1/namada/parallel_driver_redelegate.sh
 COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_unbond.sh /opt/antithesis/test/v1/namada/parallel_driver_unbond.sh
 COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_shielding.sh /opt/antithesis/test/v1/namada/parallel_driver_shielding.sh
+COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_unshielding.sh /opt/antithesis/test/v1/namada/parallel_driver_unshielding.sh
+COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_shielded.sh /opt/antithesis/test/v1/namada/parallel_driver_shielded.sh
 COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_claim_rewards.sh /opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh
 COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_random_batch.sh /opt/antithesis/test/v1/namada/parallel_driver_random_batch.sh
 
