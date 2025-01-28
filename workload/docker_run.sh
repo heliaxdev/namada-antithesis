@@ -95,6 +95,22 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> shielding"
         fi
 
+        source /opt/antithesis/test/v1/namada/parallel_driver_shielded.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> shielded" 
+        else 
+            echo "<ERROR> shielded"
+        fi
+
+        source /opt/antithesis/test/v1/namada/parallel_driver_unshielding.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> unshielding" 
+        else 
+            echo "<ERROR> unshielding"
+        fi
+
         source /opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh
         if [ $? -eq 0 ] 
         then 
