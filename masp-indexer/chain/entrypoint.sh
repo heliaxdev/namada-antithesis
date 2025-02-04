@@ -18,4 +18,4 @@ do
     sleep 2
 done
 
-./chain --internal 2
+./chain --interval 2
