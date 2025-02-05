@@ -41,14 +41,8 @@ use crate::{
 };
 use clap::ValueEnum;
 use namada_sdk::{
-    address::Address,
-    io::{Client, NamadaIo},
-    key::common,
-    rpc::{self},
-    state::Epoch,
-    token::{self},
+    address::Address, io::Client, key::common, rpc::{self}, state::Epoch, token::{self}
 };
-use namada_wallet::alias;
 use serde_json::json;
 use thiserror::Error;
 use tokio::time::{sleep, Duration};
@@ -56,6 +50,8 @@ use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConf
 
 #[derive(Error, Debug, Clone)]
 pub enum StepError {
+    #[error("building an empty batch")]
+    EmptyBatch,
     #[error("error wallet `{0}`")]
     Wallet(String),
     #[error("error building tx `{0}`")]
@@ -132,7 +128,7 @@ impl WorkloadExecutor {
     }
 
     pub async fn init(&self, sdk: &Sdk) {
-        let client = sdk.namada.client();
+        let client = sdk.namada.clone_client();
         let wallet = sdk.namada.wallet.write().await;
         let faucet_address = wallet.find_address("faucet").unwrap().into_owned();
         let nam_address = wallet.find_address("nam").unwrap().into_owned();
@@ -141,7 +137,7 @@ impl WorkloadExecutor {
 
         loop {
             if let Ok(res) =
-                rpc::get_token_balance(client, &nam_address, &faucet_address, None).await
+                rpc::get_token_balance(&client, &nam_address, &faucet_address, None).await
             {
                 if res.is_zero() {
                     tracing::error!("Faucet has no money RIP.");
@@ -157,7 +153,7 @@ impl WorkloadExecutor {
         }
 
         loop {
-            if let Ok(res) = rpc::is_public_key_revealed(client, &faucet_address).await {
+            if let Ok(res) = rpc::is_public_key_revealed(&client, &faucet_address).await {
                 if !res {
                     let _ = Self::reveal_pk(sdk, faucet_public_key.clone()).await;
                 } else {
@@ -539,7 +535,7 @@ impl WorkloadExecutor {
     ) -> Result<(), String> {
         let config = Self::retry_config();
         let random_timeout = 0.0f64;
-        let client = sdk.namada.client();
+        let client = sdk.namada.clone_client();
 
         if checks.is_empty() {
             return Ok(());
@@ -577,7 +573,7 @@ impl WorkloadExecutor {
                     let source = wallet.find_address(&alias.name).unwrap().into_owned();
                     drop(wallet);
 
-                    match tryhard::retry_fn(|| rpc::is_public_key_revealed(client, &source))
+                    match tryhard::retry_fn(|| rpc::is_public_key_revealed(&client, &source))
                         .with_config(config)
                         .await
                     {
@@ -620,7 +616,7 @@ impl WorkloadExecutor {
                     drop(wallet);
 
                     match tryhard::retry_fn(|| {
-                        rpc::get_token_balance(client, &native_token_address, &target_address, None)
+                        rpc::get_token_balance(&client, &native_token_address, &target_address, None)
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
@@ -836,7 +832,7 @@ impl WorkloadExecutor {
                     drop(wallet);
 
                     match tryhard::retry_fn(|| {
-                        rpc::get_token_balance(client, &native_token_address, &target_address, None)
+                        rpc::get_token_balance(&client, &native_token_address, &target_address, None)
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
@@ -899,7 +895,7 @@ impl WorkloadExecutor {
 
                     let validator_address = Address::from_str(&validator).unwrap();
 
-                    let epoch = if let Ok(epoch) = tryhard::retry_fn(|| rpc::query_epoch(client))
+                    let epoch = if let Ok(epoch) = tryhard::retry_fn(|| rpc::query_epoch(&client))
                         .with_config(config)
                         .on_retry(|attempt, _, error| {
                             let error = error.to_string();
@@ -916,7 +912,7 @@ impl WorkloadExecutor {
 
                     match tryhard::retry_fn(|| {
                         rpc::get_bond_amount_at(
-                            client,
+                            &client,
                             &source_address,
                             &validator_address,
                             Epoch(epoch.0 + 2),
@@ -987,7 +983,7 @@ impl WorkloadExecutor {
 
                     let validator_address = Address::from_str(&validator).unwrap();
 
-                    let epoch = if let Ok(epoch) = tryhard::retry_fn(|| rpc::query_epoch(client))
+                    let epoch = if let Ok(epoch) = tryhard::retry_fn(|| rpc::query_epoch(&client))
                         .with_config(config)
                         .on_retry(|attempt, _, error| {
                             let error = error.to_string();
@@ -1004,7 +1000,7 @@ impl WorkloadExecutor {
 
                     match tryhard::retry_fn(|| {
                         rpc::get_bond_amount_at(
-                            client,
+                            &client,
                             &source_address,
                             &validator_address,
                             Epoch(epoch.0 + 2),
@@ -1075,7 +1071,7 @@ impl WorkloadExecutor {
                     wallet.save().unwrap();
                     drop(wallet);
 
-                    match tryhard::retry_fn(|| rpc::get_account_info(client, &source_address))
+                    match tryhard::retry_fn(|| rpc::get_account_info(&client, &source_address))
                         .with_config(config)
                         .on_retry(|attempt, _, error| {
                             let error = error.to_string();
@@ -1154,7 +1150,7 @@ impl WorkloadExecutor {
                     wallet.save().unwrap();
                     drop(wallet);
 
-                    let is_validator = rpc::is_validator(client, &source_address)
+                    let is_validator = rpc::is_validator(&client, &source_address)
                         .await
                         .unwrap_or_default();
                     antithesis_sdk::assert_always!(

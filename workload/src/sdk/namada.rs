@@ -1,18 +1,10 @@
 use std::{path::PathBuf, str::FromStr};
 
-use namada_sdk::io::NamadaIo;
 use namada_sdk::{
-    address::{Address, ImplicitAddress},
-    args::TxBuilder,
-    chain::ChainId,
-    io::NullIo,
-    key::common::SecretKey,
-    masp::{fs::FsShieldedUtils, ShieldedContext},
-    rpc, NamadaImpl,
+    address::{Address, ImplicitAddress}, args::TxBuilder, chain::ChainId, io::NullIo, key::common::SecretKey, masp::{fs::FsShieldedUtils, ShieldedContext}, rpc, NamadaImpl
 };
 use namada_wallet::{fs::FsWalletUtils, Wallet};
 use tendermint_rpc::HttpClient;
-
 use crate::config::AppConfig;
 
 pub struct Sdk {
@@ -44,7 +36,7 @@ impl Sdk {
             .insert_keypair("faucet".to_string(), true, sk, None, Some(address), None)
             .unwrap();
 
-        let native_token = rpc::query_native_token(namada.client())
+        let native_token = rpc::query_native_token(&namada.clone_client())
             .await
             .map_err(|e| e.to_string())?;
         namada_wallet

@@ -1,16 +1,20 @@
 use std::{env, fs::File, str::FromStr, thread, time::Duration};
 
-use antithesis_sdk::antithesis_init;
+use antithesis_sdk::{antithesis_init, lifecycle};
 use clap::Parser;
 use fs2::FileExt;
 use namada_chain_workload::{
-    config::AppConfig, sdk::namada::Sdk, state::State, steps::WorkloadExecutor,
+    config::AppConfig,
+    sdk::namada::Sdk,
+    state::State,
+    steps::{StepType, WorkloadExecutor},
 };
 use namada_sdk::{
     io::{Client, NullIo},
     masp::{fs::FsShieldedUtils, ShieldedContext},
 };
 use namada_wallet::fs::FsWalletUtils;
+use serde_json::json;
 use tendermint_rpc::{HttpClient, Url};
 use tokio::time::sleep;
 use tracing::level_filters::LevelFilter;
@@ -18,11 +22,113 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
-    let exit_code = inner_main().await;
+    let (exit_code, step_type) = inner_main().await;
+
+    match step_type {
+        StepType::NewWalletKeyPair => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing NewWalletKeyPair",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::FaucetTransfer => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing FaucetTransfer",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::TransparentTransfer => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing TransparentTransfer",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::Bond => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing Bond",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::InitAccount => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing InitAccount",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::Redelegate => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing Redelegate",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::Unbond => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing Unbond",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::ClaimRewards => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing ClaimRewards",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::BatchBond => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing BatchBond",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::BatchRandom => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing BatchRandom",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::Shielding => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing Shielding",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::Shielded => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing Shielded",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::Unshielding => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing Unshielding",
+                &json!({"outcome":exit_code})
+            );
+        }
+        StepType::BecomeValidator => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing BecomeValidator",
+                &json!({"outcome":exit_code})
+            );
+        }
+    }
+
     std::process::exit(exit_code);
 }
 
-async fn inner_main() -> i32 {
+async fn inner_main() -> (i32, StepType) {
     antithesis_init();
 
     let filter = EnvFilter::builder()
@@ -90,7 +196,7 @@ async fn inner_main() -> i32 {
         let wallet_path = state.base_dir.join(format!("wallet-{}", config.id));
         let mut wallet = FsWalletUtils::new(wallet_path.clone());
         if wallet_path.join("wallet.toml").exists() {
-            wallet.load().expect("Should be able to load the wallet;");
+            wallet.load().expect("Should be able to load the wallet");
         }
 
         // Setup shielded context storage
@@ -133,7 +239,7 @@ async fn inner_main() -> i32 {
     let next_step = config.step_type; // bond
     if !workload_executor.is_valid(&next_step, &state) {
         tracing::warn!("Invalid step: {} -> {:>?}", next_step, state);
-        return 0_i32;
+        return (0_i32, config.step_type);
     }
 
     let init_block_height = fetch_current_block_height(&sdk).await;
@@ -142,12 +248,12 @@ async fn inner_main() -> i32 {
     let tasks = match workload_executor.build(next_step, &sdk, &mut state).await {
         Ok(tasks) if tasks.len() == 0 => {
             tracing::info!("Couldn't build {:?}, skipping...", next_step);
-            return 6_i32;
+            return (6_i32, config.step_type);
         }
         Ok(tasks) => tasks,
         Err(e) => {
             tracing::warn!("Warning build {:?} -> {}", next_step, e.to_string());
-            return 7_i32;
+            return (7_i32, config.step_type);
         }
     };
     tracing::info!(
@@ -173,31 +279,37 @@ async fn inner_main() -> i32 {
                 .filter_map(|execution| execution.execution_height)
                 .max()
         }
-        Err(e) => {
-            match e {
-                namada_chain_workload::steps::StepError::Execution(_) => {
-                    tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
-                    state.update_failed_execution(&tasks); // remove fees
-                    return 3_i32
-                }
-                namada_chain_workload::steps::StepError::Broadcast(e) => {
-                    tracing::info!(
-                        "Broadcasting error {:?} -> {}, waiting for next block",
-                        next_step,
-                        e.to_string()
-                    );
-                    loop {
-                        let current_block_height = fetch_current_block_height(&sdk).await;
-                        if current_block_height > init_block_height {
-                            break;
-                        }
+        Err(e) => match e {
+            namada_chain_workload::steps::StepError::Execution(_) => {
+                tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
+                state.update_failed_execution(&tasks); // remove fees
+                return (3_i32, config.step_type);
+            }
+            namada_chain_workload::steps::StepError::Broadcast(e) => {
+                tracing::info!(
+                    "Broadcasting error {:?} -> {}, waiting for next block",
+                    next_step,
+                    e.to_string()
+                );
+                loop {
+                    let current_block_height = fetch_current_block_height(&sdk).await;
+                    if current_block_height > init_block_height {
+                        break;
                     }
-                    return 4_i32
                 }
-                _ => {
-                    tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
-                    return 5_i32
-                }
+                return (4_i32, config.step_type);
+            }
+            namada_chain_workload::steps::StepError::EmptyBatch => {
+                tracing::error!(
+                    "Error building an empty batch{:?} -> {}",
+                    next_step,
+                    e.to_string()
+                );
+                return (8_i32, config.step_type);
+            }
+            _ => {
+                tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
+                return (5_i32, config.step_type);
             }
         },
     };
@@ -228,7 +340,7 @@ async fn inner_main() -> i32 {
     file.unlock().unwrap();
     tracing::info!("Done {:?}!", next_step);
 
-    return exit_code;
+    (exit_code, config.step_type)
 }
 
 async fn fetch_current_block_height(sdk: &Sdk) -> u64 {

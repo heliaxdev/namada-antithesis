@@ -8,10 +8,10 @@ build = "build.rs"
 
 [dependencies]
 clap = { version = "4.4.2", features = ["derive", "env"] }
-namada_sdk = { git = "https://github.com/anoma/namada", branch = "main", default-features = false, features = ["std", "async-send", "download-params"] }
-namada_wallet = { git = "https://github.com/anoma/namada", branch = "main", default-features = false, features = ["std"] }
-tendermint-config = "0.38.0"
-tendermint-rpc = { version = "0.38.0", features = ["http-client"]}
+namada_sdk = { git = "https://github.com/anoma/namada", tag = "v1.1.1", default-features = false, features = ["std", "async-send", "download-params"] }
+namada_wallet = { git = "https://github.com/anoma/namada", tag = "v1.1.1", default-features = false, features = ["std"] }
+tendermint-rpc = {version = "0.40.1", features = ["http-client"]}
+tendermint-config = "0.40.1"
 tokio = {version = "1.8.2", default-features = false}
 async-trait = "0.1.74"
 reqwest = "0.11.22"
@@ -20,7 +20,7 @@ serde_json = { version = "1.0.114", features = ["preserve_order"] }
 futures = "0.3.30"
 tracing = { version = "0.1.40" }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-antithesis_sdk = "0.2.1"
+antithesis_sdk = "0.2.5"
 chrono = "0.4.38"
 rand = {version = "0.8.5", default-features = false}
 thiserror = "1.0.63"
