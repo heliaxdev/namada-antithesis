@@ -25,6 +25,9 @@ impl AddressType {
     pub fn is_implicit(&self) -> bool {
         matches!(self, AddressType::Implicit)
     }
+    pub fn is_enstablished(&self) -> bool {
+        matches!(self, AddressType::Enstablished)
+    }
 }
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,6 +49,9 @@ impl Account {
     pub fn is_implicit(&self) -> bool {
         self.address_type.is_implicit()
     }
+    pub fn is_enstablished(&self) -> bool {
+        self.address_type.is_enstablished()
+    }
 }
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,7 +70,7 @@ pub struct State {
     pub bonds: HashMap<Alias, HashMap<String, u64>>,
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
-    pub validators: HashMap<Alias, String>,
+    pub validators: HashMap<Alias, Account>,
     pub seed: u64,
     pub rng: AntithesisRng,
     pub path: PathBuf,
@@ -151,6 +157,12 @@ impl State {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     }
                     self.modify_shielding(source, target, amount)
+                }
+                Task::BecomeValidator(alias, _, _, _, _, _, _, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.set_enstablished_as_validator(alias)
                 }
             }
             self.stats
@@ -242,6 +254,14 @@ impl State {
             > sample_size
     }
 
+    pub fn min_n_enstablished_accounts(&self, sample_size: usize) -> bool {
+        self.accounts
+            .iter()
+            .filter(|(_, account)| account.is_enstablished())
+            .count()
+            > sample_size
+    }
+
     pub fn any_bond(&self) -> bool {
         self.min_bonds(1)
     }
@@ -282,6 +302,21 @@ impl State {
             .iter()
             .filter(|(alias, _)| !blacklist.contains(alias))
             .filter(|(_, account)| account.is_implicit())
+            .choose_multiple(&mut self.rng, sample_size)
+            .into_iter()
+            .map(|(_, account)| account.clone())
+            .collect()
+    }
+
+    pub fn random_enstablished_account(
+        &mut self,
+        blacklist: Vec<Alias>,
+        sample_size: usize,
+    ) -> Vec<Account> {
+        self.accounts
+            .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
+            .filter(|(_, account)| account.is_enstablished())
             .choose_multiple(&mut self.rng, sample_size)
             .into_iter()
             .map(|(_, account)| account.clone())
@@ -447,6 +482,11 @@ impl State {
                 .to_string(),
         };
         *self.masp_balances.get_mut(&target_alias).unwrap() += amount;
+    }
+
+    pub fn set_enstablished_as_validator(&mut self, alias: Alias) {
+        let account = self.accounts.remove(&alias).unwrap();
+        self.validators.insert(alias, account);
     }
 }
 

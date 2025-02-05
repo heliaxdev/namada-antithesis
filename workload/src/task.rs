@@ -1,5 +1,7 @@
 use std::{collections::BTreeSet, fmt::Display};
 
+use namada_sdk::dec::Dec;
+
 use crate::{constants::DEFAULT_GAS_LIMIT, entities::Alias};
 
 #[derive(Clone, Debug)]
@@ -42,6 +44,9 @@ pub type Amount = u64;
 pub type Address = String;
 pub type Epoch = u64;
 pub type Threshold = u64;
+pub type WalletAlias = Alias;
+pub type CommissionRate = Dec;
+pub type CommissionChange = Dec;
 
 #[derive(Clone, Debug)]
 pub enum Task {
@@ -55,6 +60,16 @@ pub enum Task {
     Batch(Vec<Task>, TaskSettings),
     Shielding(Source, PaymentAddress, Amount, TaskSettings),
     InitAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
+    BecomeValidator(
+        Source,
+        WalletAlias,
+        WalletAlias,
+        WalletAlias,
+        WalletAlias,
+        CommissionRate,
+        CommissionChange,
+        TaskSettings,
+    ),
 }
 
 impl Task {
@@ -70,6 +85,7 @@ impl Task {
             Task::Batch(_, _) => "batch".to_string(),
             Task::Shielding(_, _, _, _) => "shielding".to_string(),
             Task::InitAccount(_, _, _, _) => "init-account".to_string(),
+            Task::BecomeValidator(_, _, _, _, _, _, _, _) => "become-validator".to_string(),
         }
     }
 }
@@ -98,6 +114,9 @@ impl Display for Task {
                 write!(f, "shielding/{}/{}/{}", source.name, target.name, amount)
             }
             Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
+            Task::BecomeValidator(alias, _, _, _, _, _, _, _) => {
+                write!(f, " become-validator/{}", alias.name)
+            }
             Task::ClaimRewards(alias, validator, _) => {
                 write!(f, "claim-rewards/{}/{}", alias.name, validator)
             }

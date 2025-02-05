@@ -120,7 +120,7 @@ async fn inner_main() -> i32 {
     workload_executor.init(&sdk).await;
     tracing::info!("Done initialization!");
 
-    let next_step = config.step_type;
+    let next_step = config.step_type; // bond
     if !workload_executor.is_valid(&next_step, &state) {
         tracing::warn!("Invalid step: {} -> {:>?}", next_step, state);
         return 0_i32;

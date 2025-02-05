@@ -2,16 +2,7 @@ use std::{collections::HashMap, fmt::Display, str::FromStr, time::Instant};
 
 use crate::{
     build::{
-        batch::{build_bond_batch, build_random_batch},
-        bond::build_bond,
-        claim_rewards::build_claim_rewards,
-        faucet_transfer::build_faucet_transfer,
-        init_account::build_init_account,
-        new_wallet_keypair::build_new_wallet_keypair,
-        redelegate::build_redelegate,
-        shielding::build_shielding,
-        transparent_transfer::build_transparent_transfer,
-        unbond::build_unbond,
+        batch::{build_bond_batch, build_random_batch}, become_validator::build_become_validator, bond::build_bond, claim_rewards::build_claim_rewards, faucet_transfer::build_faucet_transfer, init_account::build_init_account, new_wallet_keypair::build_new_wallet_keypair, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
     },
     build_checks,
     check::Check,
@@ -42,6 +33,7 @@ use namada_sdk::{
     state::Epoch,
     token::{self},
 };
+use namada_wallet::alias;
 use serde_json::json;
 use thiserror::Error;
 use tokio::time::{sleep, Duration};
@@ -78,6 +70,7 @@ pub enum StepType {
     BatchBond,
     BatchRandom,
     Shielding,
+    BecomeValidator,
 }
 
 impl Display for StepType {
@@ -94,6 +87,7 @@ impl Display for StepType {
             StepType::Shielding => write!(f, "shielding"),
             StepType::BatchRandom => write!(f, "batch-random"),
             StepType::BatchBond => write!(f, "batch-bond"),
+            StepType::BecomeValidator => write!(f, "become-validator"),
         }
     }
 }
@@ -174,6 +168,7 @@ impl WorkloadExecutor {
             StepType::BatchRandom => {
                 state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
             }
+            StepType::BecomeValidator => state.min_n_enstablished_accounts(1),
         }
     }
 
@@ -195,6 +190,7 @@ impl WorkloadExecutor {
             StepType::Shielding => build_shielding(state).await?,
             StepType::BatchBond => build_bond_batch(sdk, 3, state).await?,
             StepType::BatchRandom => build_random_batch(sdk, 3, state).await?,
+            StepType::BecomeValidator => build_become_validator(state).await?,
         };
         Ok(steps)
     }
@@ -298,6 +294,9 @@ impl WorkloadExecutor {
                         state,
                     )
                     .await
+                }
+                Task::BecomeValidator(_alias, _, _, _, _, _, _, _) => {
+                    vec![]
                 }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
@@ -435,8 +434,13 @@ impl WorkloadExecutor {
                     }
 
                     for (alias, amount) in shielded_balances {
-                        if let Ok(Some(pre_balance)) =
-                            build_checks::utils::get_shielded_balance(sdk, alias.clone(), None, true).await
+                        if let Ok(Some(pre_balance)) = build_checks::utils::get_shielded_balance(
+                            sdk,
+                            alias.clone(),
+                            None,
+                            true,
+                        )
+                        .await
                         {
                             if amount >= 0 {
                                 checks.push(Check::BalanceShieldedTarget(
@@ -608,7 +612,7 @@ impl WorkloadExecutor {
                         sdk,
                         target.clone(),
                         Some(execution_height),
-                        true
+                        true,
                     )
                     .await
                     {
@@ -1056,6 +1060,9 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_shielding(sdk, source, target, amount, settings).await?;
                     execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::BecomeValidator(alias, t, t1, t2, t3, comm, max_comm_change, settings) => {
+                    todo!()
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];
