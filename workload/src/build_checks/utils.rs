@@ -111,7 +111,10 @@ pub async fn get_shielded_balance(
     let mut wallet = sdk.namada.wallet.write().await;
     let spending_key = format!(
         "{}-spending-key",
-        source.name.strip_suffix("-payment-address").unwrap()
+        source
+            .name
+            .strip_suffix("-payment-address")
+            .unwrap_or(&source.name)
     );
     let target_spending_key = wallet
         .find_spending_key(&spending_key, None)
