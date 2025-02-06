@@ -19,6 +19,7 @@ use crate::{
     entities::Alias,
     execute::{
         batch::execute_tx_batch,
+        become_validator::build_tx_become_validator,
         bond::{build_tx_bond, execute_tx_bond},
         claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards},
         faucet_transfer::execute_faucet_transfer,
@@ -1093,7 +1094,19 @@ impl WorkloadExecutor {
                     execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::BecomeValidator(alias, t, t1, t2, t3, comm, max_comm_change, settings) => {
-                    todo!()
+                    let (mut tx, signing_data, tx_args) = build_tx_become_validator(
+                        sdk,
+                        alias,
+                        t,
+                        t1,
+                        t2,
+                        t3,
+                        comm,
+                        max_comm_change,
+                        settings,
+                    )
+                    .await?;
+                    execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];

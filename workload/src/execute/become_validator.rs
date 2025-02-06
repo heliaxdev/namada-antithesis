@@ -83,7 +83,7 @@ pub async fn build_tx_become_validator(
     let mut become_validator_tx_builder = sdk.namada.new_become_validator(
         source_address.clone(),
         commission_rate,
-        Dec::one(),
+        commission_max_change,
         consensus_pk,
         eth_cold_pk,
         eth_hot_pk,
