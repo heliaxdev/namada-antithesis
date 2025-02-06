@@ -109,13 +109,17 @@ pub async fn get_shielded_balance(
         .map_err(|e| StepError::ShieldSync(e.to_string()))?;
 
     let mut wallet = sdk.namada.wallet.write().await;
-    let spending_key = format!(
-        "{}-spending-key",
-        source
-            .name
-            .strip_suffix("-payment-address")
-            .unwrap_or(&source.name)
-    );
+    let spending_key = if source.name.ends_with("-spending-key") {
+        source.name.clone()
+    } else {
+        format!(
+            "{}-spending-key",
+            source
+                .name
+                .strip_suffix("-payment-address")
+                .unwrap_or(&source.name)
+        )
+    };
     let target_spending_key = wallet
         .find_spending_key(&spending_key, None)
         .unwrap()

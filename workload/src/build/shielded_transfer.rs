@@ -27,7 +27,7 @@ pub async fn build_shielded_transfer(state: &mut State) -> Result<Vec<Task>, Ste
     );
 
     Ok(vec![Task::ShieldedTransfer(
-        source_account.alias,
+        source_account.spending_key,
         target_account.payment_address,
         amount,
         task_settings,
