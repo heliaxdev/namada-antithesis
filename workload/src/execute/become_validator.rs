@@ -28,7 +28,7 @@ pub async fn build_tx_become_validator(
 ) -> Result<(Tx, SigningTxData, args::Tx), StepError> {
     let mut wallet = sdk.namada.wallet.write().await;
 
-    let source = wallet.find_address(source.name).unwrap().into_owned();
+    let source_address = wallet.find_address(source.name).unwrap().into_owned();
 
     let consensus_pk = wallet
         .gen_store_secret_key(
@@ -80,46 +80,43 @@ pub async fn build_tx_become_validator(
 
     wallet.save().expect("unable to save wallet");
 
-    todo!()
+    let mut become_validator_tx_builder = sdk.namada.new_become_validator(
+        source_address.clone(),
+        commission_rate,
+        Dec::one(),
+        consensus_pk,
+        eth_cold_pk,
+        eth_hot_pk,
+        protocol_key,
+        "test@test.it".to_string(),
+    ).wallet_alias_force(true);
 
-    // let mut public_keys = vec![];
-    // for source in settings.signers {
-    //     let source_pk = wallet.find_public_key(source.name).unwrap();
-    //     public_keys.push(source_pk);
-    // }
+    let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
 
-    // let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
+    become_validator_tx_builder = become_validator_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
+    become_validator_tx_builder = become_validator_tx_builder.wrapper_fee_payer(fee_payer);
 
-    // let mut init_account_builder = sdk
-    //     .namada
-    //     .new_init_account(public_keys, Some(threshold as u8))
-    //     .initialized_account_alias(target.name)
-    //     .wallet_alias_force(true);
+    let mut signing_keys = vec![];
+    for signer in settings.signers {
+        let public_key = wallet.find_public_key(&signer.name).unwrap();
+        signing_keys.push(public_key)
+    }
+    become_validator_tx_builder = become_validator_tx_builder.signing_keys(signing_keys.clone());
+    drop(wallet);
 
-    // init_account_builder = init_account_builder.gas_limit(GasLimit::from(settings.gas_limit));
-    // init_account_builder = init_account_builder.wrapper_fee_payer(fee_payer);
+    let (become_validator, signing_data) = become_validator_tx_builder
+        .build(&sdk.namada)
+        .await
+        .map_err(|e| StepError::Build(e.to_string()))?;
 
-    // let mut signing_keys = vec![];
-    // for signer in settings.signers {
-    //     let public_key = wallet.find_public_key(&signer.name).unwrap();
-    //     signing_keys.push(public_key)
-    // }
-    // init_account_builder = init_account_builder.signing_keys(signing_keys.clone());
-    // drop(wallet);
-
-    // let (init_account, signing_data) = init_account_builder
-    //     .build(&sdk.namada)
-    //     .await
-    //     .map_err(|e| StepError::Build(e.to_string()))?;
-
-    // Ok((init_account, signing_data, init_account_builder.tx))
+    Ok((become_validator, signing_data, become_validator_tx_builder.tx))
 }
 
-// pub async fn execute_tx_become_validator(
-//     sdk: &Sdk,
-//     tx: &mut Tx,
-//     signing_data: SigningTxData,
-//     tx_args: &args::Tx,
-// ) -> Result<Option<u64>, StepError> {
-//     utils::execute_tx(sdk, tx, vec![signing_data], tx_args).await
-// }
+pub async fn execute_tx_become_validator(
+    sdk: &Sdk,
+    tx: &mut Tx,
+    signing_data: SigningTxData,
+    tx_args: &args::Tx,
+) -> Result<Option<u64>, StepError> {
+    utils::execute_tx(sdk, tx, vec![signing_data], tx_args).await
+}

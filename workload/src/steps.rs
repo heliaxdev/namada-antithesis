@@ -2,7 +2,17 @@ use std::{collections::HashMap, fmt::Display, str::FromStr, time::Instant};
 
 use crate::{
     build::{
-        batch::{build_bond_batch, build_random_batch}, become_validator::build_become_validator, bond::build_bond, claim_rewards::build_claim_rewards, faucet_transfer::build_faucet_transfer, init_account::build_init_account, new_wallet_keypair::build_new_wallet_keypair, redelegate::build_redelegate, shielding::build_shielding, transparent_transfer::build_transparent_transfer, unbond::build_unbond
+        batch::{build_bond_batch, build_random_batch},
+        become_validator::build_become_validator,
+        bond::build_bond,
+        claim_rewards::build_claim_rewards,
+        faucet_transfer::build_faucet_transfer,
+        init_account::build_init_account,
+        new_wallet_keypair::build_new_wallet_keypair,
+        redelegate::build_redelegate,
+        shielding::build_shielding,
+        transparent_transfer::build_transparent_transfer,
+        unbond::build_unbond,
     },
     build_checks,
     check::Check,
@@ -295,8 +305,8 @@ impl WorkloadExecutor {
                     )
                     .await
                 }
-                Task::BecomeValidator(_alias, _, _, _, _, _, _, _) => {
-                    vec![]
+                Task::BecomeValidator(source, _, _, _, _, _, _, _) => {
+                    build_checks::become_validator::become_validator(source).await
                 }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
@@ -1001,6 +1011,27 @@ impl WorkloadExecutor {
                         }
                         Err(e) => return Err(format!("AccountExist check error: {}", e)),
                     };
+                }
+                Check::IsValidatorAccount(target) => {
+                    let wallet = sdk.namada.wallet.read().await;
+                    let source_address = wallet.find_address(&target.name).unwrap().into_owned();
+                    wallet.save().unwrap();
+                    drop(wallet);
+
+                    let is_validator = rpc::is_validator(client, &source_address)
+                        .await
+                        .unwrap_or_default();
+                    antithesis_sdk::assert_always!(
+                        is_validator,
+                        "OnChain account is a valiadtor.",
+                        &json!({
+                            "target_alias": target,
+                            "target": source_address.to_pretty_string(),
+                            "timeout": random_timeout,
+                            "execution_height": execution_height,
+                            "check_height": latest_block
+                        })
+                    );
                 }
             }
         }
