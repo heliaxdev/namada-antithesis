@@ -103,9 +103,8 @@ pub async fn get_shielded_balance(
 
     let client = sdk.namada.clone_client();
 
-    let masp_epoch = rpc::query_epoch(&client)
+    let masp_epoch = rpc::query_masp_epoch(&client)
         .await
-        .map(|epoch| MaspEpoch::try_from_epoch(epoch, 2).unwrap())
         .map_err(|e| StepError::ShieldSync(e.to_string()))?;
     let native_token = rpc::query_native_token(&client)
         .await
