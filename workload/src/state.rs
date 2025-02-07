@@ -176,6 +176,7 @@ impl State {
                     }
                     self.set_enstablished_as_validator(alias)
                 }
+                Task::ChangeMetadata(_, _, _, _, _, _, _) => (),
             }
             self.stats
                 .entry(task.raw_type())
@@ -208,8 +209,8 @@ impl State {
                     task_settings,
                 ) => Some(task_settings),
                 Task::ShieldedTransfer(alias, alias1, _, task_settings) => Some(task_settings),
-                Task::Unshielding(alias, alias1, _, task_settings) => Some(task_settings),
-                
+                Task::Unshielding(_alias, alias1, _, task_settings) => Some(task_settings),
+                Task::ChangeMetadata(_alias, _, _, _, _, _, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
@@ -338,6 +339,10 @@ impl State {
             >= sample
     }
 
+    pub fn min_n_validators(&self, sample: usize) -> bool {
+        self.validators.len() >= sample
+    }
+
     /// GET
 
     pub fn random_account(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
@@ -397,6 +402,17 @@ impl State {
         sample_size: usize,
     ) -> Vec<Account> {
         self.accounts
+            .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
+            .filter(|(_, account)| account.is_enstablished())
+            .choose_multiple(&mut self.rng, sample_size)
+            .into_iter()
+            .map(|(_, account)| account.clone())
+            .collect()
+    }
+
+    pub fn random_validator(&mut self, blacklist: Vec<Alias>, sample_size: usize) -> Vec<Account> {
+        self.validators
             .iter()
             .filter(|(alias, _)| !blacklist.contains(alias))
             .filter(|(_, account)| account.is_enstablished())

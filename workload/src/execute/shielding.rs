@@ -1,5 +1,10 @@
 use namada_sdk::{
-    args::{self, InputAmount, TxBuilder, TxShieldingTransferData}, masp_primitives::transaction::components::sapling::builder::RngBuildParams, signing::SigningTxData, token::{self, DenominatedAmount}, tx::{data::GasLimit, Tx}, Namada
+    args::{self, InputAmount, TxBuilder, TxShieldingTransferData},
+    masp_primitives::transaction::components::sapling::builder::RngBuildParams,
+    signing::SigningTxData,
+    token::{self, DenominatedAmount},
+    tx::{data::GasLimit, Tx},
+    Namada,
 };
 use rand::rngs::OsRng;
 
@@ -15,7 +20,7 @@ pub async fn build_tx_shielding(
     settings: TaskSettings,
 ) -> Result<(Tx, SigningTxData, args::Tx), StepError> {
     let mut bparams = RngBuildParams::new(OsRng);
-    
+
     let wallet = sdk.namada.wallet.write().await;
 
     let native_token_alias = Alias::nam();

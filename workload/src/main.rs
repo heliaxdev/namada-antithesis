@@ -123,6 +123,13 @@ async fn main() {
                 &json!({"outcome":exit_code})
             );
         }
+        StepType::ChangeMetadata => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing ChangeMetadata",
+                &json!({"outcome":exit_code})
+            );
+        }
     }
 
     std::process::exit(exit_code);

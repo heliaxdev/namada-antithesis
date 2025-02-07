@@ -21,7 +21,7 @@ pub enum Check {
     BondIncrease(Target, Address, PreBalance, Amount, State),
     BondDecrease(Target, Address, PreBalance, Amount, State),
     AccountExist(Target, Threshold, BTreeSet<Target>, State),
-    IsValidatorAccount(Target)
+    IsValidatorAccount(Target),
 }
 
 impl Display for Check {

@@ -5,6 +5,7 @@ use crate::{
         batch::{build_bond_batch, build_random_batch},
         become_validator::build_become_validator,
         bond::build_bond,
+        change_metadata::build_change_metadata,
         claim_rewards::build_claim_rewards,
         faucet_transfer::build_faucet_transfer,
         init_account::build_init_account,
@@ -23,6 +24,7 @@ use crate::{
         batch::execute_tx_batch,
         become_validator::build_tx_become_validator,
         bond::{build_tx_bond, execute_tx_bond},
+        change_metadata::build_tx_change_metadata,
         claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards},
         faucet_transfer::execute_faucet_transfer,
         init_account::{build_tx_init_account, execute_tx_init_account},
@@ -41,7 +43,12 @@ use crate::{
 };
 use clap::ValueEnum;
 use namada_sdk::{
-    address::Address, io::Client, key::common, rpc::{self}, state::Epoch, token::{self}
+    address::Address,
+    io::Client,
+    key::common,
+    rpc::{self},
+    state::Epoch,
+    token::{self},
 };
 use serde_json::json;
 use thiserror::Error;
@@ -84,6 +91,7 @@ pub enum StepType {
     Shielded,
     Unshielding,
     BecomeValidator,
+    ChangeMetadata,
 }
 
 impl Display for StepType {
@@ -103,6 +111,7 @@ impl Display for StepType {
             StepType::Shielded => write!(f, "shielded"),
             StepType::Unshielding => write!(f, "unshielding"),
             StepType::BecomeValidator => write!(f, "become-validator"),
+            StepType::ChangeMetadata => write!(f, "change-metadata"),
         }
     }
 }
@@ -192,6 +201,7 @@ impl WorkloadExecutor {
                     && state.min_n_implicit_accounts(1)
             }
             StepType::BecomeValidator => state.min_n_enstablished_accounts(1),
+            StepType::ChangeMetadata => state.min_n_validators(1),
         }
     }
 
@@ -216,6 +226,7 @@ impl WorkloadExecutor {
             StepType::Shielded => build_shielded_transfer(state).await?,
             StepType::Unshielding => build_unshielding(state).await?,
             StepType::BecomeValidator => build_become_validator(state).await?,
+            StepType::ChangeMetadata => build_change_metadata(state).await?,
         };
         Ok(steps)
     }
@@ -346,6 +357,9 @@ impl WorkloadExecutor {
                 }
                 Task::BecomeValidator(source, _, _, _, _, _, _, _) => {
                     build_checks::become_validator::become_validator(source).await
+                }
+                Task::ChangeMetadata(_, _, _, _, _, _, _) => {
+                    vec![]
                 }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
@@ -616,7 +630,12 @@ impl WorkloadExecutor {
                     drop(wallet);
 
                     match tryhard::retry_fn(|| {
-                        rpc::get_token_balance(&client, &native_token_address, &target_address, None)
+                        rpc::get_token_balance(
+                            &client,
+                            &native_token_address,
+                            &target_address,
+                            None,
+                        )
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
@@ -832,7 +851,12 @@ impl WorkloadExecutor {
                     drop(wallet);
 
                     match tryhard::retry_fn(|| {
-                        rpc::get_token_balance(&client, &native_token_address, &target_address, None)
+                        rpc::get_token_balance(
+                            &client,
+                            &native_token_address,
+                            &target_address,
+                            None,
+                        )
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
@@ -1233,6 +1257,28 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_unshielding(sdk, source, target, amount, settings).await?;
                     execute_tx_unshielding(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::ChangeMetadata(
+                    source,
+                    website,
+                    email,
+                    discord,
+                    description,
+                    avatar,
+                    settings,
+                ) => {
+                    let (mut tx, signing_data, tx_args) = build_tx_change_metadata(
+                        sdk,
+                        source,
+                        website,
+                        email,
+                        discord,
+                        description,
+                        avatar,
+                        settings,
+                    )
+                    .await?;
+                    execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::BecomeValidator(alias, t, t1, t2, t3, comm, max_comm_change, settings) => {
                     let (mut tx, signing_data, tx_args) = build_tx_become_validator(

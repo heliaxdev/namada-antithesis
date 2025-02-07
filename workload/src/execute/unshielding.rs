@@ -35,9 +35,7 @@ pub async fn build_tx_unshielding(
     let token_amount = token::Amount::from_u64(amount);
     let amount = InputAmount::Unvalidated(token::DenominatedAmount::native(token_amount));
 
-    let source_spending_key = wallet
-        .find_spending_key(&source.name, None)
-        .unwrap();
+    let source_spending_key = wallet.find_spending_key(&source.name, None).unwrap();
 
     let tmp = masp_primitives::zip32::ExtendedSpendingKey::from(source_spending_key);
     let pseudo_spending_key_from_spending_key = PseudoExtendedKey::from(tmp);

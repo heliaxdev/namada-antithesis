@@ -37,12 +37,12 @@ pub async fn build_tx_claim_rewards(
     claim_rewards_tx_builder = claim_rewards_tx_builder.signing_keys(signing_keys.clone());
     drop(wallet);
 
-    let (bond_tx, signing_data) = claim_rewards_tx_builder
+    let (claim_tx, signing_data) = claim_rewards_tx_builder
         .build(&sdk.namada)
         .await
         .map_err(|e| StepError::Build(e.to_string()))?;
 
-    Ok((bond_tx, signing_data, claim_rewards_tx_builder.tx))
+    Ok((claim_tx, signing_data, claim_rewards_tx_builder.tx))
 }
 
 pub async fn execute_tx_claim_rewards(

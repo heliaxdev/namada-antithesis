@@ -1,3 +1,4 @@
+pub mod become_validator;
 pub mod bond;
 pub mod faucet;
 pub mod init_account;
@@ -8,4 +9,3 @@ pub mod transparent_transfer;
 pub mod unbond;
 pub mod unshielding;
 pub mod utils;
-pub mod become_validator;

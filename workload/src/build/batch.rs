@@ -106,7 +106,7 @@ async fn _build_batch(
     }
 
     if batch_tasks.is_empty() {
-        return Err(StepError::EmptyBatch)
+        return Err(StepError::EmptyBatch);
     }
 
     let settings = TaskSettings::faucet_batch(batch_tasks.len());

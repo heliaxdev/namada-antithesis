@@ -78,22 +78,25 @@ pub async fn build_tx_become_validator(
         .1
         .ref_to();
 
+    let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
     wallet.save().expect("unable to save wallet");
 
-    let mut become_validator_tx_builder = sdk.namada.new_become_validator(
-        source_address.clone(),
-        commission_rate,
-        commission_max_change,
-        consensus_pk,
-        eth_cold_pk,
-        eth_hot_pk,
-        protocol_key,
-        "test@test.it".to_string(),
-    ).wallet_alias_force(true);
+    let mut become_validator_tx_builder = sdk
+        .namada
+        .new_become_validator(
+            source_address.clone(),
+            commission_rate,
+            commission_max_change,
+            consensus_pk,
+            eth_cold_pk,
+            eth_hot_pk,
+            protocol_key,
+            "test@test.it".to_string(),
+        )
+        .wallet_alias_force(true);
 
-    let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
-
-    become_validator_tx_builder = become_validator_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
+    become_validator_tx_builder =
+        become_validator_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
     become_validator_tx_builder = become_validator_tx_builder.wrapper_fee_payer(fee_payer);
 
     let mut signing_keys = vec![];
@@ -109,7 +112,11 @@ pub async fn build_tx_become_validator(
         .await
         .map_err(|e| StepError::Build(e.to_string()))?;
 
-    Ok((become_validator, signing_data, become_validator_tx_builder.tx))
+    Ok((
+        become_validator,
+        signing_data,
+        become_validator_tx_builder.tx,
+    ))
 }
 
 pub async fn execute_tx_become_validator(

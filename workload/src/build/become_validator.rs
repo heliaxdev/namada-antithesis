@@ -24,8 +24,7 @@ pub async fn build_become_validator(state: &mut State) -> Result<Vec<Task>, Step
     let eth_hot_key_alias = format!("{}-{}", random_alias.name, "eth-hot".to_string());
     let protocol_key_alias = format!("{}-{}", random_alias.name, "protocol".to_string());
 
-    let account = state
-        .random_enstablished_account(vec![], 1).pop().unwrap();
+    let account = state.random_enstablished_account(vec![], 1).pop().unwrap();
 
     let task_settings = TaskSettings::new(account.public_keys.clone(), Alias::faucet());
 

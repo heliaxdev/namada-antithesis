@@ -1,16 +1,22 @@
 use std::{path::PathBuf, str::FromStr};
 
+use crate::config::AppConfig;
 use namada_sdk::{
-    address::{Address, ImplicitAddress}, args::TxBuilder, chain::ChainId, io::NullIo, key::common::SecretKey, masp::{fs::FsShieldedUtils, ShieldedContext}, rpc, NamadaImpl
+    address::{Address, ImplicitAddress},
+    args::TxBuilder,
+    chain::ChainId,
+    io::NullIo,
+    key::common::SecretKey,
+    masp::{fs::FsShieldedUtils, ShieldedContext},
+    rpc, NamadaImpl,
 };
 use namada_wallet::{fs::FsWalletUtils, Wallet};
 use tendermint_rpc::HttpClient;
-use crate::config::AppConfig;
 
 pub struct Sdk {
     pub base_dir: PathBuf,
     pub namada: NamadaImpl<HttpClient, FsWalletUtils, FsShieldedUtils, NullIo>,
-    pub masp_indexer_url: String
+    pub masp_indexer_url: String,
 }
 
 impl Sdk {
