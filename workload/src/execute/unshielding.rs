@@ -53,6 +53,7 @@ pub async fn build_tx_unshielding(
         token: token_address.clone(),
         amount: InputAmount::Validated(DenominatedAmount::native(token_amount)),
     };
+    tracing::info!("DEBUG: prepared addresses");
 
     let mut transfer_tx_builder = sdk.namada.new_unshielding_transfer(
         pseudo_spending_key_from_spending_key,
@@ -70,6 +71,7 @@ pub async fn build_tx_unshielding(
     }
     transfer_tx_builder = transfer_tx_builder.signing_keys(signing_keys.clone());
 
+    tracing::info!("DEBUG: signed tx, building...");
     let (transfer_tx, signing_data) = transfer_tx_builder
         .build(&sdk.namada, &mut bparams)
         .await
@@ -78,6 +80,7 @@ pub async fn build_tx_unshielding(
     // transfer_tx_builder.tx.signing_keys = signing_keys; //vec![gas_payer.clone()];
     // transfer_tx_builder.tx.expiration = TxExpiration::NoExpiration;
 
+    tracing::info!("DEBUG: built tx");
     Ok((transfer_tx, signing_data, transfer_tx_builder.tx))
 }
 
