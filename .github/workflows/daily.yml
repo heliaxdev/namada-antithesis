@@ -21,13 +21,13 @@ jobs:
             masp_indexer: "master"
             faults: true
             duration: 3
-          - image: "v1.0.0-inst"
-            genesis: "v1.0.0"
+          - image: "v1.1.0-inst"
+            genesis: "v1.1.0"
             masp_indexer: "master"
             faults: true
             duration: 3
-          - image: "v1.0.0"
-            genesis: "v1.0.0"
+          - image: "v1.1.0"
+            genesis: "v1.1.0"
             masp_indexer: "master"
             faults: true
             duration: 3

@@ -21,6 +21,7 @@ pub enum Check {
     BondIncrease(Target, Address, PreBalance, Amount, State),
     BondDecrease(Target, Address, PreBalance, Amount, State),
     AccountExist(Target, Threshold, BTreeSet<Target>, State),
+    IsValidatorAccount(Target)
 }
 
 impl Display for Check {
@@ -47,6 +48,9 @@ impl Display for Check {
             }
             Check::AccountExist(source, _threshold, _sources, _) => {
                 write!(f, "account-exist/{}", source.name)
+            }
+            Check::IsValidatorAccount(target) => {
+                write!(f, "is-validator/{}", target.name)
             }
         }
     }

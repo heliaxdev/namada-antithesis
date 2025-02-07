@@ -53,11 +53,5 @@ RUN apt-get install -y curl
 COPY --from=builder /usr/lib/libvoidstar.so /usr/lib/libvoidstar.so
 
 COPY --from=builder /root/.masp-params/* /root/.masp-params/
-
-# COPY --from=builder /namada/target/release/namada /namada/target/release/namada
-COPY --from=builder /namada/target/release/namadan /namada/target/release/namadan
-# COPY --from=builder /namada/target/release/namadac /namada/target/release/namadac
-# COPY --from=builder /namada/target/release/namadaw /namada/target/release/namadaw
-# COPY --from=builder /namada/target/release/namadar /namada/target/release/namadar
-
+COPY --from=builder /namada/target/release /namada/target/release
 COPY --from=builder /usr/local/bin/cometbft /usr/local/bin/cometbft

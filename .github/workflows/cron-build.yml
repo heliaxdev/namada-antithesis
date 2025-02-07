@@ -3,6 +3,7 @@ name: Rebuild All images (cron)
 on:
   schedule:
     - cron: "0 12 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,7 +21,7 @@ jobs:
       matrix:
         branches:
           - name: main
-            template: 0.45.0
+            template: 0.46.0-ant
         images:
           - make: "build-config"
             image: "namada-config"

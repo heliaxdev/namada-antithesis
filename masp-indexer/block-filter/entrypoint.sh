@@ -18,4 +18,4 @@ do
     sleep 2
 done
 
-./block-index
+./block-index --interval 2

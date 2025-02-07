@@ -119,6 +119,14 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> claim rewards"
         fi
 
+        source /opt/antithesis/test/v1/namada/parallel_driver_become_validator.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> become validator" 
+        else 
+            echo "<ERROR> become validator"
+        fi
+
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
         if [ $? -eq 0 ] 
         then 

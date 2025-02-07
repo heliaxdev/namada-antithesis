@@ -11,3 +11,4 @@ pub mod transparent_transfer;
 pub mod unbond;
 pub mod unshielding;
 pub mod utils;
+pub mod become_validator;

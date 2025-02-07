@@ -211,8 +211,8 @@ pub async fn shield_sync(
         let masp_client = IndexerMaspClient::new(
             reqwest::Client::new(),
             Url::parse(&sdk.masp_indexer_url).unwrap(),
-            true,
-            10,
+            false,
+            20,
         );
         let task_env =
             MaspLocalTaskEnv::new(4).map_err(|e| StepError::ShieldSync(e.to_string()))?;
