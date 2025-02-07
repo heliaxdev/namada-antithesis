@@ -35,12 +35,9 @@ pub async fn build_tx_shielded_transfer(
         .unwrap()
         .as_ref()
         .clone();
+    let token_amount = token::Amount::from_u64(amount);
+    let amount = InputAmount::Unvalidated(token::DenominatedAmount::native(token_amount));
     let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
-    let amount = InputAmount::Validated(token::DenominatedAmount::new(
-        token::Amount::from_u64(amount),
-        0.into(),
-    ));
-
     let tx_transfer_data = TxShieldedTransferData {
         source: pseudo_spending_key_from_spending_key,
         target: target_payment_address,
