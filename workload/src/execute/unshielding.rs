@@ -26,22 +26,17 @@ pub async fn build_tx_unshielding(
     let mut wallet = sdk.namada.wallet.write().await;
 
     let native_token_alias = Alias::nam();
-    let token_address = wallet
+    let token = wallet
         .find_address(native_token_alias.name)
         .unwrap()
         .as_ref()
         .clone();
     let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
     let token_amount = token::Amount::from_u64(amount);
+    let amount = InputAmount::Unvalidated(token::DenominatedAmount::native(token_amount));
 
-    let spending_key_alias = Alias {
-        name: format!(
-            "{}-spending-key",
-            source.name.strip_suffix("-payment-address").unwrap()
-        ),
-    };
     let source_spending_key = wallet
-        .find_spending_key(spending_key_alias.name, None)
+        .find_spending_key(&source.name, None)
         .unwrap();
 
     let tmp = masp_primitives::zip32::ExtendedSpendingKey::from(source_spending_key);
@@ -50,10 +45,9 @@ pub async fn build_tx_unshielding(
 
     let tx_transfer_data = TxUnshieldingTransferData {
         target: target_address.into_owned(),
-        token: token_address.clone(),
-        amount: InputAmount::Validated(DenominatedAmount::native(token_amount)),
+        token,
+        amount,
     };
-    tracing::info!("DEBUG: prepared addresses");
 
     let mut transfer_tx_builder = sdk.namada.new_unshielding_transfer(
         pseudo_spending_key_from_spending_key,
@@ -70,8 +64,8 @@ pub async fn build_tx_unshielding(
         signing_keys.push(public_key)
     }
     transfer_tx_builder = transfer_tx_builder.signing_keys(signing_keys.clone());
+    drop(wallet);
 
-    tracing::info!("DEBUG: signed tx, building...");
     let (transfer_tx, signing_data) = transfer_tx_builder
         .build(&sdk.namada, &mut bparams)
         .await
@@ -80,7 +74,6 @@ pub async fn build_tx_unshielding(
     // transfer_tx_builder.tx.signing_keys = signing_keys; //vec![gas_payer.clone()];
     // transfer_tx_builder.tx.expiration = TxExpiration::NoExpiration;
 
-    tracing::info!("DEBUG: built tx");
     Ok((transfer_tx, signing_data, transfer_tx_builder.tx))
 }
 

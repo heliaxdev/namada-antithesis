@@ -27,7 +27,7 @@ pub async fn build_unshielding(state: &mut State) -> Result<Vec<Task>, StepError
     );
 
     Ok(vec![Task::Unshielding(
-        source_account.payment_address,
+        source_account.spending_key,
         target_account.alias,
         amount,
         task_settings,
