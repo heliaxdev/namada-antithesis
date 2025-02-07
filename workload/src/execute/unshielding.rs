@@ -46,10 +46,10 @@ pub async fn build_tx_unshielding(
 
     let tmp = masp_primitives::zip32::ExtendedSpendingKey::from(source_spending_key);
     let pseudo_spending_key_from_spending_key = PseudoExtendedKey::from(tmp);
-    let target_payment_address = wallet.find_address(target.name).unwrap().clone();
+    let target_address = wallet.find_address(target.name).unwrap().clone();
 
     let tx_transfer_data = TxUnshieldingTransferData {
-        target: target_payment_address.into_owned(),
+        target: target_address.into_owned(),
         token: token_address.clone(),
         amount: InputAmount::Validated(DenominatedAmount::native(token_amount)),
     };
@@ -58,7 +58,7 @@ pub async fn build_tx_unshielding(
         pseudo_spending_key_from_spending_key,
         vec![tx_transfer_data],
         None,
-        true,
+        false,
     );
 
     transfer_tx_builder = transfer_tx_builder.gas_limit(GasLimit::from(settings.gas_limit));
