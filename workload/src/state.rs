@@ -539,7 +539,7 @@ impl State {
         let source_alias = Alias {
             name: source
                 .name
-                .strip_suffix("-payment-address")
+                .strip_suffix("-spending-key")
                 .unwrap()
                 .to_string(),
         };
