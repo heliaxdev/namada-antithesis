@@ -127,6 +127,14 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> become validator"
         fi
 
+        source /opt/antithesis/test/v1/namada/parallel_driver_change_metadata.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> change metadata" 
+        else 
+            echo "<ERROR> change metadata"
+        fi
+
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
         if [ $? -eq 0 ] 
         then 
