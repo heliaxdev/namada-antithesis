@@ -86,6 +86,14 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
         else 
             echo "<ERROR> unbond"
         fi
+        
+        source /opt/antithesis/test/v1/namada/parallel_update_account.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> update account" 
+        else 
+            echo "<ERROR> update account"
+        fi
 
         source /opt/antithesis/test/v1/namada/parallel_driver_shielding.sh
         if [ $? -eq 0 ] 
