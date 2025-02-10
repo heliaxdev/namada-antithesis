@@ -130,6 +130,13 @@ async fn main() {
                 &json!({"outcome":exit_code})
             );
         }
+        StepType::ChangeConsensusKeys => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing ChangeConsensusKeys",
+                &json!({"outcome":exit_code})
+            );
+        }
     }
 
     std::process::exit(exit_code);

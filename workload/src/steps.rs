@@ -5,6 +5,7 @@ use crate::{
         batch::{build_bond_batch, build_random_batch},
         become_validator::build_become_validator,
         bond::build_bond,
+        change_consensus_keys::build_change_consensus_keys,
         change_metadata::build_change_metadata,
         claim_rewards::build_claim_rewards,
         faucet_transfer::build_faucet_transfer,
@@ -24,6 +25,7 @@ use crate::{
         batch::execute_tx_batch,
         become_validator::build_tx_become_validator,
         bond::{build_tx_bond, execute_tx_bond},
+        change_consensus_keys::{build_tx_change_consensus_key, execute_tx_change_consensus_key},
         change_metadata::build_tx_change_metadata,
         claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards},
         faucet_transfer::execute_faucet_transfer,
@@ -92,6 +94,7 @@ pub enum StepType {
     Unshielding,
     BecomeValidator,
     ChangeMetadata,
+    ChangeConsensusKeys,
 }
 
 impl Display for StepType {
@@ -112,6 +115,7 @@ impl Display for StepType {
             StepType::Unshielding => write!(f, "unshielding"),
             StepType::BecomeValidator => write!(f, "become-validator"),
             StepType::ChangeMetadata => write!(f, "change-metadata"),
+            StepType::ChangeConsensusKeys => write!(f, "change-consensus-keys"),
         }
     }
 }
@@ -202,6 +206,7 @@ impl WorkloadExecutor {
             }
             StepType::BecomeValidator => state.min_n_enstablished_accounts(1),
             StepType::ChangeMetadata => state.min_n_validators(1),
+            StepType::ChangeConsensusKeys => state.min_n_validators(1),
         }
     }
 
@@ -227,6 +232,7 @@ impl WorkloadExecutor {
             StepType::Unshielding => build_unshielding(state).await?,
             StepType::BecomeValidator => build_become_validator(state).await?,
             StepType::ChangeMetadata => build_change_metadata(state).await?,
+            StepType::ChangeConsensusKeys => build_change_consensus_keys(state).await?,
         };
         Ok(steps)
     }
@@ -359,6 +365,9 @@ impl WorkloadExecutor {
                     build_checks::become_validator::become_validator(source).await
                 }
                 Task::ChangeMetadata(_, _, _, _, _, _, _) => {
+                    vec![]
+                }
+                Task::ChangeConsensusKeys(_, _, _) => {
                     vec![]
                 }
                 Task::Batch(tasks, _) => {
@@ -1279,6 +1288,11 @@ impl WorkloadExecutor {
                     )
                     .await?;
                     execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::ChangeConsensusKeys(source, alias, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_change_consensus_key(sdk, source, alias, settings).await?;
+                    execute_tx_change_consensus_key(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::BecomeValidator(alias, t, t1, t2, t3, comm, max_comm_change, settings) => {
                     let (mut tx, signing_data, tx_args) = build_tx_become_validator(

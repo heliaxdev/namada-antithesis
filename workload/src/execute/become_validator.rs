@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use namada_sdk::key::RefTo;
 use namada_sdk::{
     args::{self, TxBuilder},

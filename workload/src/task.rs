@@ -73,6 +73,7 @@ pub enum Task {
         TaskSettings,
     ),
     ChangeMetadata(Source, String, String, String, String, String, TaskSettings),
+    ChangeConsensusKeys(Source, Alias, TaskSettings),
 }
 
 impl Task {
@@ -92,6 +93,7 @@ impl Task {
             Task::InitAccount(_, _, _, _) => "init-account".to_string(),
             Task::BecomeValidator(_, _, _, _, _, _, _, _) => "become-validator".to_string(),
             Task::ChangeMetadata(_, _, _, _, _, _, _) => "change-metadata".to_string(),
+            Task::ChangeConsensusKeys(_, _, _) => "change-consensus-keys".to_string(),
         }
     }
 }
@@ -141,6 +143,9 @@ impl Display for Task {
             }
             Task::ChangeMetadata(alias, _, _, _, _, _, _) => {
                 write!(f, "change-metadata/{}", alias.name)
+            }
+            Task::ChangeConsensusKeys(alias, _, _) => {
+                write!(f, "change-consensus-keys/{}", alias.name)
             }
             Task::Batch(tasks, _) => {
                 let tasks = tasks

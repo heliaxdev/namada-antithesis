@@ -135,6 +135,14 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> change metadata"
         fi
 
+        source /opt/antithesis/test/v1/namada/parallel_driver_change_consensus_keys.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> change consensus keys" 
+        else 
+            echo "<ERROR> change consensus keys"
+        fi
+
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
         if [ $? -eq 0 ] 
         then 

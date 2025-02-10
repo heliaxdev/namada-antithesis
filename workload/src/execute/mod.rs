@@ -1,6 +1,7 @@
 pub mod batch;
 pub mod become_validator;
 pub mod bond;
+pub mod change_consensus_keys;
 pub mod change_metadata;
 pub mod claim_rewards;
 pub mod faucet_transfer;

@@ -1,10 +1,8 @@
-use std::collections::BTreeSet;
-
 use namada_sdk::dec::Dec;
 
 use crate::{
     entities::Alias,
-    state::{Account, State},
+    state::State,
     steps::StepError,
     task::{Task, TaskSettings},
 };

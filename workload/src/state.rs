@@ -176,7 +176,16 @@ impl State {
                     }
                     self.set_enstablished_as_validator(alias)
                 }
-                Task::ChangeMetadata(_, _, _, _, _, _, _) => (),
+                Task::ChangeMetadata(_, _, _, _, _, _, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                }
+                Task::ChangeConsensusKeys(_, _, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                }
             }
             self.stats
                 .entry(task.raw_type())
@@ -211,6 +220,7 @@ impl State {
                 Task::ShieldedTransfer(alias, alias1, _, task_settings) => Some(task_settings),
                 Task::Unshielding(_alias, alias1, _, task_settings) => Some(task_settings),
                 Task::ChangeMetadata(_alias, _, _, _, _, _, task_settings) => Some(task_settings),
+                Task::ChangeConsensusKeys(alias, _, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
