@@ -57,5 +57,10 @@ source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 
+source /opt/antithesis/test/v1/namada/parallel_init_account.sh
+source /opt/antithesis/test/v1/namada/parallel_init_account.sh
+source /opt/antithesis/test/v1/namada/parallel_init_account.sh
+source /opt/antithesis/test/v1/namada/parallel_init_account.sh
+
 # Ready to start workload
 echo "Ready to start the workload"

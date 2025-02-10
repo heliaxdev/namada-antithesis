@@ -173,28 +173,31 @@ async fn inner_main() -> i32 {
                 .filter_map(|execution| execution.execution_height)
                 .max()
         }
-        Err(e) => match e {
-            namada_chain_workload::steps::StepError::Execution(_) => {
-                tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
-                return 3_i32;
-            }
-            namada_chain_workload::steps::StepError::Broadcast(e) => {
-                tracing::info!(
-                    "Broadcasting error {:?} -> {}, waiting for next block",
-                    next_step,
-                    e.to_string()
-                );
-                loop {
-                    let current_block_height = fetch_current_block_height(&sdk).await;
-                    if current_block_height > init_block_height {
-                        break;
-                    }
+        Err(e) => {
+            match e {
+                namada_chain_workload::steps::StepError::Execution(_) => {
+                    tracing::error!("Error executing{:?} -> {}", next_step, e.to_string());
+                    state.update_failed_execution(&tasks); // remove fees
+                    return 3_i32
                 }
-                return 4_i32;
-            }
-            _ => {
-                tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
-                return 5_i32;
+                namada_chain_workload::steps::StepError::Broadcast(e) => {
+                    tracing::info!(
+                        "Broadcasting error {:?} -> {}, waiting for next block",
+                        next_step,
+                        e.to_string()
+                    );
+                    loop {
+                        let current_block_height = fetch_current_block_height(&sdk).await;
+                        if current_block_height > init_block_height {
+                            break;
+                        }
+                    }
+                    return 4_i32
+                }
+                _ => {
+                    tracing::warn!("Warning executing {:?} -> {}", next_step, e.to_string());
+                    return 5_i32
+                }
             }
         },
     };

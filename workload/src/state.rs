@@ -184,6 +184,39 @@ impl State {
         }
     }
 
+    pub fn update_failed_execution(&mut self, tasks: &[Task]) {
+        for task in tasks {
+            let settings = match task {
+                Task::NewWalletKeyPair(_alias) => None,
+                Task::FaucetTransfer(_alias, _, task_settings) => Some(task_settings),
+                Task::TransparentTransfer(_alias, _alias1, _, task_settings) => Some(task_settings),
+                Task::Bond(_alias, _, _, _, task_settings) => Some(task_settings),
+                Task::Unbond(_alias, _, _, _, task_settings) => Some(task_settings),
+                Task::Redelegate(_alias, _, _, _, _, task_settings) => Some(task_settings),
+                Task::ClaimRewards(_alias, _, task_settings) => Some(task_settings),
+                Task::Batch(_tasks, task_settings) => Some(task_settings),
+                Task::Shielding(_alias, _alias1, _, task_settings) => Some(task_settings),
+                Task::InitAccount(_alias, _btree_set, _, task_settings) => Some(task_settings),
+                Task::BecomeValidator(
+                    _alias,
+                    _alias1,
+                    _alias2,
+                    _alias3,
+                    _alias4,
+                    _dec,
+                    _dec1,
+                    task_settings,
+                ) => Some(task_settings),
+                Task::ShieldedTransfer(alias, alias1, _, task_settings) => Some(task_settings),
+                Task::Unshielding(alias, alias1, _, task_settings) => Some(task_settings),
+                
+            };
+            if let Some(settings) = settings {
+                self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
+            }
+        }
+    }
+
     pub fn serialize_to_file(&self) {
         fs::write(&self.path, serde_json::to_string_pretty(&self).unwrap()).unwrap()
     }
