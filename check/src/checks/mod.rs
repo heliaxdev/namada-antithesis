@@ -12,6 +12,9 @@ pub mod masp_indexer;
 pub mod status;
 pub mod voting_power;
 
+const MAX_RETRY_COUNT: u64 = 8;
+const RETRY_INTERVAL_SEC: u64 = 5;
+
 pub trait DoCheck {
     async fn check(sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String>;
 
@@ -25,12 +28,12 @@ pub trait DoCheck {
         }
 
         let mut times = 0;
-        while times <= 3 {
+        while times <= MAX_RETRY_COUNT {
             let result = Self::check(sdk, state).await;
             if result.is_ok() {
                 return result;
             } else {
-                if times == 3 {
+                if times == MAX_RETRY_COUNT {
                     tracing::error!(
                         "Check {} failed {} times, returning error",
                         Self::to_string(),
@@ -43,10 +46,10 @@ pub trait DoCheck {
                     Self::to_string(),
                     result.err().unwrap().to_string(),
                     times,
-                    3
+                    MAX_RETRY_COUNT,
                 );
                 times += 1;
-                sleep(Duration::from_secs(2)).await
+                sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await
             }
         }
         Err(format!("Failed {} check (end)", Self::to_string()))
