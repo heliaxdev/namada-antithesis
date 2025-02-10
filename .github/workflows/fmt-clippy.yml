@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   lint-fmt:
-    name: Run Clippy and Fmt
+    name: Run fmt and clippy
     runs-on: ubuntu-latest
 
     strategy:
@@ -28,6 +28,9 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
 
       - name: Cache cargo registry
         uses: actions/cache@v4

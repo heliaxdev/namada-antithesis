@@ -45,11 +45,7 @@ impl DoCheck for VotingPowerCheck {
                             }
                         }
 
-                        if can_halt {
-                            state.two_nodes_have_two_third = false;
-                        } else {
-                            state.two_nodes_have_two_third = true;
-                        }
+                        state.two_nodes_have_two_third = !can_halt;
 
                         tracing::info!("Total vp: {}", total_vp);
                         tracing::info!("Can halt: {}", can_halt);

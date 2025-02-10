@@ -2,18 +2,8 @@ use std::{str::FromStr, thread, time::Duration};
 
 use antithesis_sdk::antithesis_init;
 use clap::Parser;
-use namada_chain_check::{
-    checks::{
-        epoch::EpochCheck, height::HeightCheck, inflation::InflationCheck,
-        masp_indexer::MaspIndexerHeightCheck, status::StatusCheck, voting_power::VotingPowerCheck,
-        DoCheck,
-    },
-    config::AppConfig,
-    sdk::namada::Sdk,
-    state::State,
-};
+use namada_chain_check::{checks::try_checks, config::AppConfig, sdk::namada::Sdk, state::State};
 use namada_sdk::{io::NullIo, masp::fs::FsShieldedUtils, wallet::fs::FsWalletUtils};
-use serde_json::json;
 use tempfile::tempdir;
 use tendermint_rpc::{Client, HttpClient, Url};
 use tracing::level_filters::LevelFilter;
@@ -104,102 +94,8 @@ async fn main() {
     .await;
 
     loop {
-        let now = chrono::offset::Utc::now();
-
-        let vp_check_res = VotingPowerCheck::do_check(&sdk, &mut state, now).await;
-        is_succesful(VotingPowerCheck::to_string(), vp_check_res);
-
-        let height_check_res = HeightCheck::do_check(&sdk, &mut state, now).await;
-        is_succesful(HeightCheck::to_string(), height_check_res);
-
-        let epoch_check_res = EpochCheck::do_check(&sdk, &mut state, now).await;
-        is_succesful(EpochCheck::to_string(), epoch_check_res);
-
-        let inflation_check_res = InflationCheck::do_check(&sdk, &mut state, now).await;
-        is_succesful(InflationCheck::to_string(), inflation_check_res);
-
-        let status_check_res = StatusCheck::do_check(&sdk, &mut state, now).await;
-        is_succesful(StatusCheck::to_string(), status_check_res);
-
-        let masp_indexer_check_res = MaspIndexerHeightCheck::do_check(&sdk, &mut state, now).await;
-        is_succesful(MaspIndexerHeightCheck::to_string(), masp_indexer_check_res);
+        try_checks(&sdk, &mut state).await;
 
         tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-}
-
-fn is_succesful(check_name: String, res: Result<(), String>) {
-    if let Err(e) = res.clone() {
-        let is_timeout = e.to_lowercase().contains("timed out");
-        let is_connection_closed = e.to_lowercase().contains("connection closed before");
-        if is_timeout {
-            tracing::warn!("Check {} has timedout", check_name);
-            return;
-        }
-        if is_connection_closed {
-            tracing::warn!(
-                "Check {} has failed due to connection closed before message completed",
-                check_name
-            );
-            return;
-        }
-
-        match check_name.as_ref() {
-            "HeightCheck" => {
-                antithesis_sdk::assert_always!(
-                    res.is_ok(),
-                    "Block height increased",
-                    &json!({ "details": e })
-                );
-            }
-            "EpochCheck" => {
-                antithesis_sdk::assert_always!(
-                    res.is_ok(),
-                    "Epoch increased",
-                    &json!({ "details": e })
-                );
-            }
-            "InflationCheck" => {
-                antithesis_sdk::assert_always!(
-                    res.is_ok(),
-                    "Inflation increased",
-                    &json!({ "details": e })
-                );
-            }
-            "MaspIndexerHeightCheck" => {
-                antithesis_sdk::assert_sometimes!(
-                    res.is_ok(),
-                    "Masp indexer block height increased",
-                    &json!({ "details": e })
-                );
-            }
-            _ => {
-                tracing::warn!("Check {} assertion not found (err)...", check_name);
-            }
-        }
-        tracing::error!("{}", format!("Error! {}: {}", check_name, e));
-    } else {
-        match check_name.as_ref() {
-            "HeightCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "Block height increased", &json!({}));
-            }
-            "EpochCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "Epoch increased", &json!({}));
-            }
-            "InflationCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "Inflation increased", &json!({}));
-            }
-            "MaspIndexerHeightCheck" => {
-                antithesis_sdk::assert_sometimes!(
-                    res.is_ok(),
-                    "Masp indexer block height increased",
-                    &json!({})
-                );
-            }
-            _ => {
-                tracing::warn!("Check {} assertion not found...", check_name);
-            }
-        }
-        tracing::debug!("{}", format!("Check {} was successful.", check_name));
     }
 }
