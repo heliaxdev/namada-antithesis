@@ -21,7 +21,7 @@ impl DoCheck for MaspIndexerHeightCheck {
             Ok(response) => match response.status() {
                 reqwest::StatusCode::OK => match response.json::<LatestHeightResponse>().await {
                     Ok(parsed) => {
-                        let current_block_height = u64::from(parsed.block_height);
+                        let current_block_height = parsed.block_height;
                         if state.last_block_height_masp_indexer <= current_block_height {
                             tracing::info!(
                                 "Masp indexer block height ok ({} -> {})",
@@ -38,8 +38,7 @@ impl DoCheck for MaspIndexerHeightCheck {
                         }
                     }
                     Err(e) => Err(format!(
-                        "Error while requesting height from masp indexer: {}",
-                        e
+                        "Error while requesting height from masp indexer: {e}",
                     )),
                 },
                 _ => Err(format!(
@@ -48,8 +47,7 @@ impl DoCheck for MaspIndexerHeightCheck {
                 )),
             },
             Err(e) => Err(format!(
-                "Error while requesting height from masp indexer: {}",
-                e.to_string()
+                "Error while requesting height from masp indexer: {e}",
             )),
         }
     }
