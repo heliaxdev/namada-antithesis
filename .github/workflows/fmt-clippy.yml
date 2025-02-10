@@ -1,0 +1,51 @@
+name: Format and clippy
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint-fmt:
+    name: Run Clippy and Fmt
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        project: [check, workload]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ matrix.project }}/target
+          key: ${{ runner.os }}-cargo-${{ matrix.project }}-${{ hashFiles(format('{0}/Cargo.lock', matrix.project)) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.project }}-
+
+      - name: Check fmt for ${{ matrix.project }}
+        run: |
+          cd ${{ matrix.project }}
+          cargo fmt -- --check
+
+      - name: Run Clippy for ${{ matrix.project }}
+        run: |
+          cd ${{ matrix.project }}
+          cargo clippy -- -D warnings
