@@ -55,7 +55,7 @@ impl DoCheck for MaspIndexerHeightCheck {
     }
 
     fn timing() -> u32 {
-        6
+        12
     }
 
     fn to_string() -> String {

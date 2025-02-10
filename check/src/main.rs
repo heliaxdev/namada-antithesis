@@ -148,28 +148,28 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
             "HeightCheck" => {
                 antithesis_sdk::assert_always!(
                     res.is_ok(),
-                    "height_check",
+                    "Block height increased",
                     &json!({ "details": e })
                 );
             }
             "EpochCheck" => {
                 antithesis_sdk::assert_always!(
                     res.is_ok(),
-                    "epoch_check",
+                    "Epoch increased",
                     &json!({ "details": e })
                 );
             }
             "InflationCheck" => {
                 antithesis_sdk::assert_always!(
                     res.is_ok(),
-                    "inflation_check",
+                    "Inflation increased",
                     &json!({ "details": e })
                 );
             }
             "MaspIndexerHeightCheck" => {
                 antithesis_sdk::assert_sometimes!(
                     res.is_ok(),
-                    "masp_indexer_height_check",
+                    "Masp indexer block height increased",
                     &json!({ "details": e })
                 );
             }
@@ -181,18 +181,18 @@ fn is_succesful(check_name: String, res: Result<(), String>) {
     } else {
         match check_name.as_ref() {
             "HeightCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "height_check", &json!({}));
+                antithesis_sdk::assert_always!(res.is_ok(), "Block height increased", &json!({}));
             }
             "EpochCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "epoch_check", &json!({}));
+                antithesis_sdk::assert_always!(res.is_ok(), "Epoch increased", &json!({}));
             }
             "InflationCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "inflation_check", &json!({}));
+                antithesis_sdk::assert_always!(res.is_ok(), "Inflation increased", &json!({}));
             }
             "MaspIndexerHeightCheck" => {
                 antithesis_sdk::assert_sometimes!(
                     res.is_ok(),
-                    "masp_indexer_height_check",
+                    "Masp indexer block height increased",
                     &json!({})
                 );
             }
