@@ -13,6 +13,7 @@ use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError, task::TaskSetti
 
 use super::utils;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn build_tx_become_validator(
     sdk: &Sdk,
     source: Alias,

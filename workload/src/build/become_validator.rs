@@ -17,10 +17,10 @@ pub async fn build_become_validator(state: &mut State) -> Result<Vec<Task>, Step
     let commission_rate_change = Dec::new(commission_rate_change as i128, 2).unwrap();
 
     let random_alias = utils::random_alias(state);
-    let consensus_key_alias = format!("{}-{}", random_alias.name, "consensus".to_string());
-    let eth_cold_key_alias = format!("{}-{}", random_alias.name, "eth-cold".to_string());
-    let eth_hot_key_alias = format!("{}-{}", random_alias.name, "eth-hot".to_string());
-    let protocol_key_alias = format!("{}-{}", random_alias.name, "protocol".to_string());
+    let consensus_key_alias = format!("{}-consensus", random_alias.name);
+    let eth_cold_key_alias = format!("{}-eth-cold", random_alias.name);
+    let eth_hot_key_alias = format!("{}-eth-hot", random_alias.name);
+    let protocol_key_alias = format!("{}-protocol", random_alias.name);
 
     let account = state.random_enstablished_account(vec![], 1).pop().unwrap();
 

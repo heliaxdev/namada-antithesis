@@ -4,7 +4,7 @@ use namada_sdk::{
         self, transaction::components::sapling::builder::RngBuildParams, zip32::PseudoExtendedKey,
     },
     signing::SigningTxData,
-    token::{self, DenominatedAmount},
+    token,
     tx::{data::GasLimit, Tx},
     Namada,
 };

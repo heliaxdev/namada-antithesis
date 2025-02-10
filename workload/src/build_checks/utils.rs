@@ -12,9 +12,7 @@ use namada_sdk::{
         ShieldedSyncConfig,
     },
     masp_primitives::zip32,
-    rpc,
-    token::{self, MaspEpoch},
-    Namada,
+    rpc, token, Namada,
 };
 use namada_wallet::DatedKeypair;
 use reqwest::Url;

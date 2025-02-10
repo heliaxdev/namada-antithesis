@@ -25,10 +25,6 @@ pub(crate) fn random_alias(state: &mut State) -> Alias {
     .into()
 }
 
-pub(crate) fn random_alias_with_suffix(state: &mut State, suffix: String) -> Alias {
-    format!("{}-{}", random_alias(state).name, suffix).into()
-}
-
 pub fn get_random_string(state: &mut State, length: usize) -> String {
     let mut result = String::new();
     for _ in 0..length {

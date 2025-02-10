@@ -26,7 +26,7 @@ pub async fn build_tx_shielding(
     let native_token_alias = Alias::nam();
 
     let source_address = wallet.find_address(source.name).unwrap().as_ref().clone();
-    let target_payment_address = wallet.find_payment_addr(target.name).unwrap().clone();
+    let target_payment_address = *wallet.find_payment_addr(target.name).unwrap();
     let token_address = wallet
         .find_address(native_token_alias.name)
         .unwrap()

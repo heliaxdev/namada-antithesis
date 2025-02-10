@@ -223,11 +223,11 @@ impl State {
                     _dec1,
                     task_settings,
                 ) => Some(task_settings),
-                Task::ShieldedTransfer(alias, alias1, _, task_settings) => Some(task_settings),
-                Task::Unshielding(_alias, alias1, _, task_settings) => Some(task_settings),
-                Task::ChangeMetadata(_alias, _, _, _, _, _, task_settings) => Some(task_settings),
-                Task::ChangeConsensusKeys(alias, _, task_settings) => Some(task_settings),
-                Task::UpdateAccount(_alias, _, _, task_settings) => Some(task_settings),
+                Task::ShieldedTransfer(_, _, _, task_settings) => Some(task_settings),
+                Task::Unshielding(_, _, _, task_settings) => Some(task_settings),
+                Task::ChangeMetadata(_, _, _, _, _, _, task_settings) => Some(task_settings),
+                Task::ChangeConsensusKeys(_, _, task_settings) => Some(task_settings),
+                Task::UpdateAccount(_, _, _, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
@@ -442,7 +442,7 @@ impl State {
     pub fn random_bond(&mut self) -> Bond {
         self.bonds
             .iter()
-            .map(|(source, bonds)| {
+            .flat_map(|(source, bonds)| {
                 bonds.iter().filter_map(|(validator, amount)| {
                     if *amount > 1 {
                         Some(Bond {
@@ -455,7 +455,6 @@ impl State {
                     }
                 })
             })
-            .flatten()
             .choose(&mut self.rng)
             .unwrap()
     }
@@ -501,7 +500,7 @@ impl State {
     pub fn get_redelegations_targets_for(&mut self, alias: &Alias) -> HashSet<String> {
         self.redelegations
             .get(alias)
-            .map(|data| data.keys().map(|a| a.clone()).collect::<HashSet<String>>())
+            .map(|data| data.keys().cloned().collect::<HashSet<String>>())
             .unwrap_or_default()
     }
 

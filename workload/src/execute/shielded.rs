@@ -29,7 +29,7 @@ pub async fn build_tx_shielded_transfer(
     let source_spending_key = wallet.find_spending_key(source.name, None).unwrap();
     let tmp = masp_primitives::zip32::ExtendedSpendingKey::from(source_spending_key);
     let pseudo_spending_key_from_spending_key = PseudoExtendedKey::from(tmp);
-    let target_payment_address = wallet.find_payment_addr(target.name).unwrap().clone();
+    let target_payment_address = *wallet.find_payment_addr(target.name).unwrap();
     let token = wallet
         .find_address(native_token_alias.name)
         .unwrap()
