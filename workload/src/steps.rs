@@ -794,15 +794,11 @@ impl WorkloadExecutor {
                                     "check_height": latest_block
                                 })
                             );
-                            return Err(format!(
-                                "BalanceShieldedSource check error: amount doesn't exist"
-                            ));
+                            return Err("BalanceShieldedSource check error: amount doesn't exist"
+                                .to_string());
                         }
                         Err(e) => {
-                            return Err(format!(
-                                "BalanceShieldedSource check error: {}",
-                                e.to_string()
-                            ));
+                            return Err(format!("BalanceShieldedSource check error: {e}",));
                         }
                     };
                 }
@@ -870,15 +866,11 @@ impl WorkloadExecutor {
                                     "check_height": latest_block
                                 })
                             );
-                            return Err(format!(
-                                "BalanceShieldedTarget check error: amount doesn't exist"
-                            ));
+                            return Err("BalanceShieldedTarget check error: amount doesn't exist"
+                                .to_string());
                         }
                         Err(e) => {
-                            return Err(format!(
-                                "BalanceShieldedTarget check error: {}",
-                                e.to_string()
-                            ));
+                            return Err(format!("BalanceShieldedTarget check error: {e}",));
                         }
                     };
                 }

@@ -2,6 +2,7 @@ use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConf
 
 use crate::{check::Check, entities::Alias, sdk::namada::Sdk, state::State};
 
+#[allow(clippy::too_many_arguments)]
 pub async fn redelegate(
     sdk: &Sdk,
     source: Alias,

@@ -1,6 +1,6 @@
 use std::{env, fs::File, str::FromStr, thread, time::Duration};
 
-use antithesis_sdk::{antithesis_init, lifecycle};
+use antithesis_sdk::antithesis_init;
 use clap::Parser;
 use fs2::FileExt;
 use namada_chain_workload::{
@@ -176,7 +176,7 @@ async fn inner_main() -> (i32, StepType) {
         .unwrap()
         .join(format!("state-{}.json", config.id));
 
-    let file = File::open(&path).expect(&format!("Could not open {:?}", path));
+    let file = File::open(&path).unwrap_or_else(|_| panic!("Could not open {:?}", path));
 
     file.lock_exclusive().unwrap();
     tracing::info!("State locked.");
@@ -267,7 +267,7 @@ async fn inner_main() -> (i32, StepType) {
 
     tracing::info!("Step is: {:?}...", next_step);
     let tasks = match workload_executor.build(next_step, &sdk, &mut state).await {
-        Ok(tasks) if tasks.len() == 0 => {
+        Ok(tasks) if tasks.is_empty() => {
             tracing::info!("Couldn't build {:?}, skipping...", next_step);
             return (6_i32, config.step_type);
         }
