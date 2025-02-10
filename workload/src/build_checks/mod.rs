@@ -8,4 +8,5 @@ pub mod shielding;
 pub mod transparent_transfer;
 pub mod unbond;
 pub mod unshielding;
+pub mod update_account;
 pub mod utils;

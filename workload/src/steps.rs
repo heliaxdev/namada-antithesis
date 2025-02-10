@@ -17,6 +17,7 @@ use crate::{
         transparent_transfer::build_transparent_transfer,
         unbond::build_unbond,
         unshielding::build_unshielding,
+        update_account::build_update_account,
     },
     build_checks,
     check::Check,
@@ -38,6 +39,7 @@ use crate::{
         transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
         unbond::{build_tx_unbond, execute_tx_unbond},
         unshielding::{build_tx_unshielding, execute_tx_unshielding},
+        update_account::{build_tx_update_account, execute_tx_update_account},
     },
     sdk::namada::Sdk,
     state::State,
@@ -95,6 +97,7 @@ pub enum StepType {
     BecomeValidator,
     ChangeMetadata,
     ChangeConsensusKeys,
+    UpdateAccount,
 }
 
 impl Display for StepType {
@@ -116,6 +119,7 @@ impl Display for StepType {
             StepType::BecomeValidator => write!(f, "become-validator"),
             StepType::ChangeMetadata => write!(f, "change-metadata"),
             StepType::ChangeConsensusKeys => write!(f, "change-consensus-keys"),
+            StepType::UpdateAccount => write!(f, "update-account"),
         }
     }
 }
@@ -207,6 +211,9 @@ impl WorkloadExecutor {
             StepType::BecomeValidator => state.min_n_enstablished_accounts(1),
             StepType::ChangeMetadata => state.min_n_validators(1),
             StepType::ChangeConsensusKeys => state.min_n_validators(1),
+            StepType::UpdateAccount => {
+                state.min_n_enstablished_accounts(1) && state.min_n_implicit_accounts(3)
+            }
         }
     }
 
@@ -233,6 +240,7 @@ impl WorkloadExecutor {
             StepType::BecomeValidator => build_become_validator(state).await?,
             StepType::ChangeMetadata => build_change_metadata(state).await?,
             StepType::ChangeConsensusKeys => build_change_consensus_keys(state).await?,
+            StepType::UpdateAccount => build_update_account(state).await?,
         };
         Ok(steps)
     }
@@ -369,6 +377,17 @@ impl WorkloadExecutor {
                 }
                 Task::ChangeConsensusKeys(_, _, _) => {
                     vec![]
+                }
+                Task::UpdateAccount(target, sources, threshold, _) => {
+                    build_checks::update_account::update_account_build_checks(
+                        sdk,
+                        target,
+                        sources,
+                        threshold,
+                        retry_config,
+                        state,
+                    )
+                    .await
                 }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
@@ -1293,6 +1312,11 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_change_consensus_key(sdk, source, alias, settings).await?;
                     execute_tx_change_consensus_key(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::UpdateAccount(target, sources, threshold, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_update_account(sdk, target, sources, threshold, settings).await?;
+                    execute_tx_update_account(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::BecomeValidator(alias, t, t1, t2, t3, comm, max_comm_change, settings) => {
                     let (mut tx, signing_data, tx_args) = build_tx_become_validator(

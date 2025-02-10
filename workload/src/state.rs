@@ -186,6 +186,12 @@ impl State {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     }
                 }
+                Task::UpdateAccount(target, sources, threshold, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.modify_enstablished_account(target, sources, threshold);
+                }
             }
             self.stats
                 .entry(task.raw_type())
@@ -221,6 +227,7 @@ impl State {
                 Task::Unshielding(_alias, alias1, _, task_settings) => Some(task_settings),
                 Task::ChangeMetadata(_alias, _, _, _, _, _, task_settings) => Some(task_settings),
                 Task::ChangeConsensusKeys(alias, _, task_settings) => Some(task_settings),
+                Task::UpdateAccount(_alias, _, _, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
@@ -541,6 +548,19 @@ impl State {
             },
         );
         self.balances.insert(alias.clone(), 0);
+    }
+
+    pub fn modify_enstablished_account(
+        &mut self,
+        alias: Alias,
+        aliases: BTreeSet<Alias>,
+        threshold: u64,
+    ) {
+        assert!(self.accounts.contains_key(&alias));
+        self.accounts.entry(alias).and_modify(|account| {
+            account.public_keys = aliases;
+            account.threshold = threshold;
+        });
     }
 
     pub fn modify_balance(&mut self, source: Alias, target: Alias, amount: u64) {
