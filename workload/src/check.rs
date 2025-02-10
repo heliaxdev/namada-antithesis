@@ -12,6 +12,21 @@ pub type Address = String;
 pub type Threshold = u64;
 
 #[derive(Clone, Debug)]
+pub enum ValidatorStatus {
+    Active,
+    Inactive,
+}
+
+impl Display for ValidatorStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValidatorStatus::Active => write!(f, "active"),
+            ValidatorStatus::Inactive => write!(f, "inactive"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Check {
     RevealPk(Target),
     BalanceTarget(Target, PreBalance, Amount, State),
@@ -22,6 +37,7 @@ pub enum Check {
     BondDecrease(Target, Address, PreBalance, Amount, State),
     AccountExist(Target, Threshold, BTreeSet<Target>, State),
     IsValidatorAccount(Target),
+    ValidatorStatus(Target, ValidatorStatus),
 }
 
 impl Display for Check {
@@ -51,6 +67,9 @@ impl Display for Check {
             }
             Check::IsValidatorAccount(target) => {
                 write!(f, "is-validator/{}", target.name)
+            }
+            Check::ValidatorStatus(target, status) => {
+                write!(f, "validator-status/{}/{}", target.name, status)
             }
         }
     }

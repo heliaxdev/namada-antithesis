@@ -66,11 +66,12 @@ pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub masp_accounts: HashMap<Alias, MaspAccount>,
     pub balances: HashMap<Alias, u64>,
-    pub masp_balances: HashMap<Alias, u64>, // why do we have masp balances if tha aliases for masp accounts has a sufix?
+    pub masp_balances: HashMap<Alias, u64>,
     pub bonds: HashMap<Alias, HashMap<String, u64>>,
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
     pub validators: HashMap<Alias, Account>,
+    pub deactivated_validators: HashMap<Alias, Account>,
     pub seed: u64,
     pub rng: AntithesisRng,
     pub path: PathBuf,
@@ -89,6 +90,7 @@ impl State {
             unbonds: HashMap::default(),
             redelegations: HashMap::default(),
             validators: HashMap::default(),
+            deactivated_validators: HashMap::default(),
             seed,
             rng: AntithesisRng::default(),
             path: env::current_dir()
@@ -192,6 +194,12 @@ impl State {
                     }
                     self.modify_enstablished_account(target, sources, threshold);
                 }
+                Task::DeactivateValidator(target, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.set_validator_as_deactivated(target);
+                }
             }
             self.stats
                 .entry(task.raw_type())
@@ -223,11 +231,12 @@ impl State {
                     _dec1,
                     task_settings,
                 ) => Some(task_settings),
-                Task::ShieldedTransfer(_, _, _, task_settings) => Some(task_settings),
-                Task::Unshielding(_, _, _, task_settings) => Some(task_settings),
-                Task::ChangeMetadata(_, _, _, _, _, _, task_settings) => Some(task_settings),
-                Task::ChangeConsensusKeys(_, _, task_settings) => Some(task_settings),
-                Task::UpdateAccount(_, _, _, task_settings) => Some(task_settings),
+                Task::ShieldedTransfer(_alias, _alias1, _, task_settings) => Some(task_settings),
+                Task::Unshielding(_alias, _alias1, _, task_settings) => Some(task_settings),
+                Task::ChangeMetadata(_alias, _, _, _, _, _, task_settings) => Some(task_settings),
+                Task::ChangeConsensusKeys(_alias, _, task_settings) => Some(task_settings),
+                Task::UpdateAccount(_alias, _, _, task_settings) => Some(task_settings),
+                Task::DeactivateValidator(_alias,task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
@@ -662,6 +671,11 @@ impl State {
     pub fn set_enstablished_as_validator(&mut self, alias: Alias) {
         let account = self.accounts.remove(&alias).unwrap();
         self.validators.insert(alias, account);
+    }
+
+    pub fn set_validator_as_deactivated(&mut self, alias: Alias) {
+        let account = self.validators.remove(&alias).unwrap();
+        self.deactivated_validators.insert(alias, account);
     }
 }
 
