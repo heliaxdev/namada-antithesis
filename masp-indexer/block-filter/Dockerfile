@@ -1,4 +1,4 @@
-FROM docker.io/rust:1.81-bookworm as builder
+FROM docker.io/rust:1.81-bookworm AS builder
 WORKDIR /app
 
 ARG GIT_SHA
