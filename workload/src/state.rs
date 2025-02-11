@@ -236,7 +236,7 @@ impl State {
                 Task::ChangeMetadata(_alias, _, _, _, _, _, task_settings) => Some(task_settings),
                 Task::ChangeConsensusKeys(_alias, _, task_settings) => Some(task_settings),
                 Task::UpdateAccount(_alias, _, _, task_settings) => Some(task_settings),
-                Task::DeactivateValidator(_alias,task_settings) => Some(task_settings),
+                Task::DeactivateValidator(_alias, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);

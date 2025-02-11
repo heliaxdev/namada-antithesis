@@ -18,9 +18,8 @@ pub async fn build_tx_deactivate_validator(
     let source_address = wallet.find_address(source.name).unwrap().into_owned();
     let fee_payer = wallet.find_public_key(&settings.gas_payer.name).unwrap();
 
-    let mut deactivate_validator_builder_tx = sdk
-        .namada
-        .new_deactivate_validator(source_address.clone());
+    let mut deactivate_validator_builder_tx =
+        sdk.namada.new_deactivate_validator(source_address.clone());
 
     deactivate_validator_builder_tx =
         deactivate_validator_builder_tx.gas_limit(GasLimit::from(settings.gas_limit));
@@ -31,7 +30,8 @@ pub async fn build_tx_deactivate_validator(
         let public_key = wallet.find_public_key(&signer.name).unwrap();
         signing_keys.push(public_key)
     }
-    deactivate_validator_builder_tx = deactivate_validator_builder_tx.signing_keys(signing_keys.clone());
+    deactivate_validator_builder_tx =
+        deactivate_validator_builder_tx.signing_keys(signing_keys.clone());
 
     let (deactivate_validator, signing_data) = deactivate_validator_builder_tx
         .build(&sdk.namada)
