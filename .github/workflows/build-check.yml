@@ -1,15 +1,10 @@
-name: Rebuild MASP indexer images (triggerable)
+name: Rebuild Check image (triggerable)
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "The container tag"
-        required: true
-        type: string
   pull_request:
     paths:
-      - 'masp-indexer/**'
+      - 'check/**'
 
 permissions:
   contents: read
@@ -17,18 +12,8 @@ permissions:
   attestations: write
   id-token: write
 
-jobs:
-  masp-indexer:
-    strategy:
-      fail-fast: true
-      matrix:
-        service:
-          - name: "masp-indexer-webserver"
-            context: "masp-indexer/webserver"
-          - name: "masp-indexer-chain"
-            context: "masp-indexer/chain"
-          - name: "masp-indexer-block-filter"
-            context: "masp-indexer/block-filter"
+jobs: 
+  check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -52,10 +37,10 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.service.context }}
+          context: check
           push: true
           tags: |
-            ghcr.io/heliaxdev/ant-${{ matrix.service.name }}:${{ github.event.inputs.tag || github.sha }}
-            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.service.name }}:${{ github.event.inputs.tag || github.sha }}
+            ghcr.io/heliaxdev/ant-check:latest
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/check:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

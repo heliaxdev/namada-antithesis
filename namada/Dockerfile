@@ -22,7 +22,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     wget \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN git clone --depth 1 https://github.com/anoma/namada.git /namada && cd /namada && git checkout $GIT_SHA
+ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA .
 
 # Be aware the patch could potentially be version dependent
 # getting rid of the sudo
@@ -31,10 +31,9 @@ RUN git apply scripts_get_cometbft.patch
 
 RUN make install
 
-RUN mkdir -p /root/.masp-params \
-    && wget -O /root/.masp-params/masp-convert.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params \
-    && wget -O /root/.masp-params/masp-output.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params \
-    && wget -O /root/.masp-params/masp-spend.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params
+RUN curl -o /root/.masp-params/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params\?raw\=true \
+    && curl -o /root/.masp-params/masp-output.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params?raw=true \
+    && curl -o /root/.masp-params/masp-convert.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params?raw=true
 
 # Try to slim down the runner
 FROM docker.io/rust:1.81-slim-bullseye
@@ -43,6 +42,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     ca-certificates \
     curl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ENV NAMADA_MASP_PARAMS_DIR=/root/.masp-params
 
 COPY --from=builder /root/.masp-params/* /root/.masp-params/
 COPY --from=builder /namada/target/release /namada/target/release

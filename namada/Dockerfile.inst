@@ -7,13 +7,22 @@ FROM docker.io/rust:1.81-slim-bullseye as builder
 ARG GIT_SHA
 ARG PROFILE="release"
 
-# problem with libclang-12-dev, also added curl
-RUN apt-get -y update
-RUN apt-get install -y make git-core libssl-dev pkg-config libclang-13-dev build-essential protobuf-compiler libudev-dev curl wget
-
-RUN git clone https://github.com/anoma/namada.git /namada && cd /namada && git checkout $GIT_SHA
-
 WORKDIR /namada
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    make \
+    git-core \
+    libssl-dev \
+    pkg-config \
+    libclang-13-dev \
+    build-essential \
+    protobuf-compiler \
+    libudev-dev \
+    curl \
+    wget \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA . 
 
 # Be aware the patch could potentially be version dependent
 # getting rid of the sudo
@@ -34,23 +43,22 @@ RUN make cometbft
 # RUN LD_LIBRARY_PATH=/usr/lib/libvoidstar.so cargo build --workspace --exclude namada_benchmarks
 RUN LD_LIBRARY_PATH=/usr/lib/libvoidstar.so cargo build --bin namadan
 
-# preload the MASP params (since we don't have internet)
-RUN mkdir -p /root/.masp-params
-
 # We built the profile in the debug, make it consistent with the make install
 RUN mv /namada/target/debug /namada/target/release
 
-RUN wget -O /root/.masp-params/masp-convert.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params
-RUN wget -O /root/.masp-params/masp-output.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params
-RUN wget -O /root/.masp-params/masp-spend.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params
+RUN curl -o /root/.masp-params/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params\?raw\=true \
+    && curl -o /root/.masp-params/masp-output.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params?raw=true \
+    && curl -o /root/.masp-params/masp-convert.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params?raw=true
 
 # Try to slim down the runner
 FROM docker.io/rust:1.81-slim-bullseye
 
-RUN apt-get -y update
-RUN apt-get install -y curl
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    ca-certificates \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/lib/libvoidstar.so /usr/lib/libvoidstar.so
+ENV NAMADA_MASP_PARAMS_DIR=/root/.masp-params
 
 COPY --from=builder /root/.masp-params/* /root/.masp-params/
 COPY --from=builder /namada/target/release /namada/target/release

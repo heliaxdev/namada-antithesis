@@ -1,6 +1,5 @@
 # Stage 1: Prepare the build environment
 FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS chef
-RUN cargo install cargo-chef
 WORKDIR /app
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
