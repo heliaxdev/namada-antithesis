@@ -33,16 +33,19 @@ jobs:
         images:
           - context: "config"
             image: "namada-config"
-            tag: ""
+            tag: "config-scope"
           - context: "genesis"
+            cache_scope: "genesis-image"
             image: "namada-genesis"
             tag: ""
           - image: "namada"
+            cache_scope: "namada-image"
             tag: ""
             context: "namada"
           - image: "namada"
             tag: -inst
             context: "namada"
+            cache_scope: "namada-inst-image"
 
     steps:
       - name: Checkout repo
@@ -71,8 +74,8 @@ jobs:
           tags: |
             ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.event.inputs.tag || github.sha }}${{ matrix.images.tag }}
             us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.image }}:${{ github.event.inputs.tag || github.sha }}${{ matrix.images.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
+          cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
-            GENESIS_TEMPLATE_VERSION=${{ github.event.inputs.genesis_template_version }}
-            GIT_SHA=${{ github.event.inputs.commit }}
+            GENESIS_TEMPLATE_VERSION=${{ github.event.inputs.genesis_template_version | '0.46.0-ant' }}
+            GIT_SHA=${{ github.event.inputs.commit | 'main' }}

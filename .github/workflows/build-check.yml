@@ -46,5 +46,5 @@ jobs:
           tags: |
             ghcr.io/heliaxdev/ant-check:latest
             us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/check:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=check-image
+          cache-to: type=gha,scope=check-image,mode=max

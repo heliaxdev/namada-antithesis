@@ -30,12 +30,15 @@ jobs:
           - name: "masp-indexer-webserver"
             context: "masp-indexer/webserver"
             sha: "master"
+            cache_scope: "masp-indexer-webserver-image"
           - name: "masp-indexer-chain"
             context: "masp-indexer/chain"
             sha: "master"
+            cache_scope: "masp-indexer-chain-image"
           - name: "masp-indexer-block-filter"
             context: "masp-indexer/block-filter"
             sha: "master"
+            cache_scope: "masp-indexer-block-filter-image"
 
     runs-on: ubuntu-latest
     steps:
@@ -65,7 +68,7 @@ jobs:
           tags: |
             ghcr.io/heliaxdev/ant-${{ matrix.images.name }}:${{ github.event.inputs.tag || github.sha }}
             us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.name }}:${{ github.event.inputs.tag || github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
+          cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
             GIT_SHA=${{ matrix.images.sha || 'master' }}
