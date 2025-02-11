@@ -11,6 +11,13 @@ on:
         description: "The genesis template version"
         required: true
         type: string
+  schedule:
+    - cron: "0 20 * * *"
+  pull_request:
+    paths:
+      - 'config/**'
+      - 'namada/**'
+      - 'genesis/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

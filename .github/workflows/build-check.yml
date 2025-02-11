@@ -5,6 +5,11 @@ on:
   pull_request:
     paths:
       - 'check/**'
+  push:
+    branches:
+      - master
+    paths:
+      - 'check/**'
 
 permissions:
   contents: read

@@ -1,140 +1,140 @@
-name: Rebuild All images (cron)
+# name: Rebuild All images (cron)
 
-on:
-  schedule:
-    - cron: "0 12 * * *"
-  workflow_dispatch:
+# on:
+#   schedule:
+#     - cron: "0 12 * * *"
+#   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
-  attestations: write
-  id-token: write
+# permissions:
+#   contents: read
+#   packages: write
+#   attestations: write
+#   id-token: write
 
-jobs:  
-  docker:
-    runs-on: ubuntu-latest
-    env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
-    strategy:
-      fail-fast: true
-      matrix:
-        branches:
-          - name: main
-            template: 0.46.0-ant
-        images:
-          - make: "build-config"
-            image: "namada-config"
-            tag: ""
-          - make: "build-genesis"
-            image: "namada-genesis"
-            tag: ""
-          - make: "build-namada"
-            image: "namada"
-            tag: ""
-          - make: "build-namada-inst"
-            image: "namada"
-            tag: -inst
+# jobs:  
+#   docker:
+#     runs-on: ubuntu-latest
+#     env:
+#       registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+#     strategy:
+#       fail-fast: true
+#       matrix:
+#         branches:
+#           - name: main
+#             template: 0.46.0-ant
+#         images:
+#           - make: "build-config"
+#             image: "namada-config"
+#             tag: ""
+#           - make: "build-genesis"
+#             image: "namada-genesis"
+#             tag: ""
+#           - make: "build-namada"
+#             image: "namada"
+#             tag: ""
+#           - make: "build-namada-inst"
+#             image: "namada"
+#             tag: -inst
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          version: v0.9.1
-      - name: Login to private registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.registry_url }}
-          username: _json_key
-          password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
-      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ matrix.branches.name }}/${{ matrix.branches.template }}
-        run: |
-          registry_url="${{ env.registry_url }}" sha=${{ matrix.branches.name }} genesis_template_version=${{ matrix.branches.template }} make ${{ matrix.images.make }}
-          docker push ${{ env.registry_url }}/${{ matrix.images.image }}:${{ matrix.branches.name }}${{ matrix.images.tag }}
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+#       - name: Set up QEMU
+#         uses: docker/setup-qemu-action@v2
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v2
+#         with:
+#           version: v0.9.1
+#       - name: Login to private registry
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.registry_url }}
+#           username: _json_key
+#           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
+#       - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ matrix.branches.name }}/${{ matrix.branches.template }}
+#         run: |
+#           registry_url="${{ env.registry_url }}" sha=${{ matrix.branches.name }} genesis_template_version=${{ matrix.branches.template }} make ${{ matrix.images.make }}
+#           docker push ${{ env.registry_url }}/${{ matrix.images.image }}:${{ matrix.branches.name }}${{ matrix.images.tag }}
   
-  check-container:
-    runs-on: ubuntu-latest
-    env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.registry_url }}
-          username: _json_key
-          password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
-      - name: Build & Push Image Check Container
-        run: |
-          registry_url="${{ env.registry_url }}" make build-check
-          docker push ${{ env.registry_url }}/check:latest
+#   check-container:
+#     runs-on: ubuntu-latest
+#     env:
+#       registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+#       - name: Set up QEMU
+#         uses: docker/setup-qemu-action@v3
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
+#       - name: Login to GHCR
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.registry_url }}
+#           username: _json_key
+#           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
+#       - name: Build & Push Image Check Container
+#         run: |
+#           registry_url="${{ env.registry_url }}" make build-check
+#           docker push ${{ env.registry_url }}/check:latest
   
-  workload-container:
-    runs-on: ubuntu-latest
-    env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
-      workload_commit: master
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.registry_url }}
-          username: _json_key
-          password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
-      - name: Build & Push Image Check Container
-        run: |
-          registry_url="${{ env.registry_url }}" sha="${{ env.workload_commit }}" make build-workload
-          docker push ${{ env.registry_url }}/workload:${{ env.workload_commit }}
-          # docker tag ${{ env.registry_url }}/workload:${{ env.workload_commit }} ${{ env.registry_url }}/workload:latest
-          # docker push {{ env.registry_url }}/workload:latest
+#   workload-container:
+#     runs-on: ubuntu-latest
+#     env:
+#       registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+#       workload_commit: master
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+#       - name: Set up QEMU
+#         uses: docker/setup-qemu-action@v3
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
+#       - name: Login to GHCR
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.registry_url }}
+#           username: _json_key
+#           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
+#       - name: Build & Push Image Check Container
+#         run: |
+#           registry_url="${{ env.registry_url }}" sha="${{ env.workload_commit }}" make build-workload
+#           docker push ${{ env.registry_url }}/workload:${{ env.workload_commit }}
+#           # docker tag ${{ env.registry_url }}/workload:${{ env.workload_commit }} ${{ env.registry_url }}/workload:latest
+#           # docker push {{ env.registry_url }}/workload:latest
     
-  masp-indexer:
-    runs-on: ubuntu-latest
-    env:
-      registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
-      masp_commit: master
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.registry_url }}
-          username: _json_key
-          password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
-      - name: Build & Push Image Masp Indexer Containers
-        run: |
-          registry_url="${{ env.registry_url }}" masp_sha=${{ env.masp_commit }} make build-masp-indexer-webserver
-          registry_url="${{ env.registry_url }}" masp_sha=${{ env.masp_commit }} make build-masp-indexer-chain
-          registry_url="${{ env.registry_url }}" masp_sha=${{ env.masp_commit }} make build-masp-indexer-block-filter
+#   masp-indexer:
+#     runs-on: ubuntu-latest
+#     env:
+#       registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
+#       masp_commit: master
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+#       - name: Set up QEMU
+#         uses: docker/setup-qemu-action@v3
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
+#       - name: Login to GHCR
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.registry_url }}
+#           username: _json_key
+#           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
+#       - name: Build & Push Image Masp Indexer Containers
+#         run: |
+#           registry_url="${{ env.registry_url }}" masp_sha=${{ env.masp_commit }} make build-masp-indexer-webserver
+#           registry_url="${{ env.registry_url }}" masp_sha=${{ env.masp_commit }} make build-masp-indexer-chain
+#           registry_url="${{ env.registry_url }}" masp_sha=${{ env.masp_commit }} make build-masp-indexer-block-filter
 
-          docker push ${{ env.registry_url }}/masp-indexer-webserver:${{ env.masp_commit }}
-          docker push ${{ env.registry_url }}/masp-indexer-chain:${{ env.masp_commit }}
-          docker push ${{ env.registry_url }}/masp-indexer-block-filter:${{ env.masp_commit }}
+#           docker push ${{ env.registry_url }}/masp-indexer-webserver:${{ env.masp_commit }}
+#           docker push ${{ env.registry_url }}/masp-indexer-chain:${{ env.masp_commit }}
+#           docker push ${{ env.registry_url }}/masp-indexer-block-filter:${{ env.masp_commit }}
 
-          # docker tag ${{ env.registry_url }}/masp-indexer-webserver:${{ env.masp_commit }} ${{ env.registry_url }}/masp-indexer-webserver:latest
-          # docker tag ${{ env.registry_url }}/masp-indexer-chain:${{ env.masp_commit }} ${{ env.registry_url }}/masp-indexer-chain:latest
-          # docker tag ${{ env.registry_url }}/masp-indexer-block-filter:${{ env.masp_commit }} ${{ env.registry_url }}/masp-indexer-block-filter:latest
+#           # docker tag ${{ env.registry_url }}/masp-indexer-webserver:${{ env.masp_commit }} ${{ env.registry_url }}/masp-indexer-webserver:latest
+#           # docker tag ${{ env.registry_url }}/masp-indexer-chain:${{ env.masp_commit }} ${{ env.registry_url }}/masp-indexer-chain:latest
+#           # docker tag ${{ env.registry_url }}/masp-indexer-block-filter:${{ env.masp_commit }} ${{ env.registry_url }}/masp-indexer-block-filter:latest
 
-          # docker push ${{ env.registry_url }}/masp-indexer-webserver:latest
-          # docker push ${{ env.registry_url }}/masp-indexer-chain:latest
-          # docker push ${{ env.registry_url }}/masp-indexer-block-filter:latest
+#           # docker push ${{ env.registry_url }}/masp-indexer-webserver:latest
+#           # docker push ${{ env.registry_url }}/masp-indexer-chain:latest
+#           # docker push ${{ env.registry_url }}/masp-indexer-block-filter:latest
