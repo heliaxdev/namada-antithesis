@@ -53,4 +53,10 @@ RUN mv /namada-network-templates/devnet/$GENESIS_TEMPLATE_VERSION /network-templ
 
 COPY ./entrypoint.sh /entrypoint.sh
 
+RUN mkdir -p /root/.masp-params \
+    && curl -o /root/.masp-params/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params?raw=true \
+    && curl -o /root/.masp-params/masp-output.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params?raw=true \
+    && curl -o /root/.masp-params/masp-convert.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params?raw=true
+ENV NAMADA_MASP_PARAMS_DIR=/root/.masp-params
+
 ENTRYPOINT ["/entrypoint.sh"]

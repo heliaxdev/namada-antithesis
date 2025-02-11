@@ -23,7 +23,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
     steps:

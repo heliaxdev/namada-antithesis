@@ -25,7 +25,7 @@ jobs:
   antithesis:
     runs-on: [ubuntu-latest]
     steps:
-      - uses: antithesishq/antithesis-trigger-action@v0.5
+      - uses: antithesishq/antithesis-trigger-action@v0.7
         with:
           config_image: namada-config:${{ github.event.inputs.namada_docker_tag }}
           notebook_name: namada2
