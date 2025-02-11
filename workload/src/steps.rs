@@ -472,6 +472,16 @@ impl WorkloadExecutor {
                                     .and_modify(|balance| *balance += *amount as i64)
                                     .or_insert(*amount as i64);
                             }
+                            Task::Unshielding(source, target, amount, _task_settings) => {
+                                balances
+                                    .entry(source.clone())
+                                    .and_modify(|balance| *balance += *amount as i64)
+                                    .or_insert(-(*amount as i64));
+                                shielded_balances
+                                    .entry(target.clone())
+                                    .and_modify(|balance| *balance -= *amount as i64)
+                                    .or_insert(*amount as i64);
+                            }
                             Task::ClaimRewards(_source, _validator, _task_settings) => {}
                             _ => panic!(),
                         };
