@@ -1,4 +1,4 @@
-name: Rebuild Workload image (triggerable)
+name: Rebuild Workload image
 
 on:
   workflow_dispatch:

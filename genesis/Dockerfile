@@ -15,6 +15,7 @@ RUN apt-get update -y && \
     libclang-13-dev \
     build-essential \
     protobuf-compiler \
+    libprotobuf-dev \
     libudev-dev \
     curl \
     wget \

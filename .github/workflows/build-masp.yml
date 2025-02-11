@@ -1,4 +1,4 @@
-name: Rebuild MASP indexer images (triggerable)
+name: Rebuild MASP indexer images
 
 on:
   workflow_dispatch:

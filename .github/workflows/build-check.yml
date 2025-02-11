@@ -1,4 +1,4 @@
-name: Rebuild Check image (triggerable)
+name: Rebuild Check image
 
 on:
   workflow_dispatch:
