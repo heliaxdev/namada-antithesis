@@ -27,18 +27,18 @@ jobs:
       fail-fast: true
       matrix:
         images:
-          - make: "build-config"
+          - context: "config"
             image: "namada-config"
             tag: ""
-          - make: "build-genesis"
+          - context: "geness"
             image: "namada-genesis"
             tag: ""
-          - make: "build-namada"
-            image: "namada"
+          - image: "namada"
             tag: ""
-          - make: "build-namada-inst"
-            image: "namada"
+            context: "namada"
+          - image: "namada"
             tag: -inst
+            context: "namada"
 
     steps:
       - name: Checkout repo
@@ -62,7 +62,7 @@ jobs:
       - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.commit }}/${{ github.event.inputs.genesis_template_version }}
         uses: docker/build-push-action@v6
         with:
-          context: namada
+          context: ${{ matrix.images.context }}
           push: true
           tags: |
             ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.event.inputs.tag || github.sha }}${{ matrix.images.tag }}
