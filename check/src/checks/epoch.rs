@@ -5,10 +5,10 @@ use crate::sdk::namada::Sdk;
 use super::DoCheck;
 
 #[derive(Clone, Debug, Default)]
-pub struct EpochCheck {}
+pub struct EpochCheck;
 
 impl DoCheck for EpochCheck {
-    async fn check(sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
+    async fn check(&self, sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
         let client = sdk.namada.clone_client();
         let last_epoch = rpc::query_epoch(&client).await;
 
@@ -30,11 +30,11 @@ impl DoCheck for EpochCheck {
         }
     }
 
-    fn timing() -> u32 {
+    fn timing(&self) -> u32 {
         15
     }
 
-    fn to_string() -> String {
+    fn name(&self) -> String {
         "EpochCheck".to_string()
     }
 }

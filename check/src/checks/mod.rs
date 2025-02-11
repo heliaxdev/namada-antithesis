@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Timelike, Utc};
+use enum_dispatch::enum_dispatch;
 use serde_json::json;
 use tokio::time::sleep;
 
@@ -23,57 +24,64 @@ use voting_power::VotingPowerCheck;
 const MAX_RETRY_COUNT: u64 = 8;
 const RETRY_INTERVAL_SEC: u64 = 5;
 
+#[enum_dispatch]
+enum Checker {
+    VotingPower(VotingPowerCheck),
+    Height(HeightCheck),
+    Epoch(EpochCheck),
+    Inflation(InflationCheck),
+    Status(StatusCheck),
+    MaspIndexerHeight(MaspIndexerHeightCheck),
+}
+
 pub async fn try_checks(sdk: &Sdk, state: &mut crate::state::State) {
     let now = chrono::offset::Utc::now();
 
-    let vp_check_res = VotingPowerCheck::do_check(sdk, state, now).await;
-    is_successful(VotingPowerCheck::to_string(), vp_check_res);
-
-    let height_check_res = HeightCheck::do_check(sdk, state, now).await;
-    is_successful(HeightCheck::to_string(), height_check_res);
-
-    let epoch_check_res = EpochCheck::do_check(sdk, state, now).await;
-    is_successful(EpochCheck::to_string(), epoch_check_res);
-
-    let inflation_check_res = InflationCheck::do_check(sdk, state, now).await;
-    is_successful(InflationCheck::to_string(), inflation_check_res);
-
-    let status_check_res = StatusCheck::do_check(sdk, state, now).await;
-    is_successful(StatusCheck::to_string(), status_check_res);
-
-    let masp_indexer_check_res = MaspIndexerHeightCheck::do_check(sdk, state, now).await;
-    is_successful(MaspIndexerHeightCheck::to_string(), masp_indexer_check_res);
+    let check_list = vec![
+        Checker::VotingPower(VotingPowerCheck),
+        Checker::Height(HeightCheck),
+        Checker::Epoch(EpochCheck),
+        Checker::Inflation(InflationCheck),
+        Checker::Status(StatusCheck),
+        Checker::MaspIndexerHeight(MaspIndexerHeightCheck),
+    ];
+    for checker in check_list {
+        let vp_check_res = checker.do_check(sdk, state, now).await;
+        is_successful(checker, vp_check_res);
+    }
 }
 
+#[enum_dispatch(Checker)]
 trait DoCheck {
-    async fn check(sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String>;
+    async fn check(&self, sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String>;
 
     async fn do_check(
+        &self,
         sdk: &Sdk,
         state: &mut crate::state::State,
         now: DateTime<Utc>,
     ) -> Result<(), String> {
-        if now.second().rem_euclid(Self::timing()).ne(&0) {
+        if now.second().rem_euclid(self.timing()).ne(&0) {
             return Ok(());
         }
 
         let mut times = 0;
         while times <= MAX_RETRY_COUNT {
-            let result = Self::check(sdk, state).await;
+            let result = self.check(sdk, state).await;
             if result.is_ok() {
                 return result;
             } else {
                 if times == MAX_RETRY_COUNT {
                     tracing::error!(
                         "Check {} failed {} times, returning error",
-                        Self::to_string(),
+                        self.name(),
                         times
                     );
                     return result;
                 }
                 tracing::warn!(
                     "Check {} failed (error: {}) retrying ({}/{}),...",
-                    Self::to_string(),
+                    self.name(),
                     result.err().unwrap().to_string(),
                     times,
                     MAX_RETRY_COUNT,
@@ -82,86 +90,60 @@ trait DoCheck {
                 sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await
             }
         }
-        Err(format!("Failed {} check (end)", Self::to_string()))
+        Err(format!("Failed {} check (end)", self.name()))
     }
 
-    fn timing() -> u32;
+    fn timing(&self) -> u32;
 
-    fn to_string() -> String;
+    fn name(&self) -> String;
 }
 
-fn is_successful(check_name: String, res: Result<(), String>) {
-    if let Err(e) = res.clone() {
+fn is_successful(checker: Checker, res: Result<(), String>) {
+    let details = if let Err(e) = res.clone() {
         let is_timeout = e.to_lowercase().contains("timed out");
         let is_connection_closed = e.to_lowercase().contains("connection closed before");
         if is_timeout {
-            tracing::warn!("Check {} has timedout", check_name);
+            tracing::warn!("Check {} has timedout", checker.name());
             return;
         }
         if is_connection_closed {
             tracing::warn!(
                 "Check {} has failed due to connection closed before message completed",
-                check_name
+                checker.name()
             );
             return;
         }
 
-        match check_name.as_ref() {
-            "HeightCheck" => {
-                antithesis_sdk::assert_always!(
-                    res.is_ok(),
-                    "Block height increased",
-                    &json!({ "details": e })
-                );
-            }
-            "EpochCheck" => {
-                antithesis_sdk::assert_always!(
-                    res.is_ok(),
-                    "Epoch increased",
-                    &json!({ "details": e })
-                );
-            }
-            "InflationCheck" => {
-                antithesis_sdk::assert_always!(
-                    res.is_ok(),
-                    "Inflation increased",
-                    &json!({ "details": e })
-                );
-            }
-            "MaspIndexerHeightCheck" => {
-                antithesis_sdk::assert_sometimes!(
-                    res.is_ok(),
-                    "Masp indexer block height increased",
-                    &json!({ "details": e })
-                );
-            }
-            _ => {
-                tracing::warn!("Check {} assertion not found (err)...", check_name);
-            }
-        }
-        tracing::error!("{}", format!("Error! {}: {}", check_name, e));
+        tracing::error!("{}", format!("Error! {}: {}", checker.name(), e));
+
+        json!({ "details": e })
     } else {
-        match check_name.as_ref() {
-            "HeightCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "Block height increased", &json!({}));
-            }
-            "EpochCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "Epoch increased", &json!({}));
-            }
-            "InflationCheck" => {
-                antithesis_sdk::assert_always!(res.is_ok(), "Inflation increased", &json!({}));
-            }
-            "MaspIndexerHeightCheck" => {
-                antithesis_sdk::assert_sometimes!(
-                    res.is_ok(),
-                    "Masp indexer block height increased",
-                    &json!({})
-                );
-            }
-            _ => {
-                tracing::warn!("Check {} assertion not found...", check_name);
-            }
+        tracing::debug!("Check {} was successful.", checker.name());
+
+        json!({})
+    };
+    match checker {
+        Checker::VotingPower(_) => {
+            antithesis_sdk::assert_always!(res.is_ok(), "Correct voting power", &details);
         }
-        tracing::debug!("{}", format!("Check {} was successful.", check_name));
+        Checker::Height(_) => {
+            antithesis_sdk::assert_always!(res.is_ok(), "Block height increased", &details);
+        }
+        Checker::Epoch(_) => {
+            antithesis_sdk::assert_always!(res.is_ok(), "Epoch increased", &details);
+        }
+        Checker::Inflation(_) => {
+            antithesis_sdk::assert_always!(res.is_ok(), "Inflation increased", &details);
+        }
+        Checker::Status(_) => {
+            antithesis_sdk::assert_always!(res.is_ok(), "Healthy status", &details);
+        }
+        Checker::MaspIndexerHeight(_) => {
+            antithesis_sdk::assert_sometimes!(
+                res.is_ok(),
+                "Masp indexer block height increased",
+                &details
+            );
+        }
     }
 }

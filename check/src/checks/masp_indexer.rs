@@ -10,10 +10,10 @@ pub struct LatestHeightResponse {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct MaspIndexerHeightCheck {}
+pub struct MaspIndexerHeightCheck;
 
 impl DoCheck for MaspIndexerHeightCheck {
-    async fn check(sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
+    async fn check(&self, sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
         let url = format!("{}/api/v1/height", sdk.masp_indexer_url);
         let masp_indexer_block_height = reqwest::get(&url).await;
 
@@ -52,11 +52,11 @@ impl DoCheck for MaspIndexerHeightCheck {
         }
     }
 
-    fn timing() -> u32 {
+    fn timing(&self) -> u32 {
         12
     }
 
-    fn to_string() -> String {
+    fn name(&self) -> String {
         "MaspIndexerHeightCheck".to_string()
     }
 }

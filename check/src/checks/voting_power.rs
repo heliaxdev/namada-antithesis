@@ -5,10 +5,10 @@ use crate::sdk::namada::Sdk;
 use super::DoCheck;
 
 #[derive(Clone, Debug, Default)]
-pub struct VotingPowerCheck {}
+pub struct VotingPowerCheck;
 
 impl DoCheck for VotingPowerCheck {
-    async fn check(sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
+    async fn check(&self, sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
         let client = sdk.namada.clone_client();
         let status = client.status().await;
 
@@ -68,11 +68,11 @@ impl DoCheck for VotingPowerCheck {
         }
     }
 
-    fn timing() -> u32 {
+    fn timing(&self) -> u32 {
         20
     }
 
-    fn to_string() -> String {
+    fn name(&self) -> String {
         "VotingPowerCheck".to_string()
     }
 }

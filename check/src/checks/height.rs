@@ -5,10 +5,10 @@ use crate::sdk::namada::Sdk;
 use super::DoCheck;
 
 #[derive(Clone, Debug, Default)]
-pub struct HeightCheck {}
+pub struct HeightCheck;
 
 impl DoCheck for HeightCheck {
-    async fn check(sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
+    async fn check(&self, sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
         let client = sdk.namada.clone_client();
         let last_block = client.latest_block().await;
 
@@ -34,11 +34,11 @@ impl DoCheck for HeightCheck {
         }
     }
 
-    fn timing() -> u32 {
+    fn timing(&self) -> u32 {
         6
     }
 
-    fn to_string() -> String {
+    fn name(&self) -> String {
         "HeightCheck".to_string()
     }
 }

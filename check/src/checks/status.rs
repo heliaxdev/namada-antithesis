@@ -5,10 +5,10 @@ use crate::sdk::namada::Sdk;
 use super::DoCheck;
 
 #[derive(Clone, Debug, Default)]
-pub struct StatusCheck {}
+pub struct StatusCheck;
 
 impl DoCheck for StatusCheck {
-    async fn check(sdk: &Sdk, _state: &mut crate::state::State) -> Result<(), String> {
+    async fn check(&self, sdk: &Sdk, _state: &mut crate::state::State) -> Result<(), String> {
         let client = sdk.namada.clone_client();
         let status = client.status().await;
 
@@ -26,11 +26,11 @@ impl DoCheck for StatusCheck {
         }
     }
 
-    fn timing() -> u32 {
+    fn timing(&self) -> u32 {
         20
     }
 
-    fn to_string() -> String {
+    fn name(&self) -> String {
         "StatusCheck".to_string()
     }
 }
