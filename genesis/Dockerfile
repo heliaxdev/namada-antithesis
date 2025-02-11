@@ -23,7 +23,8 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 RUN pip3 install toml
 
-ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA .
+ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA /namada
+RUN cd /namada
 
 # Important!
 WORKDIR /namada
