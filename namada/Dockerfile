@@ -39,7 +39,7 @@ RUN curl -o /root/.masp-params/masp-spend.params -L https://github.com/anoma/mas
     && curl -o /root/.masp-params/masp-convert.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params?raw=true
 
 # Try to slim down the runner
-FROM docker.io/rust:1.81-slim-bullseye
+FROM docker.io/rust:1.81-slim-bookworm
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     ca-certificates \
