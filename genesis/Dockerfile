@@ -20,6 +20,7 @@ RUN apt-get update -y && \
     wget \
     python3 \
     python3-pip && \
+    libprotobuf-dev \
     rm -rf /var/lib/apt/lists/*
 RUN pip3 install toml
 
