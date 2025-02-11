@@ -1,6 +1,6 @@
 # Following the instruction from https://docs.namada.net/introduction/install/source
 # This is used as the genesis container to create the chain and join the validators to the network
-FROM docker.io/rust:1.81-slim-bookworm as builder
+FROM docker.io/rust:1.81-slim-bookworm AS builder
 
 # Pinning a commit
 ARG GIT_SHA
