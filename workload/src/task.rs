@@ -135,7 +135,7 @@ impl Display for Task {
             Task::Unshielding(source, target, amount, _) => {
                 write!(f, "unshielding/{}/{}/{}", source.name, target.name, amount)
             }
-            Task::InitAccount(alias, _, _, _) => write!(f, "init-account/{}", alias.name),
+            Task::InitAccount(alias, _, threshold, _) => write!(f, "init-account/{}/{}", alias.name, threshold),
             Task::BecomeValidator(alias, _, _, _, _, _, _, _) => {
                 write!(f, "become-validator/{}", alias.name)
             }

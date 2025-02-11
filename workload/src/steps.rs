@@ -49,7 +49,13 @@ use crate::{
 };
 use clap::ValueEnum;
 use namada_sdk::{
-    address::Address, io::Client, key::common, proof_of_stake::types::ValidatorState, rpc::{self}, state::Epoch, token::{self}
+    address::Address,
+    io::Client,
+    key::common,
+    proof_of_stake::types::ValidatorState,
+    rpc::{self},
+    state::Epoch,
+    token::{self},
 };
 use serde_json::json;
 use thiserror::Error;
@@ -391,7 +397,13 @@ impl WorkloadExecutor {
                     .await
                 }
                 Task::DeactivateValidator(target, _) => {
-                    vec![]
+                    build_checks::deactivate_validator::deactivate_validator_build_checks(
+                        sdk,
+                        target,
+                        retry_config,
+                        state,
+                    )
+                    .await
                 }
                 Task::Batch(tasks, _) => {
                     let mut checks = vec![];
@@ -1195,7 +1207,7 @@ impl WorkloadExecutor {
                                 })
                             );
                             return Err(format!(
-                                "AccountExist check error: account {} is doesn't exist",
+                                "AccountExist check error: account {} doesn't exist",
                                 target.name
                             ));
                         }
@@ -1245,7 +1257,11 @@ impl WorkloadExecutor {
                     };
 
                     match tryhard::retry_fn(|| {
-                        rpc::get_validator_state(&client, &source_address, Some(epoch + 2))
+                        rpc::get_validator_state(
+                            &client,
+                            &source_address,
+                            Some(epoch.next().next()),
+                        )
                     })
                     .with_config(config)
                     .on_retry(|attempt, _, error| {
@@ -1256,12 +1272,14 @@ impl WorkloadExecutor {
                     })
                     .await
                     {
-                        Ok((Some(state), epoch)) => {
+                        Ok((Some(state), _epoch)) => {
                             let is_valid_status = match status {
                                 crate::check::ValidatorStatus::Active => {
                                     state.ne(&ValidatorState::Inactive)
-                                },
-                                crate::check::ValidatorStatus::Inactive => state.eq(&ValidatorState::Inactive),
+                                }
+                                crate::check::ValidatorStatus::Inactive => {
+                                    state.eq(&ValidatorState::Inactive)
+                                }
                             };
                             antithesis_sdk::assert_always!(
                                 is_valid_status,
@@ -1275,10 +1293,23 @@ impl WorkloadExecutor {
                                     "check_height": latest_block
                                 })
                             );
-                        },
-                        Ok((None, epoch)) => {
-                            
-                        },
+                        }
+                        Ok((None, _epoch)) => {
+                            antithesis_sdk::assert_unreachable!(
+                                "OnChain validator account doesn't exist.",
+                                &json!({
+                                    "target_alias": target,
+                                    "target": source_address.to_pretty_string(),
+                                    "timeout": random_timeout,
+                                    "execution_height": execution_height,
+                                    "check_height": latest_block
+                                })
+                            );
+                            return Err(format!(
+                                "Validator status check error: validator {} doesn't exist",
+                                target.name
+                            ));
+                        }
                         Err(e) => return Err(format!("ValidatorStatus check error: {}", e)),
                     };
                 }
