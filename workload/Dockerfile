@@ -1,11 +1,12 @@
-FROM docker.io/rust:1.81 AS builder
-
+# Stage 1: Prepare the build environment
+FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS chef
+RUN cargo install cargo-chef
 WORKDIR /app
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-ARG GIT_SHA
-
-RUN git clone https://github.com/heliaxdev/namada-antithesis.git repo && cd repo && git checkout $GIT_SHA
-
+# Stage 2: Cache dependencies
+FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS cacher
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
     libprotobuf-dev \
     build-essential \
@@ -16,44 +17,34 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     protobuf-compiler \
     libudev-dev \
     && apt-get clean
+WORKDIR /app
+COPY --from=chef /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
-RUN cd repo/workload && cargo build --release
+# Stage 3: Build the application
+FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS builder
+WORKDIR /app
+COPY . .
+COPY --from=cacher /app/target target
+RUN cargo build --release --locked
 
+# Stage 4: Create the final image
 FROM docker.io/debian:bookworm-slim
-
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y ca-certificates curl build-essential
-
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y ca-certificates curl build-essential && apt-get clean
 WORKDIR /app
 
-# copy the runtime files
-COPY --from=builder /app/repo/workload/target/release/namada-chain-workload /app/namada-chain-workload 
+# Copy the runtime files
+COPY --from=builder /app/target/release/namada-chain-workload /app/namada-chain-workload 
+COPY --from=builder /app/docker_run.sh /app/run.sh
+COPY --from=builder /app/scripts/ /opt/antithesis/test/v1/namada/
 
-COPY --chmod=0755 --from=builder /app/repo/workload/docker_run.sh /app/run.sh
+RUN chmod +x /app/run.sh && chmod -R +x /opt/antithesis/test/v1/namada/
 
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/init_script.sh /opt/antithesis/test/v1/namada/first_get_chainid.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_create_wallet.sh /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_faucet_transfer.sh /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_bond.sh /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_transparent_transfer.sh /opt/antithesis/test/v1/namada/parallel_driver_transparent_transfer.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_init_account.sh /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_bond_batch.sh /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_redelegate.sh /opt/antithesis/test/v1/namada/parallel_driver_redelegate.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_unbond.sh /opt/antithesis/test/v1/namada/parallel_driver_unbond.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_shielding.sh /opt/antithesis/test/v1/namada/parallel_driver_shielding.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_unshielding.sh /opt/antithesis/test/v1/namada/parallel_driver_unshielding.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_shielded.sh /opt/antithesis/test/v1/namada/parallel_driver_shielded.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_claim_rewards.sh /opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_become_validator.sh /opt/antithesis/test/v1/namada/parallel_driver_become_validator.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_change_metadata.sh /opt/antithesis/test/v1/namada/parallel_driver_change_metadata.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_update_account.sh /opt/antithesis/test/v1/namada/parallel_driver_update_account.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_change_consensus_keys.sh /opt/antithesis/test/v1/namada/parallel_driver_change_consensus_keys.sh
-COPY --chmod=0755 --from=builder /app/repo/workload/scripts/parallel_driver_random_batch.sh /opt/antithesis/test/v1/namada/parallel_driver_random_batch.sh
-
-# download masp parameters
-RUN curl -o /app/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params\?raw\=true
-RUN curl -o /app/masp-output.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params?raw=true
-RUN curl -o /app/masp-convert.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params?raw=true
+# Download masp parameters
+RUN curl -o /app/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params\?raw\=true \
+    && curl -o /app/masp-output.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params?raw=true \
+    && curl -o /app/masp-convert.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params?raw=true
 
 ENV NAMADA_MASP_PARAMS_DIR=/app
 
-ENTRYPOINT ["./run.sh"]
+ENTRYPOINT ["/app/run.sh"]

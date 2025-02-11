@@ -14,11 +14,20 @@ permissions:
   attestations: write
   id-token: write
 
+
 jobs:
-  masp-indexer-webserver:
+  masp-indexer:
+    strategy:
+      fail-fast: true
+      matrix:
+        service:
+          - name: "masp-indexer-webserver"
+            context: "masp-indexer/webserver"
+          - name: "masp-indexer-chain"
+            context: "masp-indexer/chain"
+          - name: "masp-indexer-block-filter"
+            context: "masp-indexer/block-filter"
     runs-on: ubuntu-latest
-    env:
-      antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -29,7 +38,7 @@ jobs:
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.antithesis_registry_url }}
+          registry: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
           username: _json_key
           password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
       - name: Login to ghcr.io
@@ -38,72 +47,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Push Image Masp Indexer Webserver
-        run: |
-          registry_url="${{ env.antithesis_registry_url }}" masp_sha=${{ github.event.inputs.masp_commit }} make build-masp-indexer-webserver
-          docker push ${{ env.antithesis_registry_url }}/masp-indexer-webserver:${{ github.event.inputs.masp_commit }}
-
-          docker tag ${{ env.antithesis_registry_url }}/masp-indexer-webserver:${{ github.event.inputs.masp_commit }} ghcr.io/heliaxdev/ant-masp-indexer-webserver:${{ github.event.inputs.masp_commit }} 
-          docker push ghcr.io/heliaxdev/ant-masp-indexer-webserver:${{ github.event.inputs.masp_commit }} 
-
-  masp-indexer-chain:
-    runs-on: ubuntu-latest
-    env:
-      antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          registry: ${{ env.antithesis_registry_url }}
-          username: _json_key
-          password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
-      - name: Login to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Push Image Masp Indexer Chain
-        run: |
-          registry_url="${{ env.antithesis_registry_url }}" masp_sha=${{ github.event.inputs.masp_commit }} make build-masp-indexer-chain
-          docker push ${{ env.antithesis_registry_url }}/masp-indexer-chain:${{ github.event.inputs.masp_commit }}
-
-          docker tag ${{ env.antithesis_registry_url }}/masp-indexer-chain:${{ github.event.inputs.masp_commit }} ghcr.io/heliaxdev/ant-masp-indexer-chain:${{ github.event.inputs.masp_commit }}
-          docker push ghcr.io/heliaxdev/ant-masp-indexer-chain:${{ github.event.inputs.masp_commit }}
-
-  masp-indexer-block-filter:
-    runs-on: ubuntu-latest
-    env:
-      antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.antithesis_registry_url }}
-          username: _json_key
-          password: ${{ secrets.ANTITHESIS_GAR_JSON_KEY }}
-      - name: Login to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Push Image Masp Indexer Block Filter
-        run: |
-          registry_url="${{ env.antithesis_registry_url }}" masp_sha=${{ github.event.inputs.masp_commit }} make build-masp-indexer-block-filter
-          docker push ${{ env.antithesis_registry_url }}/masp-indexer-block-filter:${{ github.event.inputs.masp_commit }}
-
-          docker tag ${{ env.antithesis_registry_url }}/masp-indexer-block-filter:${{ github.event.inputs.masp_commit }} ghcr.io/heliaxdev/ant-masp-indexer-block-filter:${{ github.event.inputs.masp_commit }}
-          docker push ghcr.io/heliaxdev/ant-masp-indexer-block-filter:${{ github.event.inputs.masp_commit }}
+          context: ${{ matrix.service.context }}
+          push: true
+          tags: |
+            ghcr.io/heliaxdev/ant-${{ matrix.service.name }}:${{ github.event.inputs.workload_commit }}
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.service.name }}:${{ github.event.inputs.workload_commit }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

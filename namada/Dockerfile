@@ -7,13 +7,22 @@ FROM docker.io/rust:1.81-slim-bullseye as builder
 ARG GIT_SHA
 ARG PROFILE="release"
 
-# problem with libclang-12-dev, also added curl
-RUN apt-get -y update
-RUN apt-get install -y make git-core libssl-dev pkg-config libclang-13-dev build-essential protobuf-compiler libudev-dev curl wget
-
-RUN git clone https://github.com/anoma/namada.git /namada && cd /namada && git checkout $GIT_SHA
-
 WORKDIR /namada
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    make \
+    git-core \
+    libssl-dev \
+    pkg-config \
+    libclang-13-dev \
+    build-essential \
+    protobuf-compiler \
+    libudev-dev \
+    curl \
+    wget \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 https://github.com/anoma/namada.git /namada && cd /namada && git checkout $GIT_SHA
 
 # Be aware the patch could potentially be version dependent
 # getting rid of the sudo
@@ -22,18 +31,18 @@ RUN git apply scripts_get_cometbft.patch
 
 RUN make install
 
-# preload the MASP params (since we don't have internet)
-RUN mkdir -p /root/.masp-params
-
-RUN wget -O /root/.masp-params/masp-convert.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params
-RUN wget -O /root/.masp-params/masp-output.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params
-RUN wget -O /root/.masp-params/masp-spend.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params
+RUN mkdir -p /root/.masp-params \
+    && wget -O /root/.masp-params/masp-convert.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params \
+    && wget -O /root/.masp-params/masp-output.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params \
+    && wget -O /root/.masp-params/masp-spend.params https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params
 
 # Try to slim down the runner
 FROM docker.io/rust:1.81-slim-bullseye
 
-RUN apt-get -y update
-RUN apt-get install -y curl
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    ca-certificates \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /root/.masp-params/* /root/.masp-params/
 COPY --from=builder /namada/target/release /namada/target/release
