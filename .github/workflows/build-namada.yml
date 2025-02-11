@@ -73,7 +73,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.commit }}/${{ github.event.inputs.genesis_template_version }}
+      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.commit || 'main' }}/${{ github.event.inputs.genesis_template_version || '0.46.0-ant' }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.images.context }}
