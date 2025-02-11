@@ -15,7 +15,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     libclang-13-dev \
     build-essential \
     protobuf-compiler \
-    libprotobuf-c-dev \ 
     libudev-dev \
     curl \
     wget \

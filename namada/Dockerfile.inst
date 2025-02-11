@@ -1,7 +1,7 @@
 # Following the instruction from https://docs.namada.net/introduction/install/source
 # This is so we can do the localnet setup
 # podman build --no-cache -t namada:v0.31.10-inst -f Dockerfile.inst .
-FROM docker.io/rust:1.81-slim-bullseye as builder
+FROM docker.io/rust:1.81-slim-bookworm as builder
 
 # Pinning a release tag
 ARG GIT_SHA
@@ -18,7 +18,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     build-essential \
     protobuf-compiler \
     libudev-dev \
-    libprotobuf-dev \
     curl \
     wget \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

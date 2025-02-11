@@ -1,6 +1,6 @@
 # Following the instruction from https://docs.namada.net/introduction/install/source
 # This is used as the genesis container to create the chain and join the validators to the network
-FROM docker.io/rust:1.81-slim-bullseye as builder
+FROM docker.io/rust:1.81-slim-bookworm as builder
 
 # Pinning a commit
 ARG GIT_SHA
@@ -20,7 +20,6 @@ RUN apt-get update -y && \
     wget \
     python3 \
     python3-pip && \
-    libprotobuf-c-dev \
     rm -rf /var/lib/apt/lists/*
 RUN pip3 install toml
 
