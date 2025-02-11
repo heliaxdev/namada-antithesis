@@ -47,7 +47,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: workload
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/heliaxdev/ant-workload:${{ github.event.inputs.tag || github.sha }}
             us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/workload:${{ github.event.inputs.tag || github.sha }}

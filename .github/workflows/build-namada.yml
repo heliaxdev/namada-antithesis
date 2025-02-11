@@ -23,7 +23,7 @@ permissions:
   id-token: write
 
 jobs:
-  docker:
+  namada:
     runs-on: ubuntu-latest
     env:
       antithesis_registry_url: us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository
@@ -34,7 +34,7 @@ jobs:
           - context: "config"
             image: "namada-config"
             tag: ""
-          - context: "geness"
+          - context: "genesis"
             image: "namada-genesis"
             tag: ""
           - image: "namada"
@@ -67,7 +67,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.images.context }}
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.event.inputs.tag || github.sha }}${{ matrix.images.tag }}
             us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.image }}:${{ github.event.inputs.tag || github.sha }}${{ matrix.images.tag }}

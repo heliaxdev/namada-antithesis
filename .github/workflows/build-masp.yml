@@ -26,13 +26,17 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        service:
+        images:
           - name: "masp-indexer-webserver"
             context: "masp-indexer/webserver"
+            sha: "master"
           - name: "masp-indexer-chain"
             context: "masp-indexer/chain"
+            sha: "master"
           - name: "masp-indexer-block-filter"
             context: "masp-indexer/block-filter"
+            sha: "master"
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -56,10 +60,12 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.service.context }}
-          push: true
+          context: ${{ matrix.images.context }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ghcr.io/heliaxdev/ant-${{ matrix.service.name }}:${{ github.event.inputs.tag || github.sha }}
-            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.service.name }}:${{ github.event.inputs.tag || github.sha }}
+            ghcr.io/heliaxdev/ant-${{ matrix.images.name }}:${{ github.event.inputs.tag || github.sha }}
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.name }}:${{ github.event.inputs.tag || github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            GIT_SHA=${{ matrix.images.name }}
