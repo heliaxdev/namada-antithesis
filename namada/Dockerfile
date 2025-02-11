@@ -20,6 +20,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     libudev-dev \
     curl \
     wget \
+    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA .

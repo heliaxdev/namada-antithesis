@@ -16,6 +16,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     wget \
     postgresql \
     curl \
+    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN curl -o /app/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params\?raw\=true \

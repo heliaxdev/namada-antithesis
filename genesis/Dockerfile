@@ -5,14 +5,25 @@ FROM docker.io/rust:1.81-slim-bullseye as builder
 # Pinning a commit
 ARG GIT_SHA
 ARG GENESIS_TEMPLATE_VERSION
-ARG PROFILE="release"
 
-# problem with libclang-12-dev, also added curl
-RUN apt-get -y update
-RUN apt-get install -y make git-core libssl-dev pkg-config libclang-13-dev build-essential protobuf-compiler libudev-dev curl wget python3 python3-pip wget
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+    make \
+    git-core \
+    libssl-dev \
+    pkg-config \
+    libclang-13-dev \
+    build-essential \
+    protobuf-compiler \
+    libudev-dev \
+    curl \
+    wget \
+    python3 \
+    python3-pip && \
+    rm -rf /var/lib/apt/lists/*
 RUN pip3 install toml
 
-RUN git clone https://github.com/anoma/namada.git /namada && cd /namada && git checkout $GIT_SHA
+ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA .
 
 # Important!
 WORKDIR /namada
@@ -32,7 +43,6 @@ RUN mkdir -p /validator-1
 RUN mkdir -p /validator-2
 
 RUN cargo install wasm-opt --locked
-
 RUN make build-wasm-scripts
 
 # Preparing the network templates for starting the chain
