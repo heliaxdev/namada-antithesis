@@ -9,24 +9,20 @@ pub struct EpochCheck;
 
 impl DoCheck for EpochCheck {
     async fn check(&self, sdk: &Sdk, state: &mut crate::state::State) -> Result<(), String> {
-        let client = sdk.namada.clone_client();
-        let last_epoch = rpc::query_epoch(&client).await;
+        let current_epoch = rpc::query_epoch(&sdk.namada.client)
+            .await
+            .map_err(|e| format!("Failed to query last epoch: {e}"))?
+            .into();
 
-        match last_epoch {
-            Ok(epoch) => {
-                let current_epoch = epoch.0;
-                if state.last_epoch <= current_epoch {
-                    state.last_epoch = current_epoch;
-                    tracing::info!("Epoch ok");
-                    Ok(())
-                } else {
-                    Err(format!(
-                        "Epoch decreased: before: {} -> after {}",
-                        state.last_epoch, epoch.0
-                    ))
-                }
-            }
-            Err(e) => Err(format!("Failed to query last epoch: {}", e)),
+        if state.last_epoch <= current_epoch {
+            state.last_epoch = current_epoch;
+            tracing::info!("Epoch ok");
+            Ok(())
+        } else {
+            Err(format!(
+                "Epoch decreased: before: {} -> after {}",
+                state.last_epoch, current_epoch
+            ))
         }
     }
 
