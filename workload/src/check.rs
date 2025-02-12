@@ -14,6 +14,7 @@ pub type Threshold = u64;
 #[derive(Clone, Debug)]
 pub enum ValidatorStatus {
     Active,
+    Reactivating,
     Inactive,
 }
 
@@ -22,6 +23,7 @@ impl Display for ValidatorStatus {
         match self {
             ValidatorStatus::Active => write!(f, "active"),
             ValidatorStatus::Inactive => write!(f, "inactive"),
+            ValidatorStatus::Reactivating => write!(f, "reactivating"),
         }
     }
 }

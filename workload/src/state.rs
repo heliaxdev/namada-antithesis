@@ -200,6 +200,12 @@ impl State {
                     }
                     self.set_validator_as_deactivated(target);
                 }
+                Task::ReactivateValidator(target, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.remove_deactivate_validator(target);
+                }
             }
             self.stats
                 .entry(task.raw_type())
@@ -237,6 +243,7 @@ impl State {
                 Task::ChangeConsensusKeys(_alias, _, task_settings) => Some(task_settings),
                 Task::UpdateAccount(_alias, _, _, task_settings) => Some(task_settings),
                 Task::DeactivateValidator(_alias, task_settings) => Some(task_settings),
+                Task::ReactivateValidator(_alias, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
@@ -369,6 +376,10 @@ impl State {
         self.validators.len() >= sample
     }
 
+    pub fn min_n_deactivated_validators(&self, sample: usize) -> bool {
+        self.deactivated_validators.len() >= sample
+    }
+
     /// GET
 
     pub fn random_account(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
@@ -439,6 +450,17 @@ impl State {
 
     pub fn random_validator(&mut self, blacklist: Vec<Alias>, sample_size: usize) -> Vec<Account> {
         self.validators
+            .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
+            .filter(|(_, account)| account.is_enstablished())
+            .choose_multiple(&mut self.rng, sample_size)
+            .into_iter()
+            .map(|(_, account)| account.clone())
+            .collect()
+    }
+
+    pub fn random_deactivated_validator(&mut self, blacklist: Vec<Alias>, sample_size: usize) -> Vec<Account> {
+        self.deactivated_validators
             .iter()
             .filter(|(alias, _)| !blacklist.contains(alias))
             .filter(|(_, account)| account.is_enstablished())
@@ -676,6 +698,10 @@ impl State {
     pub fn set_validator_as_deactivated(&mut self, alias: Alias) {
         let account = self.validators.remove(&alias).unwrap();
         self.deactivated_validators.insert(alias, account);
+    }
+
+    pub fn remove_deactivate_validator(&mut self, alias: Alias) {
+        let account = self.deactivated_validators.remove(&alias).unwrap();
     }
 }
 

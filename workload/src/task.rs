@@ -75,6 +75,7 @@ pub enum Task {
     ChangeMetadata(Source, String, String, String, String, String, TaskSettings),
     ChangeConsensusKeys(Source, Alias, TaskSettings),
     DeactivateValidator(Source, TaskSettings),
+    ReactivateValidator(Source, TaskSettings),
     UpdateAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
 }
 
@@ -98,6 +99,7 @@ impl Task {
             Task::ChangeConsensusKeys(_, _, _) => "change-consensus-keys".to_string(),
             Task::UpdateAccount(_, _, _, _) => "update-account".to_string(),
             Task::DeactivateValidator(_, _) => "deactivate-validator".to_string(),
+            Task::ReactivateValidator(_, _) => "reactivate-validator".to_string(),
         }
     }
 }
@@ -157,6 +159,9 @@ impl Display for Task {
                 write!(f, "update-account/{}", source.name)
             }
             Task::DeactivateValidator(source, _) => {
+                write!(f, "deactivate-validator/{}", source.name)
+            }
+            Task::ReactivateValidator(source, _) => {
                 write!(f, "deactivate-validator/{}", source.name)
             }
             Task::Batch(tasks, _) => {

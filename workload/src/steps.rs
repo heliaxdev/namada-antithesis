@@ -12,6 +12,7 @@ use crate::{
         faucet_transfer::build_faucet_transfer,
         init_account::build_init_account,
         new_wallet_keypair::build_new_wallet_keypair,
+        reactivate_validator::build_reactivate_validator,
         redelegate::build_redelegate,
         shielded_transfer::build_shielded_transfer,
         shielding::build_shielding,
@@ -34,6 +35,7 @@ use crate::{
         faucet_transfer::execute_faucet_transfer,
         init_account::{build_tx_init_account, execute_tx_init_account},
         new_wallet_keypair::execute_new_wallet_key_pair,
+        reactivate_validator::{build_tx_reactivate_validator, execute_tx_reactivate_validator},
         redelegate::{build_tx_redelegate, execute_tx_redelegate},
         reveal_pk::execute_reveal_pk,
         shielded::{build_tx_shielded_transfer, execute_tx_shielded_transfer},
@@ -102,6 +104,7 @@ pub enum StepType {
     ChangeConsensusKeys,
     UpdateAccount,
     DeactivateValidator,
+    ReactivateValidator,
 }
 
 impl Display for StepType {
@@ -125,6 +128,7 @@ impl Display for StepType {
             StepType::ChangeConsensusKeys => write!(f, "change-consensus-keys"),
             StepType::UpdateAccount => write!(f, "update-account"),
             StepType::DeactivateValidator => write!(f, "deactivate-validator"),
+            StepType::ReactivateValidator => write!(f, "reactivate-validator"),
         }
     }
 }
@@ -220,6 +224,7 @@ impl WorkloadExecutor {
             StepType::UpdateAccount => {
                 state.min_n_enstablished_accounts(1) && state.min_n_implicit_accounts(3)
             }
+            StepType::ReactivateValidator => state.min_n_deactivated_validators(1),
         }
     }
 
@@ -248,6 +253,7 @@ impl WorkloadExecutor {
             StepType::ChangeConsensusKeys => build_change_consensus_keys(state).await?,
             StepType::DeactivateValidator => build_deactivate_validator(state).await?,
             StepType::UpdateAccount => build_update_account(state).await?,
+            StepType::ReactivateValidator => build_reactivate_validator(state).await?,
         };
         Ok(steps)
     }
@@ -398,6 +404,15 @@ impl WorkloadExecutor {
                 }
                 Task::DeactivateValidator(target, _) => {
                     build_checks::deactivate_validator::deactivate_validator_build_checks(
+                        sdk,
+                        target,
+                        retry_config,
+                        state,
+                    )
+                    .await
+                }
+                Task::ReactivateValidator(target, _) => {
+                    build_checks::reactivate_validator::reactivate_validator_build_checks(
                         sdk,
                         target,
                         retry_config,
@@ -1280,6 +1295,9 @@ impl WorkloadExecutor {
                                 crate::check::ValidatorStatus::Inactive => {
                                     state.eq(&ValidatorState::Inactive)
                                 }
+                                crate::check::ValidatorStatus::Reactivating => {
+                                    state.ne(&ValidatorState::Inactive)
+                                }
                             };
                             antithesis_sdk::assert_always!(
                                 is_valid_status,
@@ -1386,6 +1404,11 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_deactivate_validator(sdk, target, settings).await?;
                     execute_tx_deactivate_validator(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::ReactivateValidator(target, settings) => {
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_reactivate_validator(sdk, target, settings).await?;
+                    execute_tx_reactivate_validator(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::ChangeMetadata(
                     source,

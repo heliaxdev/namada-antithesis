@@ -151,6 +151,22 @@ if [[ ! -v ANTITHESIS_OUTPUT_DIR ]]; then
             echo "<ERROR> change consensus keys"
         fi
 
+        source /opt/antithesis/test/v1/namada/parallel_driver_deactivate_validator.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> deactivate validator" 
+        else 
+            echo "<ERROR> deactivate validator"
+        fi
+
+        source /opt/antithesis/test/v1/namada/parallel_driver_reactivate_validator.sh
+        if [ $? -eq 0 ] 
+        then 
+            echo "<OK> reactivate validator" 
+        else 
+            echo "<ERROR> reactivate validator"
+        fi
+
         source /opt/antithesis/test/v1/namada/parallel_driver_bond_batch.sh
         if [ $? -eq 0 ] 
         then 

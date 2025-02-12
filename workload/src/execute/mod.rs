@@ -17,3 +17,4 @@ pub mod unbond;
 pub mod unshielding;
 pub mod update_account;
 mod utils;
+pub mod reactivate_validator;
