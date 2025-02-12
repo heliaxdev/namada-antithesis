@@ -122,9 +122,10 @@ fn is_successful(checker: Checker, res: Result<(), String>) {
 
         json!({})
     };
+    // NOTE: `assert_always` requires a literal
     match checker {
         Checker::VotingPower(_) => {
-            antithesis_sdk::assert_always!(res.is_ok(), "Correct voting power", &details);
+            antithesis_sdk::assert_always!(res.is_ok(), "Voting power is checked", &details);
         }
         Checker::Height(_) => {
             antithesis_sdk::assert_always!(res.is_ok(), "Block height increased", &details);
@@ -136,7 +137,7 @@ fn is_successful(checker: Checker, res: Result<(), String>) {
             antithesis_sdk::assert_always!(res.is_ok(), "Inflation increased", &details);
         }
         Checker::Status(_) => {
-            antithesis_sdk::assert_always!(res.is_ok(), "Healthy status", &details);
+            antithesis_sdk::assert_always!(res.is_ok(), "Status is checked", &details);
         }
         Checker::MaspIndexerHeight(_) => {
             antithesis_sdk::assert_sometimes!(
