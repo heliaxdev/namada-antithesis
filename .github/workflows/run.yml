@@ -17,9 +17,6 @@ on:
         type: string
       duration:
         description: Duration of the experiment
-      faults:
-        type: boolean
-        description: Enable faults
 
 jobs:
   antithesis:
@@ -35,7 +32,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           images: namada-genesis:${{ github.event.inputs.namada_genesis_docker_tag }},namada:${{ github.event.inputs.namada_docker_tag }},workload:${{ github.event.inputs.workload_tag }},check:latest,masp-indexer-block-filter:master,masp-indexer-webserver:master,masp-indexer-chain:master
           email_recipients: |
-            gianmarco@heliax.dev,heliax-antithesis-aaaammxjv6zgaqxcdury4ktshq@antithesisgroup.slack.com
+            gianmarco@heliax.dev,yuji@heliax.dev,heliax-antithesis-aaaammxjv6zgaqxcdury4ktshq@antithesisgroup.slack.com
           additional_parameters: |
             custom.duration=${{ github.event.inputs.duration }}
-            custom.faults=${{ github.event.inputs.faults }}
+            custom.faults=true

@@ -11,29 +11,17 @@ jobs:
       fail-fast: true
       matrix:
         runs:
-          - image: "main"
-            genesis: "main"
-            masp_indexer: "master"
-            faults: true
-            duration: 3
           - image: "main-inst"
             genesis: "main"
             masp_indexer: "master"
-            faults: true
-            duration: 3
-          - image: "v1.1.1-inst"
-            genesis: "v1.1.1"
+            duration: 4
+          - image: "v1.1.2-inst"
+            genesis: "v1.1.2"
             masp_indexer: "master"
-            faults: true
-            duration: 3
-          - image: "v1.1.1"
-            genesis: "v1.1.1"
-            masp_indexer: "master"
-            faults: true
-            duration: 3
+            duration: 4
             
     steps:
-      - uses: antithesishq/antithesis-trigger-action@v0.5
+      - uses: antithesishq/antithesis-trigger-action@v0.7
         with:
           config_image: namada-config:main
           notebook_name: namada2
@@ -43,7 +31,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           images: namada-genesis:${{ matrix.runs.genesis }},namada:${{ matrix.runs.image }},workload:master,check:latest,masp-indexer-block-filter:${{ matrix.runs.masp_indexer }},masp-indexer-webserver:${{ matrix.runs.masp_indexer }},masp-indexer-chain:${{ matrix.runs.masp_indexer }}
           email_recipients: |
-            gianmarco@heliax.dev,heliax-antithesis-aaaammxjv6zgaqxcdury4ktshq@antithesisgroup.slack.com
+            gianmarco@heliax.dev,yuji@heliax.dev,heliax-antithesis-aaaammxjv6zgaqxcdury4ktshq@antithesisgroup.slack.com
           additional_parameters: |
             custom.duration=${{ matrix.runs.duration }}
-            custom.faults=${{ matrix.runs.faults }}
+            custom.faults=true
