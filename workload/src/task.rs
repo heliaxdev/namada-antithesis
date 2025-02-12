@@ -162,7 +162,7 @@ impl Display for Task {
                 write!(f, "deactivate-validator/{}", source.name)
             }
             Task::ReactivateValidator(source, _) => {
-                write!(f, "deactivate-validator/{}", source.name)
+                write!(f, "reactivate-validator/{}", source.name)
             }
             Task::Batch(tasks, _) => {
                 let tasks = tasks
