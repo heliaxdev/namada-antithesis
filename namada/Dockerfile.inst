@@ -45,6 +45,9 @@ RUN LD_LIBRARY_PATH=/usr/lib/libvoidstar.so cargo build --release --package nama
     --features jemalloc \
     --features migrations
 
+RUN ldd target/release/namada | grep "libvoidstar"
+RUN nm target/release/namada | grep "sanitizer_cov_trace_pc_guard"
+
 RUN mkdir -p /root/.masp-params \
     && curl -o /root/.masp-params/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params?raw=true \
     && curl -o /root/.masp-params/masp-output.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params?raw=true \
