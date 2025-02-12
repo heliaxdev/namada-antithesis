@@ -1,11 +1,13 @@
-# Deprecated in favor of the instrumented version
-# Following the instruction from https://docs.namada.net/introduction/install/source
-# This is so we can do the localnet setup
-FROM docker.io/rust:1.81-slim-bookworm AS builder
-
-# Pinning a release tag
+FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS chef
 ARG GIT_SHA
-ARG PROFILE="release"
+RUN [ -z "$GIT_SHA" ] && echo "GIT_SHA is required" && exit 1 || true
+
+WORKDIR /namada
+ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS cacher
+WORKDIR /namada
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     make \
@@ -22,33 +24,47 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ADD --keep-git-dir=true https://github.com/anoma/namada.git#$GIT_SHA /namada
-RUN cd /namada
+COPY --from=chef /namada/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS builder
+COPY --from=chef /namada /namada
+COPY --from=cacher /namada/target target
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    make \
+    git-core \
+    libssl-dev \
+    pkg-config \
+    libclang-13-dev \
+    build-essential \
+    protobuf-compiler \
+    libprotobuf-dev \
+    libudev-dev \
+    curl \
+    wget \
+    ca-certificates \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /namada
-
-# Be aware the patch could potentially be version dependent
-# getting rid of the sudo
 COPY ./scripts_get_cometbft.patch .
 RUN git apply scripts_get_cometbft.patch
+RUN make cometbft
+RUN make build-release
 
-RUN make install
+FROM docker.io/debian:bookworm-slim
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
+    ca-certificates \
+    curl \
+    build-essential \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+WORKDIR /namada
 
 RUN mkdir -p /root/.masp-params \
     && curl -o /root/.masp-params/masp-spend.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-spend.params?raw=true \
     && curl -o /root/.masp-params/masp-output.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-output.params?raw=true \
     && curl -o /root/.masp-params/masp-convert.params -L https://github.com/anoma/masp-mpc/releases/download/namada-trusted-setup/masp-convert.params?raw=true
-
-# Try to slim down the runner
-FROM docker.io/rust:1.81-slim-bookworm
-
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    ca-certificates \
-    curl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 ENV NAMADA_MASP_PARAMS_DIR=/root/.masp-params
 
-COPY --from=builder /root/.masp-params/* /root/.masp-params/
 COPY --from=builder /namada/target/release /namada/target/release
 COPY --from=builder /usr/local/bin/cometbft /usr/local/bin/cometbft
