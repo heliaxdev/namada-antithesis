@@ -459,7 +459,11 @@ impl State {
             .collect()
     }
 
-    pub fn random_deactivated_validator(&mut self, blacklist: Vec<Alias>, sample_size: usize) -> Vec<Account> {
+    pub fn random_deactivated_validator(
+        &mut self,
+        blacklist: Vec<Alias>,
+        sample_size: usize,
+    ) -> Vec<Account> {
         self.deactivated_validators
             .iter()
             .filter(|(alias, _)| !blacklist.contains(alias))
@@ -701,7 +705,7 @@ impl State {
     }
 
     pub fn remove_deactivate_validator(&mut self, alias: Alias) {
-        let account = self.deactivated_validators.remove(&alias).unwrap();
+        self.deactivated_validators.remove(&alias).unwrap();
     }
 }
 
