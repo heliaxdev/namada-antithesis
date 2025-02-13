@@ -74,16 +74,45 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.commit || 'main' }}/${{ github.event.inputs.genesis_template_version || '0.46.0-ant' }}
+      - name: Build & Push Image ${{ matrix.images.image }} with sha commit main/'0.46.0-ant' (scheduled)
+        if: ${{ github.event_name == 'schedule' }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.images.context }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
-            ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.event.inputs.tag || github.head_ref || github.ref_name }}${{ matrix.images.tag }}
-            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.image }}:${{ github.event.inputs.tag || github.head_ref || github.ref_name }}${{ matrix.images.tag }}
+            ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:main${{ matrix.images.tag }}
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.image }}:main${{ matrix.images.tag }}
           cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
           cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
-            GENESIS_TEMPLATE_VERSION=${{ github.event.inputs.genesis_template_version || '0.46.0-ant' }}
-            GIT_SHA=${{ github.event.inputs.commit || 'main' }}
+            GENESIS_TEMPLATE_VERSION='0.46.0-ant'
+            GIT_SHA='main'
+      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.ref_name || github.head_ref }}/0.46.0-ant (pull request)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.images.context }}
+          push: false
+          tags: |
+            ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.ref_name || github.head_ref }}${{ matrix.images.tag }}
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.image }}:${{ github.ref_name || github.head_ref }}${{ matrix.images.tag }}
+          cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
+          cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
+          build-args: |
+            GENESIS_TEMPLATE_VERSION='0.46.0-ant'
+            GIT_SHA=${{ github.ref_name || github.head_ref }}
+      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.tag }}/0.46.0-ant (workflow dispatch)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.images.context }}
+          push: true
+          tags: |
+            ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.event.inputs.tag }}${{ matrix.images.tag }}
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.image }}:${{ github.event.inputs.tag }}${{ matrix.images.tag }}
+          cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
+          cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
+          build-args: |
+            GENESIS_TEMPLATE_VERSION=${{ github.event.inputs.genesis_template_version }}
+            GIT_SHA=${{ github.event.inputs.tag }}
