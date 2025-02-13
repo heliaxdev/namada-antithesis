@@ -22,12 +22,10 @@ pub async fn build_vote(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepE
 
     let vote = if utils::coin_flip(state, 0.5) {
         "yay"
+    } else if utils::coin_flip(state, 0.5) {
+        "nay"
     } else {
-        if utils::coin_flip(state, 0.5) {
-            "nay"
-        } else {
-            "abstain"
-        }
+        "abstain"
     };
 
     let mut task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());

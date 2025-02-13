@@ -20,7 +20,8 @@ use crate::{
         transparent_transfer::build_transparent_transfer,
         unbond::build_unbond,
         unshielding::build_unshielding,
-        update_account::build_update_account, vote::build_vote,
+        update_account::build_update_account,
+        vote::build_vote,
     },
     build_checks,
     check::Check,
@@ -46,7 +47,8 @@ use crate::{
         transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
         unbond::{build_tx_unbond, execute_tx_unbond},
         unshielding::{build_tx_unshielding, execute_tx_unshielding},
-        update_account::{build_tx_update_account, execute_tx_update_account}, vote::{build_tx_vote, execute_tx_vote},
+        update_account::{build_tx_update_account, execute_tx_update_account},
+        vote::{build_tx_vote, execute_tx_vote},
     },
     sdk::namada::Sdk,
     state::State,
@@ -109,7 +111,7 @@ pub enum StepType {
     DeactivateValidator,
     ReactivateValidator,
     DefaultProposal,
-    VoteProposal
+    VoteProposal,
 }
 
 impl Display for StepType {
@@ -233,7 +235,7 @@ impl WorkloadExecutor {
             }
             StepType::ReactivateValidator => state.min_n_deactivated_validators(1),
             StepType::DefaultProposal => state.any_account_with_min_balance(PROPOSAL_DEPOSIT),
-            StepType::VoteProposal => state.any_bond() && state.any_votable_proposal(current_epoch)
+            StepType::VoteProposal => state.any_bond() && state.any_votable_proposal(current_epoch),
         }
     }
 
@@ -264,7 +266,7 @@ impl WorkloadExecutor {
             StepType::UpdateAccount => build_update_account(state).await?,
             StepType::ReactivateValidator => build_reactivate_validator(state).await?,
             StepType::DefaultProposal => build_default_proposal(sdk, state).await?,
-            StepType::VoteProposal => build_vote(sdk, state).await?
+            StepType::VoteProposal => build_vote(sdk, state).await?,
         };
         Ok(steps)
     }

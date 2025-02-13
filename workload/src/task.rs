@@ -80,7 +80,7 @@ pub enum Task {
     ReactivateValidator(Source, TaskSettings),
     UpdateAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
     DefaultProposal(Source, Epoch, Epoch, Epoch, TaskSettings),
-    Vote(Source, ProposalId, Vote, TaskSettings)
+    Vote(Source, ProposalId, Vote, TaskSettings),
 }
 
 impl Task {

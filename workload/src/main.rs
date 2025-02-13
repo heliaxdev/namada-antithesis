@@ -11,7 +11,8 @@ use namada_chain_workload::{
 };
 use namada_sdk::{
     io::{Client, NullIo},
-    masp::{fs::FsShieldedUtils, ShieldedContext}, rpc,
+    masp::{fs::FsShieldedUtils, ShieldedContext},
+    rpc,
 };
 use namada_wallet::fs::FsWalletUtils;
 use serde_json::json;
