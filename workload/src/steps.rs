@@ -33,6 +33,7 @@ use crate::{
         change_metadata::build_tx_change_metadata,
         claim_rewards::{build_tx_claim_rewards, execute_tx_claim_rewards},
         deactivate_validator::{build_tx_deactivate_validator, execute_tx_deactivate_validator},
+        default_proposal::{build_tx_default_proposal, execute_tx_default_proposal},
         faucet_transfer::execute_faucet_transfer,
         init_account::{build_tx_init_account, execute_tx_init_account},
         new_wallet_keypair::execute_new_wallet_key_pair,
@@ -1466,7 +1467,16 @@ impl WorkloadExecutor {
                     execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::DefaultProposal(source, start_epoch, end_epoch, grace_epoch, settings) => {
-                    todo!()
+                    let (mut tx, signing_data, tx_args) = build_tx_default_proposal(
+                        sdk,
+                        source,
+                        start_epoch,
+                        end_epoch,
+                        grace_epoch,
+                        settings,
+                    )
+                    .await?;
+                    execute_tx_default_proposal(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];

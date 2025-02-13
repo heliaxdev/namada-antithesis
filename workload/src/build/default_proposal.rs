@@ -1,7 +1,13 @@
-use namada_sdk::rpc;
+
 use crate::{
-    constants::PROPOSAL_DEPOSIT, entities::Alias, sdk::namada::Sdk, state::State, steps::StepError, task::{Task, TaskSettings}
+    constants::PROPOSAL_DEPOSIT,
+    entities::Alias,
+    sdk::namada::Sdk,
+    state::State,
+    steps::StepError,
+    task::{Task, TaskSettings},
 };
+use namada_sdk::rpc;
 
 use super::utils;
 
@@ -17,9 +23,23 @@ pub async fn build_default_proposal(sdk: &Sdk, state: &mut State) -> Result<Vec<
         .next()
         .next();
 
-    let start_epoch = utils::random_between(state, current_epoch.0 + 2, current_epoch.0 + 4);
-    let end_epoch = utils::random_between(state, start_epoch, current_epoch.0 + 6);
-    let grace_epoch = utils::random_between(state, end_epoch, current_epoch.0 + 4);
+    let gov_prams = rpc::query_governance_parameters(&client).await;
+
+    let start_epoch = utils::random_between(
+        state,
+        current_epoch.0 + 2,
+        current_epoch.0 + gov_prams.max_proposal_latency,
+    );
+    let end_epoch = utils::random_between(
+        state,
+        start_epoch + gov_prams.min_proposal_voting_period,
+        start_epoch + gov_prams.max_proposal_period - 5,
+    );
+    let grace_epoch = utils::random_between(
+        state,
+        end_epoch + gov_prams.min_proposal_grace_epochs,
+        end_epoch + 5,
+    );
 
     let task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());
 

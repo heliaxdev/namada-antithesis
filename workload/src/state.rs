@@ -501,7 +501,11 @@ impl State {
             .unwrap()
     }
 
-    pub fn random_account_with_min_balance(&mut self, blacklist: Vec<Alias>, min_balance: Option<u64>) -> Option<Account> {
+    pub fn random_account_with_min_balance(
+        &mut self,
+        blacklist: Vec<Alias>,
+        min_balance: Option<u64>,
+    ) -> Option<Account> {
         self.balances
             .iter()
             .filter_map(|(alias, balance)| {
@@ -606,7 +610,7 @@ impl State {
 
     pub fn modify_balance(&mut self, source: Alias, amount: i64) {
         if source.is_faucet() {
-            return
+            return;
         }
 
         if amount > 0 {

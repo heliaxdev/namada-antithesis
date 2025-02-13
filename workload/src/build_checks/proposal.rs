@@ -1,6 +1,8 @@
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
-use crate::{check::Check, constants::PROPOSAL_DEPOSIT, entities::Alias, sdk::namada::Sdk, state::State};
+use crate::{
+    check::Check, constants::PROPOSAL_DEPOSIT, entities::Alias, sdk::namada::Sdk, state::State,
+};
 
 pub async fn proposal(
     sdk: &Sdk,

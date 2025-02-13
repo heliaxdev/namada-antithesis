@@ -5,6 +5,7 @@ pub mod change_consensus_keys;
 pub mod change_metadata;
 pub mod claim_rewards;
 pub mod deactivate_validator;
+pub mod default_proposal;
 pub mod faucet_transfer;
 pub mod init_account;
 pub mod new_wallet_keypair;
