@@ -1,8 +1,3 @@
-use std::str::FromStr;
-
-use namada_sdk::{address::Address, rpc};
-use rand::seq::IteratorRandom;
-
 use crate::{
     entities::Alias,
     sdk::namada::Sdk,
@@ -10,6 +5,7 @@ use crate::{
     steps::StepError,
     task::{Task, TaskSettings},
 };
+use namada_sdk::rpc;
 
 use super::utils;
 
@@ -23,11 +19,15 @@ pub async fn build_vote(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepE
         .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?;
 
     let proposal_id = state.random_votable_proposal(current_epoch.0);
-    
+
     let vote = if utils::coin_flip(state, 0.5) {
-        "yes"
+        "yay"
     } else {
-        "no"
+        if utils::coin_flip(state, 0.5) {
+            "nay"
+        } else {
+            "abstain"
+        }
     };
 
     let mut task_settings = TaskSettings::new(source_account.public_keys, Alias::faucet());

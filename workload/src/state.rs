@@ -215,11 +215,10 @@ impl State {
                     self.modify_balance(source, -(PROPOSAL_DEPOSIT as i64));
                     self.add_proposal(start_epoch, end_epoch);
                 }
-                Task::Vote(source, proposal_id, _, setting) => {
+                Task::Vote(_, _, _, setting) => {
                     if with_fee {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     }
-                    // todo
                 }
             }
             self.stats

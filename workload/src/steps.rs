@@ -46,7 +46,7 @@ use crate::{
         transparent_transfer::{build_tx_transparent_transfer, execute_tx_transparent_transfer},
         unbond::{build_tx_unbond, execute_tx_unbond},
         unshielding::{build_tx_unshielding, execute_tx_unshielding},
-        update_account::{build_tx_update_account, execute_tx_update_account},
+        update_account::{build_tx_update_account, execute_tx_update_account}, vote::{build_tx_vote, execute_tx_vote},
     },
     sdk::namada::Sdk,
     state::State,
@@ -1428,10 +1428,9 @@ impl WorkloadExecutor {
                     execute_tx_reactivate_validator(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::Vote(source, proposal_id, vote, settings) => {
-                    todo!()
-                    // let (mut tx, signing_data, tx_args) =
-                    //     build_tx_reactivate_validator(sdk, target, settings).await?;
-                    // execute_tx_reactivate_validator(sdk, &mut tx, signing_data, &tx_args).await?
+                    let (mut tx, signing_data, tx_args) =
+                        build_tx_vote(sdk, source, proposal_id, vote, settings).await?;
+                    execute_tx_vote(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::ChangeMetadata(
                     source,
