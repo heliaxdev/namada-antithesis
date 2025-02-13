@@ -614,9 +614,9 @@ impl State {
         }
 
         if amount > 0 {
-            *self.balances.get_mut(&source).unwrap() += amount.abs() as u64;
+            *self.balances.get_mut(&source).unwrap() += amount.unsigned_abs();
         } else {
-            *self.balances.get_mut(&source).unwrap() -= amount.abs() as u64;
+            *self.balances.get_mut(&source).unwrap() -= amount.unsigned_abs();
         }
     }
 

@@ -21,7 +21,12 @@ use crate::{
         unbond::build_unbond,
         unshielding::build_unshielding,
         update_account::build_update_account,
-    }, build_checks, check::Check, constants::PROPOSAL_DEPOSIT, entities::Alias, execute::{
+    },
+    build_checks,
+    check::Check,
+    constants::PROPOSAL_DEPOSIT,
+    entities::Alias,
+    execute::{
         batch::execute_tx_batch,
         become_validator::build_tx_become_validator,
         bond::{build_tx_bond, execute_tx_bond},
@@ -42,7 +47,10 @@ use crate::{
         unbond::{build_tx_unbond, execute_tx_unbond},
         unshielding::{build_tx_unshielding, execute_tx_unshielding},
         update_account::{build_tx_update_account, execute_tx_update_account},
-    }, sdk::namada::Sdk, state::State, task::Task
+    },
+    sdk::namada::Sdk,
+    state::State,
+    task::Task,
 };
 use clap::ValueEnum;
 use namada_sdk::{

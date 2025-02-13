@@ -1,4 +1,3 @@
-
 use crate::{
     constants::PROPOSAL_DEPOSIT,
     entities::Alias,
