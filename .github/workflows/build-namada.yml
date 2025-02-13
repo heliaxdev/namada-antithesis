@@ -102,7 +102,7 @@ jobs:
           build-args: |
             GENESIS_TEMPLATE_VERSION='0.46.0-ant'
             GIT_SHA=${{ github.ref_name || github.head_ref }}
-      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.tag }}/0.46.0-ant (workflow dispatch)
+      - name: Build & Push Image ${{ matrix.images.image }} with sha commit ${{ github.event.inputs.tag }}/${{ github.event.inputs.genesis_template_version }} (workflow dispatch)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: docker/build-push-action@v6
         with:
