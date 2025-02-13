@@ -72,6 +72,7 @@ pub struct State {
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
     pub validators: HashMap<Alias, Account>,
     pub deactivated_validators: HashMap<Alias, Account>,
+    pub proposals: HashMap<u64, (u64, u64)>,
     pub seed: u64,
     pub rng: AntithesisRng,
     pub path: PathBuf,
@@ -91,6 +92,7 @@ impl State {
             redelegations: HashMap::default(),
             validators: HashMap::default(),
             deactivated_validators: HashMap::default(),
+            proposals: HashMap::default(),
             seed,
             rng: AntithesisRng::default(),
             path: env::current_dir()
@@ -206,11 +208,18 @@ impl State {
                     }
                     self.remove_deactivate_validator(target);
                 }
-                Task::DefaultProposal(source, _, _, _, setting) => {
+                Task::DefaultProposal(source, start_epoch, end_epoch, _, setting) => {
                     if with_fee {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     }
                     self.modify_balance(source, -(PROPOSAL_DEPOSIT as i64));
+                    self.add_proposal(start_epoch, end_epoch);
+                }
+                Task::Vote(source, proposal_id, _, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    // todo
                 }
             }
             self.stats
@@ -251,6 +260,7 @@ impl State {
                 Task::DeactivateValidator(_alias, task_settings) => Some(task_settings),
                 Task::ReactivateValidator(_alias, task_settings) => Some(task_settings),
                 Task::DefaultProposal(_, _, _, _, task_settings) => Some(task_settings),
+                Task::Vote(_, _, _, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
@@ -385,6 +395,12 @@ impl State {
 
     pub fn min_n_deactivated_validators(&self, sample: usize) -> bool {
         self.deactivated_validators.len() >= sample
+    }
+
+    pub fn any_votable_proposal(&self, current_epoch: u64) -> bool {
+        self.proposals.iter().any(|(_, (start_epoch, end_epoch))| {
+            current_epoch > *start_epoch && current_epoch < *end_epoch
+        })
     }
 
     /// GET
@@ -548,6 +564,20 @@ impl State {
             .get(alias)
             .map(|data| data.keys().cloned().collect::<HashSet<String>>())
             .unwrap_or_default()
+    }
+
+    pub fn random_votable_proposal(&mut self, current_epoch: u64) -> u64 {
+        self.proposals
+            .iter()
+            .filter_map(|(proposal_id, (start_epoch, end_epoch))| {
+                if current_epoch >= *start_epoch && current_epoch <= *end_epoch {
+                    Some(proposal_id.to_owned())
+                } else {
+                    None
+                }
+            })
+            .choose(&mut self.rng)
+            .unwrap()
     }
 
     /// UPDATE
@@ -722,6 +752,12 @@ impl State {
 
     pub fn remove_deactivate_validator(&mut self, alias: Alias) {
         self.deactivated_validators.remove(&alias).unwrap();
+    }
+
+    pub fn add_proposal(&mut self, start_epoch: u64, end_epoch: u64) {
+        let latest_proposal_id = self.proposals.keys().max().unwrap_or(&0).to_owned();
+        self.proposals
+            .insert(latest_proposal_id, (start_epoch, end_epoch));
     }
 }
 

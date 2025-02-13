@@ -5,6 +5,10 @@ use rand::{
 
 use crate::{entities::Alias, state::State};
 
+pub(crate) fn coin_flip(state: &mut State, p: f64) -> bool {
+    state.rng.gen_bool(p)
+}
+
 pub(crate) fn random_between<T: SampleUniform + std::cmp::PartialOrd>(
     state: &mut State,
     from: T,

@@ -47,6 +47,8 @@ pub type Threshold = u64;
 pub type WalletAlias = Alias;
 pub type CommissionRate = Dec;
 pub type CommissionChange = Dec;
+pub type ProposalId = u64;
+pub type Vote = String;
 
 #[derive(Clone, Debug)]
 pub enum Task {
@@ -78,6 +80,7 @@ pub enum Task {
     ReactivateValidator(Source, TaskSettings),
     UpdateAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
     DefaultProposal(Source, Epoch, Epoch, Epoch, TaskSettings),
+    Vote(Source, ProposalId, Vote, TaskSettings)
 }
 
 impl Task {
@@ -102,6 +105,7 @@ impl Task {
             Task::DeactivateValidator(_, _) => "deactivate-validator".to_string(),
             Task::ReactivateValidator(_, _) => "reactivate-validator".to_string(),
             Task::DefaultProposal(_, _, _, _, _) => "default-proposal".to_string(),
+            Task::Vote(_, _, _, _) => "vote-proposal".to_string(),
         }
     }
 }
@@ -168,6 +172,9 @@ impl Display for Task {
             }
             Task::DefaultProposal(source, _, _, _, _) => {
                 write!(f, "default-proposal/{}", source.name)
+            }
+            Task::Vote(source, proposal_id, vote, _) => {
+                write!(f, "vote-proposal/{}/{}/{}", source.name, proposal_id, vote)
             }
             Task::Batch(tasks, _) => {
                 let tasks = tasks

@@ -20,7 +20,7 @@ use crate::{
         transparent_transfer::build_transparent_transfer,
         unbond::build_unbond,
         unshielding::build_unshielding,
-        update_account::build_update_account,
+        update_account::build_update_account, vote::build_vote,
     },
     build_checks,
     check::Check,
@@ -109,6 +109,7 @@ pub enum StepType {
     DeactivateValidator,
     ReactivateValidator,
     DefaultProposal,
+    VoteProposal
 }
 
 impl Display for StepType {
@@ -134,6 +135,7 @@ impl Display for StepType {
             StepType::DeactivateValidator => write!(f, "deactivate-validator"),
             StepType::ReactivateValidator => write!(f, "reactivate-validator"),
             StepType::DefaultProposal => write!(f, "default-proposal"),
+            StepType::VoteProposal => write!(f, "vote-proposal"),
         }
     }
 }
@@ -197,7 +199,7 @@ impl WorkloadExecutor {
         }
     }
 
-    pub fn is_valid(&self, step_type: &StepType, state: &State) -> bool {
+    pub fn is_valid(&self, step_type: &StepType, current_epoch: u64, state: &State) -> bool {
         match step_type {
             StepType::NewWalletKeyPair => true,
             StepType::FaucetTransfer => state.any_account(),
@@ -231,6 +233,7 @@ impl WorkloadExecutor {
             }
             StepType::ReactivateValidator => state.min_n_deactivated_validators(1),
             StepType::DefaultProposal => state.any_account_with_min_balance(PROPOSAL_DEPOSIT),
+            StepType::VoteProposal => state.any_bond() && state.any_votable_proposal(current_epoch)
         }
     }
 
@@ -261,6 +264,7 @@ impl WorkloadExecutor {
             StepType::UpdateAccount => build_update_account(state).await?,
             StepType::ReactivateValidator => build_reactivate_validator(state).await?,
             StepType::DefaultProposal => build_default_proposal(sdk, state).await?,
+            StepType::VoteProposal => build_vote(sdk, state).await?
         };
         Ok(steps)
     }
@@ -411,6 +415,9 @@ impl WorkloadExecutor {
                 }
                 Task::DefaultProposal(source, _start_epoch, _end_epoch, _grace_epoch, _) => {
                     build_checks::proposal::proposal(sdk, source, retry_config, state).await
+                }
+                Task::Vote(_, _, _, _) => {
+                    vec![]
                 }
                 Task::DeactivateValidator(target, _) => {
                     build_checks::deactivate_validator::deactivate_validator_build_checks(
@@ -1419,6 +1426,12 @@ impl WorkloadExecutor {
                     let (mut tx, signing_data, tx_args) =
                         build_tx_reactivate_validator(sdk, target, settings).await?;
                     execute_tx_reactivate_validator(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::Vote(source, proposal_id, vote, settings) => {
+                    todo!()
+                    // let (mut tx, signing_data, tx_args) =
+                    //     build_tx_reactivate_validator(sdk, target, settings).await?;
+                    // execute_tx_reactivate_validator(sdk, &mut tx, signing_data, &tx_args).await?
                 }
                 Task::ChangeMetadata(
                     source,

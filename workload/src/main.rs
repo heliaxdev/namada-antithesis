@@ -11,7 +11,7 @@ use namada_chain_workload::{
 };
 use namada_sdk::{
     io::{Client, NullIo},
-    masp::{fs::FsShieldedUtils, ShieldedContext},
+    masp::{fs::FsShieldedUtils, ShieldedContext}, rpc,
 };
 use namada_wallet::fs::FsWalletUtils;
 use serde_json::json;
@@ -165,6 +165,13 @@ async fn main() {
                 &json!({"outcome":exit_code})
             );
         }
+        StepType::VoteProposal => {
+            antithesis_sdk::assert_always!(
+                exit_code != 1,
+                "Done executing VoteProposal",
+                &json!({"outcome":exit_code})
+            );
+        }
     }
 
     std::process::exit(exit_code);
@@ -278,8 +285,10 @@ async fn inner_main() -> (i32, StepType) {
     workload_executor.init(&sdk).await;
     tracing::info!("Done initialization!");
 
+    let current_epoch = fetch_current_epoch(&sdk).await;
+
     let next_step = config.step_type; // bond
-    if !workload_executor.is_valid(&next_step, &state) {
+    if !workload_executor.is_valid(&next_step, current_epoch, &state) {
         tracing::warn!("Invalid step: {} -> {:>?}", next_step, state);
         return (0_i32, config.step_type);
     }
@@ -391,6 +400,17 @@ async fn fetch_current_block_height(sdk: &Sdk) -> u64 {
         let latest_block = client.latest_block().await;
         if let Ok(block) = latest_block {
             return block.block.header.height.into();
+        }
+        sleep(Duration::from_secs_f64(1.0f64)).await
+    }
+}
+
+async fn fetch_current_epoch(sdk: &Sdk) -> u64 {
+    let client = sdk.namada.clone_client();
+    loop {
+        let latest_epoch = rpc::query_epoch(&client).await;
+        if let Ok(epoch) = latest_epoch {
+            return epoch.into();
         }
         sleep(Duration::from_secs_f64(1.0f64)).await
     }
