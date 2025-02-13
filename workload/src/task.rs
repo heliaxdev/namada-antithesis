@@ -77,6 +77,7 @@ pub enum Task {
     DeactivateValidator(Source, TaskSettings),
     ReactivateValidator(Source, TaskSettings),
     UpdateAccount(Source, BTreeSet<Source>, Threshold, TaskSettings),
+    DefaultProposal(Source, Epoch, Epoch, Epoch, TaskSettings),
 }
 
 impl Task {
@@ -100,6 +101,7 @@ impl Task {
             Task::UpdateAccount(_, _, _, _) => "update-account".to_string(),
             Task::DeactivateValidator(_, _) => "deactivate-validator".to_string(),
             Task::ReactivateValidator(_, _) => "reactivate-validator".to_string(),
+            Task::DefaultProposal(_, _, _, _, _) => "default-proposal".to_string(),
         }
     }
 }
@@ -163,6 +165,9 @@ impl Display for Task {
             }
             Task::ReactivateValidator(source, _) => {
                 write!(f, "reactivate-validator/{}", source.name)
+            }
+            Task::DefaultProposal(_, _, _, _, _) => {
+                write!(f, "default-proposal")
             }
             Task::Batch(tasks, _) => {
                 let tasks = tasks

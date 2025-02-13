@@ -9,6 +9,7 @@ use crate::{
         change_metadata::build_change_metadata,
         claim_rewards::build_claim_rewards,
         deactivate_validator::build_deactivate_validator,
+        default_proposal::build_default_proposal,
         faucet_transfer::build_faucet_transfer,
         init_account::build_init_account,
         new_wallet_keypair::build_new_wallet_keypair,
@@ -105,6 +106,7 @@ pub enum StepType {
     UpdateAccount,
     DeactivateValidator,
     ReactivateValidator,
+    DefaultProposal,
 }
 
 impl Display for StepType {
@@ -129,6 +131,7 @@ impl Display for StepType {
             StepType::UpdateAccount => write!(f, "update-account"),
             StepType::DeactivateValidator => write!(f, "deactivate-validator"),
             StepType::ReactivateValidator => write!(f, "reactivate-validator"),
+            StepType::DefaultProposal => write!(f, "default-proposal"),
         }
     }
 }
@@ -225,6 +228,7 @@ impl WorkloadExecutor {
                 state.min_n_enstablished_accounts(1) && state.min_n_implicit_accounts(3)
             }
             StepType::ReactivateValidator => state.min_n_deactivated_validators(1),
+            StepType::DefaultProposal => state.any_account_with_min_balance(51),
         }
     }
 
@@ -254,6 +258,7 @@ impl WorkloadExecutor {
             StepType::DeactivateValidator => build_deactivate_validator(state).await?,
             StepType::UpdateAccount => build_update_account(state).await?,
             StepType::ReactivateValidator => build_reactivate_validator(state).await?,
+            StepType::DefaultProposal => build_default_proposal(sdk, state).await?,
         };
         Ok(steps)
     }
@@ -401,6 +406,9 @@ impl WorkloadExecutor {
                         state,
                     )
                     .await
+                }
+                Task::DefaultProposal(source, _start_epoch, _end_epoch, _grace_epoch, _) => {
+                    build_checks::proposal::proposal(sdk, source, retry_config, state).await
                 }
                 Task::DeactivateValidator(target, _) => {
                     build_checks::deactivate_validator::deactivate_validator_build_checks(
@@ -1456,6 +1464,9 @@ impl WorkloadExecutor {
                     )
                     .await?;
                     execute_tx_shielding(sdk, &mut tx, signing_data, &tx_args).await?
+                }
+                Task::DefaultProposal(source, start_epoch, end_epoch, grace_epoch, settings) => {
+                    todo!()
                 }
                 Task::Batch(tasks, task_settings) => {
                     let mut txs = vec![];

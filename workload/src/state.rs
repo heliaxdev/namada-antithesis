@@ -9,7 +9,7 @@ use rand::{seq::IteratorRandom, Rng, RngCore};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constants::{DEFAULT_FEE_IN_NATIVE_TOKEN, MIN_TRANSFER_BALANCE},
+    constants::{DEFAULT_FEE_IN_NATIVE_TOKEN, MIN_TRANSFER_BALANCE, PROPOSAL_DEPOSIT},
     entities::Alias,
     task::Task,
 };
@@ -109,17 +109,17 @@ impl State {
                     self.add_masp_account(alias);
                 }
                 Task::FaucetTransfer(target, amount, settings) => {
-                    let source_alias = Alias::faucet();
-                    self.modify_balance(source_alias, target, amount);
                     if with_fee {
                         self.modify_balance_fee(settings.gas_payer, settings.gas_limit);
                     }
+                    self.modify_balance(target, amount as i64);
                 }
                 Task::TransparentTransfer(source, target, amount, setting) => {
-                    self.modify_balance(source, target, amount);
                     if with_fee {
                         self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
                     }
+                    self.modify_balance(source, -(amount as i64));
+                    self.modify_balance(target, amount as i64);
                 }
                 Task::Bond(source, validator, amount, _, setting) => {
                     self.modify_bond(source, validator, amount);
@@ -206,6 +206,12 @@ impl State {
                     }
                     self.remove_deactivate_validator(target);
                 }
+                Task::DefaultProposal(source, _, _, _, setting) => {
+                    if with_fee {
+                        self.modify_balance_fee(setting.gas_payer, setting.gas_limit);
+                    }
+                    self.modify_balance(source, -(PROPOSAL_DEPOSIT as i64));
+                }
             }
             self.stats
                 .entry(task.raw_type())
@@ -244,6 +250,7 @@ impl State {
                 Task::UpdateAccount(_alias, _, _, task_settings) => Some(task_settings),
                 Task::DeactivateValidator(_alias, task_settings) => Some(task_settings),
                 Task::ReactivateValidator(_alias, task_settings) => Some(task_settings),
+                Task::DefaultProposal(_, _, _, _, task_settings) => Some(task_settings),
             };
             if let Some(settings) = settings {
                 self.modify_balance_fee(settings.gas_payer.clone(), settings.gas_limit);
@@ -494,14 +501,14 @@ impl State {
             .unwrap()
     }
 
-    pub fn random_account_with_min_balance(&mut self, blacklist: Vec<Alias>) -> Option<Account> {
+    pub fn random_account_with_min_balance(&mut self, blacklist: Vec<Alias>, min_balance: Option<u64>) -> Option<Account> {
         self.balances
             .iter()
             .filter_map(|(alias, balance)| {
                 if blacklist.contains(alias) {
                     return None;
                 }
-                if balance >= &DEFAULT_FEE_IN_NATIVE_TOKEN {
+                if balance >= &min_balance.unwrap_or(DEFAULT_FEE_IN_NATIVE_TOKEN) {
                     Some(self.accounts.get(alias).unwrap().clone())
                 } else {
                     None
@@ -597,11 +604,16 @@ impl State {
         });
     }
 
-    pub fn modify_balance(&mut self, source: Alias, target: Alias, amount: u64) {
-        if !source.is_faucet() {
-            *self.balances.get_mut(&source).unwrap() -= amount;
+    pub fn modify_balance(&mut self, source: Alias, amount: i64) {
+        if source.is_faucet() {
+            return
         }
-        *self.balances.get_mut(&target).unwrap() += amount;
+
+        if amount > 0 {
+            *self.balances.get_mut(&source).unwrap() += amount as u64;
+        } else {
+            *self.balances.get_mut(&source).unwrap() -= amount as u64;
+        }
     }
 
     pub fn modify_balance_fee(&mut self, source: Alias, _gas_limit: u64) {

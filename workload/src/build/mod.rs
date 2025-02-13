@@ -17,3 +17,4 @@ pub mod unbond;
 pub mod unshielding;
 pub mod update_account;
 pub mod utils;
+pub mod default_proposal;
