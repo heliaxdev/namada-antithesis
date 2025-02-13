@@ -166,8 +166,8 @@ impl Display for Task {
             Task::ReactivateValidator(source, _) => {
                 write!(f, "reactivate-validator/{}", source.name)
             }
-            Task::DefaultProposal(_, _, _, _, _) => {
-                write!(f, "default-proposal")
+            Task::DefaultProposal(source, _, _, _, _) => {
+                write!(f, "default-proposal/{}", source.name)
             }
             Task::Batch(tasks, _) => {
                 let tasks = tasks

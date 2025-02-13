@@ -19,9 +19,7 @@ pub async fn build_default_proposal(sdk: &Sdk, state: &mut State) -> Result<Vec<
 
     let current_epoch = rpc::query_epoch(&client)
         .await
-        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?
-        .next()
-        .next();
+        .map_err(|e| StepError::Rpc(format!("query epoch: {}", e)))?;
 
     let gov_prams = rpc::query_governance_parameters(&client).await;
 
