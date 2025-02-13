@@ -48,17 +48,29 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker metadata
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/heliaxdev/ant-workload
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/workload
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
       - name: Build and push (pull request / push)
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
         uses: docker/build-push-action@v6
         with:
           context: workload
           push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ghcr.io/heliaxdev/ant-workload:${{ github.ref_name || github.head_ref }}
-            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/workload:${{ github.ref_name || github.head_ref }}
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=workload-image
           cache-to: type=gha,scope=workload-image,mode=max
+          labels: ${{ steps.meta.outputs.labels }}
       - name: Build and push (workflow_dispatch)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: docker/build-push-action@v6
