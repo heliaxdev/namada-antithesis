@@ -65,14 +65,28 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
+      - name: Build and push (pull request / push)
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.images.context }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ghcr.io/heliaxdev/ant-${{ matrix.images.name }}:${{ github.event.inputs.tag || github.head_ref || github.ref_name }}
-            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.name }}:${{ github.event.inputs.tag || github.head_ref || github.ref_name }}
+            ghcr.io/heliaxdev/ant-${{ matrix.images.name }}:${{ github.ref_name || github.head_ref }}
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.name }}:${{ github.ref_name || github.head_ref }}
+          cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
+          cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
+          build-args: |
+            GIT_SHA=${{ matrix.images.sha || 'master' }}
+      - name: Build and push (schedule)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.images.context }}
+          push: true
+          tags: |
+            ghcr.io/heliaxdev/ant-${{ matrix.images.name }}:${{ github.event.inputs.tag }}
+            us-central1-docker.pkg.dev/molten-verve-216720/heliax-repository/${{ matrix.images.name }}:${{ github.event.inputs.tag }}
           cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
           cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
