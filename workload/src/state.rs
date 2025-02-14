@@ -601,7 +601,6 @@ impl State {
         aliases: BTreeSet<Alias>,
         threshold: u64,
     ) {
-        assert!(self.accounts.contains_key(&alias));
         self.accounts.entry(alias).and_modify(|account| {
             account.public_keys = aliases;
             account.threshold = threshold;
@@ -712,6 +711,7 @@ impl State {
 
     pub fn set_enstablished_as_validator(&mut self, alias: Alias) {
         let account = self.accounts.remove(&alias).unwrap();
+        self.balances.remove(&alias).unwrap();
         self.validators.insert(alias, account);
     }
 
