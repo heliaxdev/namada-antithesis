@@ -24,7 +24,7 @@ use crate::{
     },
     build_checks,
     check::Check,
-    constants::PROPOSAL_DEPOSIT,
+    constants::{MIN_TRANSFER_BALANCE, PROPOSAL_DEPOSIT},
     entities::Alias,
     execute::{
         batch::execute_tx_batch,
@@ -204,22 +204,22 @@ impl WorkloadExecutor {
             StepType::TransparentTransfer => {
                 state.at_least_accounts(2) && state.any_account_can_make_transfer()
             }
-            StepType::Bond => state.any_account_with_min_balance(2),
+            StepType::Bond => state.any_account_with_min_balance(MIN_TRANSFER_BALANCE),
             StepType::Unbond => state.any_bond(),
             StepType::InitAccount => state.min_n_implicit_accounts(3),
             StepType::Redelegate => state.any_bond(),
             StepType::ClaimRewards => state.any_bond(),
-            StepType::Shielding => state.any_account_with_min_balance(2),
-            StepType::BatchBond => state.min_n_account_with_min_balance(3, 2),
+            StepType::Shielding => state.any_account_with_min_balance(MIN_TRANSFER_BALANCE),
+            StepType::BatchBond => state.min_n_account_with_min_balance(3, MIN_TRANSFER_BALANCE),
             StepType::BatchRandom => {
-                state.min_n_account_with_min_balance(3, 2) && state.min_bonds(3)
+                state.min_n_account_with_min_balance(3, MIN_TRANSFER_BALANCE) && state.min_bonds(3)
             }
             StepType::Shielded => {
                 state.at_least_masp_accounts(2)
-                    && state.at_least_masp_account_with_minimal_balance(1, 2)
+                    && state.at_least_masp_account_with_minimal_balance(1, MIN_TRANSFER_BALANCE)
             }
             StepType::Unshielding => {
-                state.at_least_masp_account_with_minimal_balance(1, 2)
+                state.at_least_masp_account_with_minimal_balance(1, MIN_TRANSFER_BALANCE)
                     && state.min_n_implicit_accounts(1)
             }
             StepType::BecomeValidator => state.min_n_enstablished_accounts(1),

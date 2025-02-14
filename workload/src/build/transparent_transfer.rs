@@ -1,4 +1,5 @@
 use crate::{
+    constants::MIN_TRANSFER_BALANCE,
     entities::Alias,
     state::State,
     steps::StepError,
@@ -9,7 +10,7 @@ use super::utils;
 
 pub async fn build_transparent_transfer(state: &mut State) -> Result<Vec<Task>, StepError> {
     let source_account = state
-        .random_account_with_min_balance(vec![], None)
+        .random_account_with_min_balance(vec![], MIN_TRANSFER_BALANCE)
         .ok_or(StepError::Build("No more accounts".to_string()))?;
     let target_account = state
         .random_account(vec![source_account.alias.clone()])

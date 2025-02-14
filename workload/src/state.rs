@@ -504,7 +504,7 @@ impl State {
     pub fn random_account_with_min_balance(
         &mut self,
         blacklist: Vec<Alias>,
-        min_balance: Option<u64>,
+        min_balance: u64,
     ) -> Option<Account> {
         self.balances
             .iter()
@@ -512,7 +512,7 @@ impl State {
                 if blacklist.contains(alias) {
                     return None;
                 }
-                if balance >= &min_balance.unwrap_or(DEFAULT_FEE_IN_NATIVE_TOKEN) {
+                if balance >= &min_balance {
                     Some(self.accounts.get(alias).unwrap().clone())
                 } else {
                     None

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::{
+    constants::MIN_TRANSFER_BALANCE,
     entities::Alias,
     state::State,
     steps::StepError,
@@ -11,7 +12,7 @@ use super::utils;
 
 pub async fn build_unshielding(state: &mut State) -> Result<Vec<Task>, StepError> {
     let source_account = state
-        .random_masp_account_with_min_balance(vec![], 2)
+        .random_masp_account_with_min_balance(vec![], MIN_TRANSFER_BALANCE)
         .ok_or(StepError::Build("No more accounts".to_string()))?;
 
     let target_account = state

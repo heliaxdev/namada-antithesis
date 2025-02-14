@@ -13,7 +13,7 @@ use super::utils;
 pub async fn build_default_proposal(sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepError> {
     let client = sdk.namada.clone_client();
     let source_account = state
-        .random_account_with_min_balance(vec![], Some(PROPOSAL_DEPOSIT))
+        .random_account_with_min_balance(vec![], PROPOSAL_DEPOSIT)
         .ok_or(StepError::Build("No more accounts".to_string()))?;
 
     let current_epoch = rpc::query_epoch(&client)
