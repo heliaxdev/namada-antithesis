@@ -5,12 +5,6 @@ on:
     paths:
       - 'workload/**'
       - 'check/**'
-  push:
-    branches:
-      - master
-    paths:
-      - 'workload/**'
-      - 'check/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
