@@ -27,13 +27,13 @@ permissions:
   id-token: write
 
 jobs:
-  masp-indexer:
+  indexer:
     strategy:
       fail-fast: true
       matrix:
         images:
           - name: "indexer-chain"
-            context: "indexer/webserver"
+            context: "indexer/chain"
             sha: "main"
             cache_scope: "indexer-chain-image"
           - name: "indexer-transactions"
