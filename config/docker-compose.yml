@@ -223,6 +223,36 @@ services:
     networks:
       namada-net:
         ipv4_address: 30.0.0.23
+  indexer-chain:
+    container_name: indexer-chain
+    hostname: indexer-chain
+    image: indexer-chain:${INDEXER_CHAIN_IMAGE_TAG:-latest}
+    restart: on-failure
+    environment:
+      - TENDERMINT_URL=http://30.0.0.12:27658
+      - DATABASE_URL=postgres://postgres:password@30.0.0.21:5432/masp_indexer_local
+      - INITIAL_QUERY_RETRY_TIME=15
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      namada-net:
+        ipv4_address: 30.0.0.24
+  indexer-transactions:
+    container_name: indexer-transactions
+    hostname: indexer-transactions
+    image: indexer-transactions:${INDEXER_TRANSACTIONS_IMAGE_TAG:-latest}
+    restart: on-failure
+    environment:
+      - TENDERMINT_URL=http://30.0.0.12:27658
+      - DATABASE_URL=postgres://postgres:password@30.0.0.21:5432/masp_indexer_local
+      - INITIAL_QUERY_RETRY_TIME=15
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      namada-net:
+        ipv4_address: 30.0.0.25
 networks:
   namada-net:
     driver: bridge
