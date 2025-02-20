@@ -5,13 +5,11 @@ use crate::{
     task::{Task, TaskSettings},
 };
 
-use super::utils;
-
 pub async fn build_faucet_transfer(state: &mut State) -> Result<Vec<Task>, StepError> {
     let target_account = state
         .random_account(vec![])
         .ok_or(StepError::Build("No more accounts".to_string()))?;
-    let amount = utils::random_between(state, 1000, 2000) * NATIVE_SCALE;
+    let amount = 1_000_000 * NATIVE_SCALE;
 
     let task_settings = TaskSettings::faucet();
 

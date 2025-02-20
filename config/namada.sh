@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ 
 # Simple entrypoint for the validator/full node to wait for joining the network before starting
 set -e
 

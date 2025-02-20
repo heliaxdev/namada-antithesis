@@ -35,6 +35,12 @@ source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_create_wallet.sh
 
 source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
@@ -46,6 +52,10 @@ source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_faucet_transfer.sh
 
 source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
@@ -57,7 +67,13 @@ source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
+source /opt/antithesis/test/v1/namada/parallel_driver_bond.sh
 
+source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
 source /opt/antithesis/test/v1/namada/parallel_driver_init_account.sh
