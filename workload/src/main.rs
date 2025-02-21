@@ -3,6 +3,7 @@ use std::{env, str::FromStr, thread, time::Duration};
 use antithesis_sdk::antithesis_init;
 use clap::Parser;
 use namada_chain_workload::{
+    assert_step,
     config::AppConfig,
     sdk::namada::Sdk,
     state::{State, StateError},
@@ -96,136 +97,128 @@ impl Code {
 
     fn assert(&self) {
         let is_fatal = matches!(self, Code::Fatal(_, _) | Code::StateFatal(_));
+        let is_failed = matches!(self, Code::ExecutionFailure(_, _));
+        let is_skipped = matches!(self, Code::InvalidStep(_));
+        let is_successful = matches!(self, Code::Success(_));
+
+        let step_type = if let Some(step_type) = self.step_type() {
+            step_type
+        } else {
+            return;
+        };
         let details = json!({"outcome": self.code()});
-        if let Some(step_type) = self.step_type() {
+
+        if is_fatal {
             match step_type {
-                StepType::NewWalletKeyPair => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing NewWalletKeyPair",
-                        &details
-                    );
-                }
-                StepType::FaucetTransfer => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing FaucetTransfer",
-                        &details
-                    );
-                }
+                StepType::NewWalletKeyPair => assert_step!("Fatal NewWalletKeyPair", details),
+                StepType::FaucetTransfer => assert_step!("Fatal FaucetTransfer", details),
+                StepType::TransparentTransfer => assert_step!("Fatal TransparentTransfer", details),
+                StepType::Bond => assert_step!("Fatal Bond", details),
+                StepType::InitAccount => assert_step!("Fatal InitAccount", details),
+                StepType::Redelegate => assert_step!("Fatal Redelegate", details),
+                StepType::Unbond => assert_step!("Fatal Unbond", details),
+                StepType::ClaimRewards => assert_step!("Fatal ClaimRewards", details),
+                StepType::BatchBond => assert_step!("Fatal BatchBond", details),
+                StepType::BatchRandom => assert_step!("Fatal BatchRandom", details),
+                StepType::Shielding => assert_step!("Fatal Shielding", details),
+                StepType::Shielded => assert_step!("Fatal Shielded", details),
+                StepType::Unshielding => assert_step!("Fatal Unshielding", details),
+                StepType::BecomeValidator => assert_step!("Fatal BecomeValidator", details),
+                StepType::ChangeMetadata => assert_step!("Fatal ChangeMetadata", details),
+                StepType::ChangeConsensusKeys => assert_step!("Fatal ChangeConsensusKeys", details),
+                StepType::UpdateAccount => assert_step!("Fatal UpdateAccount", details),
+                StepType::DeactivateValidator => assert_step!("Fatal DeactivateValidator", details),
+                StepType::ReactivateValidator => assert_step!("Fatal ReactivateValidator", details),
+                StepType::DefaultProposal => assert_step!("Fatal DefaultProposal", details),
+                StepType::VoteProposal => assert_step!("Fatal VoteProposal", details),
+            }
+        } else if is_skipped {
+            match step_type {
+                StepType::NewWalletKeyPair => assert_step!("Skipped NewWalletKeyPair", details),
+                StepType::FaucetTransfer => assert_step!("Skipped FaucetTransfer", details),
                 StepType::TransparentTransfer => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing TransparentTransfer",
-                        &details
-                    );
+                    assert_step!("Skipped TransparentTransfer", details)
                 }
-                StepType::Bond => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Bond", &details);
-                }
-                StepType::InitAccount => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing InitAccount",
-                        &details
-                    );
-                }
-                StepType::Redelegate => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing Redelegate",
-                        &details
-                    );
-                }
-                StepType::Unbond => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Unbond", &details);
-                }
-                StepType::ClaimRewards => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ClaimRewards",
-                        &details
-                    );
-                }
-                StepType::BatchBond => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing BatchBond", &details);
-                }
-                StepType::BatchRandom => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing BatchRandom",
-                        &details
-                    );
-                }
-                StepType::Shielding => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Shielding", &details);
-                }
-                StepType::Shielded => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Shielded", &details);
-                }
-                StepType::Unshielding => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing Unshielding",
-                        &details
-                    );
-                }
-                StepType::BecomeValidator => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing BecomeValidator",
-                        &details
-                    );
-                }
-                StepType::ChangeMetadata => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ChangeMetadata",
-                        &details
-                    );
-                }
+                StepType::Bond => assert_step!("Skipped Bond", details),
+                StepType::InitAccount => assert_step!("Skipped InitAccount", details),
+                StepType::Redelegate => assert_step!("Skipped Redelegate", details),
+                StepType::Unbond => assert_step!("Skipped Unbond", details),
+                StepType::ClaimRewards => assert_step!("Skipped ClaimRewards", details),
+                StepType::BatchBond => assert_step!("Skipped BatchBond", details),
+                StepType::BatchRandom => assert_step!("Skipped BatchRandom", details),
+                StepType::Shielding => assert_step!("Skipped Shielding", details),
+                StepType::Shielded => assert_step!("Skipped Shielded", details),
+                StepType::Unshielding => assert_step!("Skipped Unshielding", details),
+                StepType::BecomeValidator => assert_step!("Skipped BecomeValidator", details),
+                StepType::ChangeMetadata => assert_step!("Skipped ChangeMetadata", details),
                 StepType::ChangeConsensusKeys => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ChangeConsensusKeys",
-                        &details
-                    );
+                    assert_step!("Skipped ChangeConsensusKeys", details)
                 }
-                StepType::UpdateAccount => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing UpdateAccount",
-                        &details
-                    );
-                }
+                StepType::UpdateAccount => assert_step!("Skipped UpdateAccount", details),
                 StepType::DeactivateValidator => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing DeactivateValidator",
-                        &details
-                    );
+                    assert_step!("Skipped DeactivateValidator", details)
                 }
                 StepType::ReactivateValidator => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ReactivateValidator",
-                        &details
-                    );
+                    assert_step!("Skipped ReactivateValidator", details)
                 }
-                StepType::DefaultProposal => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing DefaultProposal",
-                        &details
-                    );
+                StepType::DefaultProposal => assert_step!("Skipped DefaultProposal", details),
+                StepType::VoteProposal => assert_step!("Skipped VoteProposal", details),
+            }
+        } else if is_successful {
+            match step_type {
+                StepType::NewWalletKeyPair => assert_step!("Done NewWalletKeyPair", details),
+                StepType::FaucetTransfer => assert_step!("Done FaucetTransfer", details),
+                StepType::TransparentTransfer => assert_step!("Done TransparentTransfer", details),
+                StepType::Bond => assert_step!("Done Bond", details),
+                StepType::InitAccount => assert_step!("Done InitAccount", details),
+                StepType::Redelegate => assert_step!("Done Redelegate", details),
+                StepType::Unbond => assert_step!("Done Unbond", details),
+                StepType::ClaimRewards => assert_step!("Done ClaimRewards", details),
+                StepType::BatchBond => assert_step!("Done BatchBond", details),
+                StepType::BatchRandom => assert_step!("Done BatchRandom", details),
+                StepType::Shielding => assert_step!("Done Shielding", details),
+                StepType::Shielded => assert_step!("Done Shielded", details),
+                StepType::Unshielding => assert_step!("Done Unshielding", details),
+                StepType::BecomeValidator => assert_step!("Done BecomeValidator", details),
+                StepType::ChangeMetadata => assert_step!("Done ChangeMetadata", details),
+                StepType::ChangeConsensusKeys => assert_step!("Done ChangeConsensusKeys", details),
+                StepType::UpdateAccount => assert_step!("Done UpdateAccount", details),
+                StepType::DeactivateValidator => assert_step!("Done DeactivateValidator", details),
+                StepType::ReactivateValidator => assert_step!("Done ReactivateValidator", details),
+                StepType::DefaultProposal => assert_step!("Done DefaultProposal", details),
+                StepType::VoteProposal => assert_step!("Done VoteProposal", details),
+            }
+        } else if is_failed {
+            match step_type {
+                StepType::NewWalletKeyPair => assert_step!("Failed NewWalletKeyPair", details),
+                StepType::FaucetTransfer => assert_step!("Failed FaucetTransfer", details),
+                StepType::TransparentTransfer => {
+                    assert_step!("Failed TransparentTransfer", details)
                 }
-                StepType::VoteProposal => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing VoteProposal",
-                        &details
-                    );
+                StepType::Bond => assert_step!("Failed Bond", details),
+                StepType::InitAccount => assert_step!("Failed InitAccount", details),
+                StepType::Redelegate => assert_step!("Failed Redelegate", details),
+                StepType::Unbond => assert_step!("Failed Unbond", details),
+                StepType::ClaimRewards => assert_step!("Failed ClaimRewards", details),
+                StepType::BatchBond => assert_step!("Failed BatchBond", details),
+                StepType::BatchRandom => assert_step!("Failed BatchRandom", details),
+                StepType::Shielding => assert_step!("Failed Shielding", details),
+                StepType::Shielded => assert_step!("Failed Shielded", details),
+                StepType::Unshielding => assert_step!("Failed Unshielding", details),
+                StepType::BecomeValidator => assert_step!("Failed BecomeValidator", details),
+                StepType::ChangeMetadata => assert_step!("Failed ChangeMetadata", details),
+                StepType::ChangeConsensusKeys => {
+                    assert_step!("Failed ChangeConsensusKeys", details)
                 }
+                StepType::UpdateAccount => assert_step!("Failed UpdateAccount", details),
+                StepType::DeactivateValidator => {
+                    assert_step!("Failed DeactivateValidator", details)
+                }
+                StepType::ReactivateValidator => {
+                    assert_step!("Failed ReactivateValidator", details)
+                }
+                StepType::DefaultProposal => assert_step!("Failed DefaultProposal", details),
+                StepType::VoteProposal => assert_step!("Failed VoteProposal", details),
             }
         }
     }
@@ -263,6 +256,13 @@ async fn inner_main() -> Code {
     let config = AppConfig::parse();
     tracing::info!("Using config: {:#?}", config);
     tracing::info!("Sha commit: {}", env!("VERGEN_GIT_SHA").to_string());
+
+    // just to report the workload version
+    antithesis_sdk::assert_always!(
+        true,
+        "ID should be greater than 0",
+        &json!({"sha": env!("VERGEN_GIT_SHA")})
+    );
 
     let (mut state, locked_file) = match State::load(config.id) {
         Ok(result) => result,

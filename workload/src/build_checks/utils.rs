@@ -21,6 +21,13 @@ use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConf
 
 use crate::{entities::Alias, sdk::namada::Sdk, steps::StepError};
 
+#[macro_export]
+macro_rules! assert_step {
+    ($msg:literal, $details:expr) => {
+        antithesis_sdk::assert_always!(true, $msg, &$details);
+    };
+}
+
 pub async fn get_balance(
     sdk: &Sdk,
     source: Alias,
