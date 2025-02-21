@@ -85,7 +85,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
           cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
-            GIT_SHA=${{ matrix.images.sha || 'master' }}
+            GIT_SHA=${{ matrix.images.sha || 'main' }}
       - name: Build and push (workflow dispatch)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: docker/build-push-action@v6
@@ -98,4 +98,4 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
           cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
-            GIT_SHA=${{ matrix.images.commit || 'master' }}
+            GIT_SHA=${{ github.event.inputs.commit || 'main' }}
