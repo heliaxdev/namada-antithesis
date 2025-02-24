@@ -1,5 +1,8 @@
 use rand::seq::SliceRandom;
+use serde_json::json;
 
+use crate::assert_step;
+use crate::code::Code;
 use crate::constants::MAX_BATCH_TX_NUM;
 use crate::constants::MIN_TRANSFER_BALANCE;
 use crate::executor::StepError;
@@ -28,6 +31,27 @@ impl StepContext for BatchBond {
             state,
         ))
         .await
+    }
+
+    fn assert(&self, code: &Code) {
+        let is_fatal = code.is_fatal();
+        let is_failed = code.is_failed();
+        let is_skipped = code.is_skipped();
+        let is_successful = code.is_successful();
+
+        let details = json!({"outcome": code.code()});
+
+        if is_fatal {
+            assert_step!("Fatal BatchBond", details)
+        } else if is_failed {
+            assert_step!("Failed BatchBond", details)
+        } else if is_skipped {
+            assert_step!("Skipped BatchBond", details)
+        } else if is_successful {
+            assert_step!("Done BatchBond", details)
+        } else {
+            assert_step!("Unknown Code BatchBond ", details)
+        }
     }
 }
 
@@ -59,6 +83,27 @@ impl StepContext for BatchRandom {
             state,
         ))
         .await
+    }
+
+    fn assert(&self, code: &Code) {
+        let is_fatal = code.is_fatal();
+        let is_failed = code.is_failed();
+        let is_skipped = code.is_skipped();
+        let is_successful = code.is_successful();
+
+        let details = json!({"outcome": code.code()});
+
+        if is_fatal {
+            assert_step!("Fatal BatchRandom", details)
+        } else if is_failed {
+            assert_step!("Failed BatchRandom", details)
+        } else if is_skipped {
+            assert_step!("Skipped BatchRandom", details)
+        } else if is_successful {
+            assert_step!("Done BatchRandom", details)
+        } else {
+            assert_step!("Unknown Code BatchRandom ", details)
+        }
     }
 }
 

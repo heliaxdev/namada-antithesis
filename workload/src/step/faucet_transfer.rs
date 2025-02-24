@@ -1,3 +1,7 @@
+use serde_json::json;
+
+use crate::assert_step;
+use crate::code::Code;
 use crate::constants::{FAUCET_AMOUNT, NATIVE_SCALE};
 use crate::executor::StepError;
 use crate::sdk::namada::Sdk;
@@ -32,5 +36,26 @@ impl StepContext for FaucetTransfer {
                 .settings(task_settings)
                 .build(),
         )])
+    }
+
+    fn assert(&self, code: &Code) {
+        let is_fatal = code.is_fatal();
+        let is_failed = code.is_failed();
+        let is_skipped = code.is_skipped();
+        let is_successful = code.is_successful();
+
+        let details = json!({"outcome": code.code()});
+
+        if is_fatal {
+            assert_step!("Fatal FaucetTransfer", details)
+        } else if is_failed {
+            assert_step!("Failed FaucetTransfer", details)
+        } else if is_skipped {
+            assert_step!("Skipped FaucetTransfer", details)
+        } else if is_successful {
+            assert_step!("Done FaucetTransfer", details)
+        } else {
+            assert_step!("Unknown Code FaucetTransfer ", details)
+        }
     }
 }

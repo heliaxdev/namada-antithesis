@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use enum_dispatch::enum_dispatch;
 
+use crate::code::Code;
 use crate::executor::StepError;
 use crate::sdk::namada::Sdk;
 use crate::state::State;
@@ -104,4 +105,6 @@ pub trait StepContext {
 
     #[allow(async_fn_in_trait)]
     async fn build_task(&self, sdk: &Sdk, state: &mut State) -> Result<Vec<Task>, StepError>;
+
+    fn assert(&self, code: &Code);
 }

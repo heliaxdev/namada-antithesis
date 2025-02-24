@@ -1,5 +1,9 @@
 use std::collections::BTreeSet;
 
+use serde_json::json;
+
+use crate::assert_step;
+use crate::code::Code;
 use crate::constants::MIN_TRANSFER_BALANCE;
 use crate::executor::StepError;
 use crate::sdk::namada::Sdk;
@@ -50,5 +54,26 @@ impl StepContext for Unshielding {
                 .settings(task_settings)
                 .build(),
         )])
+    }
+
+    fn assert(&self, code: &Code) {
+        let is_fatal = code.is_fatal();
+        let is_failed = code.is_failed();
+        let is_skipped = code.is_skipped();
+        let is_successful = code.is_successful();
+
+        let details = json!({"outcome": code.code()});
+
+        if is_fatal {
+            assert_step!("Fatal Unshielding", details)
+        } else if is_failed {
+            assert_step!("Failed Unshielding", details)
+        } else if is_skipped {
+            assert_step!("Skipped Unshielding", details)
+        } else if is_successful {
+            assert_step!("Done Unshielding", details)
+        } else {
+            assert_step!("Unknown Code Unshielding ", details)
+        }
     }
 }

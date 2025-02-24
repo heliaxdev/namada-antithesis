@@ -1,3 +1,7 @@
+use serde_json::json;
+
+use crate::assert_step;
+use crate::code::Code;
 use crate::executor::StepError;
 use crate::sdk::namada::Sdk;
 use crate::state::State;
@@ -25,5 +29,26 @@ impl StepContext for NewWalletKeyPair {
                 .source(alias)
                 .build(),
         )])
+    }
+
+    fn assert(&self, code: &Code) {
+        let is_fatal = code.is_fatal();
+        let is_failed = code.is_failed();
+        let is_skipped = code.is_skipped();
+        let is_successful = code.is_successful();
+
+        let details = json!({"outcome": code.code()});
+
+        if is_fatal {
+            assert_step!("Fatal NewWalletKeyPair", details)
+        } else if is_failed {
+            assert_step!("Failed NewWalletKeyPair", details)
+        } else if is_skipped {
+            assert_step!("Skipped NewWalletKeyPair", details)
+        } else if is_successful {
+            assert_step!("Done NewWalletKeyPair", details)
+        } else {
+            assert_step!("Unknown Code NewWalletKeyPair ", details)
+        }
     }
 }

@@ -1,5 +1,8 @@
 use namada_sdk::rpc;
+use serde_json::json;
 
+use crate::assert_step;
+use crate::code::Code;
 use crate::executor::StepError;
 use crate::sdk::namada::Sdk;
 use crate::state::State;
@@ -42,5 +45,26 @@ impl StepContext for Unbond {
                 .settings(task_settings)
                 .build(),
         )])
+    }
+
+    fn assert(&self, code: &Code) {
+        let is_fatal = code.is_fatal();
+        let is_failed = code.is_failed();
+        let is_skipped = code.is_skipped();
+        let is_successful = code.is_successful();
+
+        let details = json!({"outcome": code.code()});
+
+        if is_fatal {
+            assert_step!("Fatal Unbond", details)
+        } else if is_failed {
+            assert_step!("Failed Unbond", details)
+        } else if is_skipped {
+            assert_step!("Skipped Unbond", details)
+        } else if is_successful {
+            assert_step!("Done Unbond", details)
+        } else {
+            assert_step!("Unknown Code Unbond ", details)
+        }
     }
 }

@@ -44,3 +44,10 @@ pub fn get_random_string(state: &mut State, length: usize) -> String {
     }
     result
 }
+
+#[macro_export]
+macro_rules! assert_step {
+    ($msg:literal, $details:expr) => {
+        antithesis_sdk::assert_always!(true, $msg, &$details)
+    };
+}

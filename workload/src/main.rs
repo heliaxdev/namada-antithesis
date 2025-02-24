@@ -11,6 +11,7 @@ use namada_sdk::io::{Client, NullIo};
 use namada_sdk::masp::fs::FsShieldedUtils;
 use namada_sdk::masp::ShieldedContext;
 use namada_wallet::fs::FsWalletUtils;
+use serde_json::json;
 use tendermint_rpc::{HttpClient, Url};
 use tokio::time::sleep;
 use tracing::level_filters::LevelFilter;
@@ -48,6 +49,13 @@ async fn inner_main() -> Code {
     let config = AppConfig::parse();
     tracing::info!("Using config: {:#?}", config);
     tracing::info!("Sha commit: {}", env!("VERGEN_GIT_SHA").to_string());
+
+    // just to report the workload version
+    antithesis_sdk::assert_always!(
+        true,
+        "ID should be greater than 0",
+        &json!({"commit_sha": env!("VERGEN_GIT_SHA")})
+    );
 
     let (state, locked_file) = match State::load(config.id) {
         Ok(result) => result,

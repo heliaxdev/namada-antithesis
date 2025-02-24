@@ -1,8 +1,6 @@
-use serde_json::json;
-
 use crate::executor::StepError;
 use crate::state::StateError;
-use crate::step::StepType;
+use crate::step::{StepContext, StepType};
 
 pub enum Code {
     Success(StepType),
@@ -84,139 +82,25 @@ impl Code {
         }
     }
 
+    pub fn is_fatal(&self) -> bool {
+        matches!(self, Code::Fatal(_, _) | Code::StateFatal(_))
+    }
+
+    pub fn is_failed(&self) -> bool {
+        matches!(self, Code::ExecutionFailure(_, _))
+    }
+
+    pub fn is_skipped(&self) -> bool {
+        matches!(self, Code::InvalidStep(_))
+    }
+
+    pub fn is_successful(&self) -> bool {
+        matches!(self, Code::Success(_))
+    }
+
     pub fn assert(&self) {
-        let is_fatal = matches!(self, Code::Fatal(_, _) | Code::StateFatal(_));
-        let details = json!({"outcome": self.code()});
         if let Some(step_type) = self.step_type() {
-            match step_type {
-                StepType::NewWalletKeyPair(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing NewWalletKeyPair",
-                        &details
-                    );
-                }
-                StepType::FaucetTransfer(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing FaucetTransfer",
-                        &details
-                    );
-                }
-                StepType::TransparentTransfer(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing TransparentTransfer",
-                        &details
-                    );
-                }
-                StepType::Bond(_) => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Bond", &details);
-                }
-                StepType::InitAccount(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing InitAccount",
-                        &details
-                    );
-                }
-                StepType::Redelegate(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing Redelegate",
-                        &details
-                    );
-                }
-                StepType::Unbond(_) => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Unbond", &details);
-                }
-                StepType::ClaimRewards(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ClaimRewards",
-                        &details
-                    );
-                }
-                StepType::BatchBond(_) => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing BatchBond", &details);
-                }
-                StepType::BatchRandom(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing BatchRandom",
-                        &details
-                    );
-                }
-                StepType::Shielding(_) => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Shielding", &details);
-                }
-                StepType::Shielded(_) => {
-                    antithesis_sdk::assert_always!(!is_fatal, "Done executing Shielded", &details);
-                }
-                StepType::Unshielding(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing Unshielding",
-                        &details
-                    );
-                }
-                StepType::BecomeValidator(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing BecomeValidator",
-                        &details
-                    );
-                }
-                StepType::ChangeMetadata(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ChangeMetadata",
-                        &details
-                    );
-                }
-                StepType::ChangeConsensusKey(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ChangeConsensusKey",
-                        &details
-                    );
-                }
-                StepType::UpdateAccount(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing UpdateAccount",
-                        &details
-                    );
-                }
-                StepType::DeactivateValidator(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing DeactivateValidator",
-                        &details
-                    );
-                }
-                StepType::ReactivateValidator(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing ReactivateValidator",
-                        &details
-                    );
-                }
-                StepType::DefaultProposal(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing DefaultProposal",
-                        &details
-                    );
-                }
-                StepType::Vote(_) => {
-                    antithesis_sdk::assert_always!(
-                        !is_fatal,
-                        "Done executing VoteProposal",
-                        &details
-                    );
-                }
-            }
+            step_type.assert(self);
         }
     }
 }
