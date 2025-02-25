@@ -1,13 +1,13 @@
 use namada_sdk::dec::Dec;
 use serde_json::json;
 
-use crate::assert_step;
 use crate::code::Code;
 use crate::executor::StepError;
 use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{self, Task, TaskSettings};
 use crate::types::Alias;
+use crate::{assert_always_step, assert_sometimes_step, assert_unrechable_step};
 
 use super::utils;
 use super::StepContext;
@@ -64,15 +64,15 @@ impl StepContext for BecomeValidator {
         let details = json!({"outcome": code.code()});
 
         if is_fatal {
-            assert_step!("Fatal BecomeValidator", details)
+            assert_unrechable_step!("Fatal BecomeValidator", details)
         } else if is_failed {
-            assert_step!("Failed BecomeValidator", details)
+            assert_unrechable_step!("Failed BecomeValidator", details)
         } else if is_skipped {
-            assert_step!("Skipped BecomeValidator", details)
+            assert_sometimes_step!("Skipped BecomeValidator", details)
         } else if is_successful {
-            assert_step!("Done BecomeValidator", details)
+            assert_always_step!("Done BecomeValidator", details)
         } else {
-            assert_step!("Unknown Code BecomeValidator ", details)
+            assert_sometimes_step!("Unknown Code BecomeValidator ", details)
         }
     }
 }

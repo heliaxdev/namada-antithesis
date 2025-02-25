@@ -2,7 +2,9 @@ use antithesis_sdk::random::AntithesisRng;
 use rand::seq::SliceRandom;
 use serde_json::json;
 
-use crate::assert_step;
+use crate::assert_always_step;
+use crate::assert_sometimes_step;
+use crate::assert_unrechable_step;
 use crate::code::Code;
 use crate::constants::MAX_BATCH_TX_NUM;
 use crate::constants::MIN_TRANSFER_BALANCE;
@@ -43,15 +45,15 @@ impl StepContext for BatchBond {
         let details = json!({"outcome": code.code()});
 
         if is_fatal {
-            assert_step!("Fatal BatchBond", details)
+            assert_unrechable_step!("Fatal BatchBond", details)
         } else if is_failed {
-            assert_step!("Failed BatchBond", details)
+            assert_unrechable_step!("Failed BatchBond", details)
         } else if is_skipped {
-            assert_step!("Skipped BatchBond", details)
+            assert_sometimes_step!("Skipped BatchBond", details)
         } else if is_successful {
-            assert_step!("Done BatchBond", details)
+            assert_always_step!("Done BatchBond", details)
         } else {
-            assert_step!("Unknown Code BatchBond ", details)
+            assert_sometimes_step!("Unknown Code BatchBond ", details)
         }
     }
 }
@@ -95,15 +97,15 @@ impl StepContext for BatchRandom {
         let details = json!({"outcome": code.code()});
 
         if is_fatal {
-            assert_step!("Fatal BatchRandom", details)
+            assert_unrechable_step!("Fatal BatchRandom", details)
         } else if is_failed {
-            assert_step!("Failed BatchRandom", details)
+            assert_unrechable_step!("Failed BatchRandom", details)
         } else if is_skipped {
-            assert_step!("Skipped BatchRandom", details)
+            assert_sometimes_step!("Skipped BatchRandom", details)
         } else if is_successful {
-            assert_step!("Done BatchRandom", details)
+            assert_always_step!("Done BatchRandom", details)
         } else {
-            assert_step!("Unknown Code BatchRandom ", details)
+            assert_sometimes_step!("Unknown Code BatchRandom ", details)
         }
     }
 }

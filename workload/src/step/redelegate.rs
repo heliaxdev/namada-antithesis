@@ -5,7 +5,6 @@ use namada_sdk::{address::Address, rpc};
 use rand::seq::IteratorRandom;
 use serde_json::json;
 
-use crate::assert_step;
 use crate::code::Code;
 use crate::executor::StepError;
 use crate::sdk::namada::Sdk;
@@ -13,6 +12,7 @@ use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
 use crate::types::Alias;
+use crate::{assert_always_step, assert_sometimes_step, assert_unrechable_step};
 
 use super::utils;
 
@@ -87,15 +87,15 @@ impl StepContext for Redelegate {
         let details = json!({"outcome": code.code()});
 
         if is_fatal {
-            assert_step!("Fatal Redelegate", details)
+            assert_unrechable_step!("Fatal Redelegate", details)
         } else if is_failed {
-            assert_step!("Failed Redelegate", details)
+            assert_unrechable_step!("Failed Redelegate", details)
         } else if is_skipped {
-            assert_step!("Skipped Redelegate", details)
+            assert_sometimes_step!("Skipped Redelegate", details)
         } else if is_successful {
-            assert_step!("Done Redelegate", details)
+            assert_always_step!("Done Redelegate", details)
         } else {
-            assert_step!("Unknown Code Redelegate ", details)
+            assert_sometimes_step!("Unknown Code Redelegate ", details)
         }
     }
 }

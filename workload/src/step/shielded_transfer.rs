@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 
 use serde_json::json;
 
-use crate::assert_step;
 use crate::code::Code;
 use crate::constants::MIN_TRANSFER_BALANCE;
 use crate::executor::StepError;
@@ -11,6 +10,7 @@ use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
 use crate::types::Alias;
+use crate::{assert_always_step, assert_sometimes_step, assert_unrechable_step};
 
 use super::utils;
 
@@ -63,15 +63,15 @@ impl StepContext for ShieldedTransfer {
         let details = json!({"outcome": code.code()});
 
         if is_fatal {
-            assert_step!("Fatal ShieldedTransfer", details)
+            assert_unrechable_step!("Fatal ShieldedTransfer", details)
         } else if is_failed {
-            assert_step!("Failed ShieldedTransfer", details)
+            assert_unrechable_step!("Failed ShieldedTransfer", details)
         } else if is_skipped {
-            assert_step!("Skipped ShieldedTransfer", details)
+            assert_sometimes_step!("Skipped ShieldedTransfer", details)
         } else if is_successful {
-            assert_step!("Done ShieldedTransfer", details)
+            assert_always_step!("Done ShieldedTransfer", details)
         } else {
-            assert_step!("Unknown Code ShieldedTransfer ", details)
+            assert_sometimes_step!("Unknown Code ShieldedTransfer ", details)
         }
     }
 }
