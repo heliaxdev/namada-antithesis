@@ -19,13 +19,18 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
-    let exit_code = inner_main().await;
+    let code = inner_main().await;
 
-    exit_code.output_logs();
+    code.output_logs();
 
-    exit_code.assert();
+    code.assert();
 
-    std::process::exit(exit_code.code());
+    if code.is_fatal() {
+        std::process::exit(code.code());
+    } else {
+        // system state is as expected
+        std::process::exit(0);
+    }
 }
 
 async fn inner_main() -> Code {
