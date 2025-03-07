@@ -16,6 +16,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-instal
     libclang-13-dev \
     build-essential \
     protobuf-compiler \
+    libprotobuf-dev \
     libudev-dev \
     curl \
     wget \
@@ -32,12 +33,15 @@ RUN git apply scripts_get_cometbft.patch
 RUN wget -O /usr/lib/libvoidstar.so https://antithesis.com/assets/instrumentation/libvoidstar.so
 
 ENV RUSTFLAGS="-g -C passes=sancov-module \
--Cllvm-args=-sanitizer-coverage-level=3 \
+   -Cllvm-args=-sanitizer-coverage-level=3 \
    -Cllvm-args=-sanitizer-coverage-trace-pc-guard \
    -Clink-args=-Wl,--build-id -Ccodegen-units=1 \
    -L/usr/lib/libvoidstar.so -lvoidstar"
 
 RUN make cometbft
+
+# try to compile dependencies before release-build
+RUN cargo build --package namada_apps --manifest-path Cargo.toml
 
 RUN LD_LIBRARY_PATH=/usr/lib/libvoidstar.so cargo build --release --package namada_apps \
     --manifest-path Cargo.toml \

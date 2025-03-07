@@ -79,6 +79,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.images.context }}
+          file: ${{ matrix.images.context }}/Dockerfile${{ matrix.images.tag }}
           push: true
           tags: |
             ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:main${{ matrix.images.tag }}
@@ -93,6 +94,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.images.context }}
+          file: ${{ matrix.images.context }}/Dockerfile${{ matrix.images.tag }}
           push: false
           tags: |
             ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.event.pull_request.head.sha }}${{ matrix.images.tag }}
@@ -107,6 +109,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.images.context }}
+          file: ${{ matrix.images.context }}/Dockerfile${{ matrix.images.tag }}
           push: true
           tags: |
             ghcr.io/heliaxdev/ant-${{ matrix.images.image }}:${{ github.event.inputs.commit }}${{ matrix.images.tag }}
