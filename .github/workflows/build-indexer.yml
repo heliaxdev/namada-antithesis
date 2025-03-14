@@ -1,20 +1,20 @@
-name: Rebuild MASP indexer images
+name: Rebuild Indexer images
 
 on:
   workflow_dispatch:
     inputs:
       commit:
-        description: "The namada masp indexer SHA commit to build"
+        description: "The namada indexer SHA commit to build"
         required: true
         type: string
   pull_request:
     paths:
-      - 'masp-indexer/**'
+      - 'indexer/**'
   push:
     branches:
       - master
     paths:
-      - 'masp-indexer/**'
+      - 'indexer/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -27,23 +27,19 @@ permissions:
   id-token: write
 
 jobs:
-  masp-indexer:
+  indexer:
     strategy:
       fail-fast: true
       matrix:
         images:
-          - name: "masp-indexer-webserver"
-            context: "masp-indexer/webserver"
-            sha: "master"
-            cache_scope: "masp-indexer-webserver-image"
-          - name: "masp-indexer-chain"
-            context: "masp-indexer/chain"
-            sha: "master"
-            cache_scope: "masp-indexer-chain-image"
-          - name: "masp-indexer-block-filter"
-            context: "masp-indexer/block-filter"
-            sha: "master"
-            cache_scope: "masp-indexer-block-filter-image"
+          - name: "indexer-chain"
+            context: "indexer/chain"
+            sha: "main"
+            cache_scope: "indexer-chain-image"
+          - name: "indexer-transactions"
+            context: "indexer/transactions"
+            sha: "main"
+            cache_scope: "indexer-transactions-image"
 
     runs-on: ubuntu-latest
     steps:
@@ -89,7 +85,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
           cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
-            GIT_SHA=${{ matrix.images.sha || 'master' }}
+            GIT_SHA=${{ matrix.images.sha || 'main' }}
       - name: Build and push (workflow dispatch)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: docker/build-push-action@v6
@@ -102,4 +98,4 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.images.cache_scope }}
           cache-to: type=gha,scope=${{ matrix.images.cache_scope }},mode=max
           build-args: |
-            GIT_SHA=${{ github.event.inputs.commit || 'master' }}
+            GIT_SHA=${{ github.event.inputs.commit || 'main' }}
