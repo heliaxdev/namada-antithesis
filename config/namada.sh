@@ -17,4 +17,7 @@ do
     sleep 10
 done
 
+if [ -n "$FAUCET_SK" ]; then
+    namadaw --base-dir $BASE_DIR add --alias faucet --value $FAUCET_SK --unsafe-dont-encrypt
+fi
 namadan ledger run --base-dir $BASE_DIR
