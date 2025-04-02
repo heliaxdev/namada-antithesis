@@ -70,6 +70,7 @@ services:
       - CMT_LOG_LEVEL=p2p:none,pex:error
       - NAMADA_CMT_STDOUT=true
       - BASE_DIR=/validator-2
+      - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
     volumes:
       - ./validator-2/:/validator-2
       - ./container_ready/:/container_ready
@@ -219,6 +220,34 @@ services:
     networks:
       namada-net:
         ipv4_address: 30.0.0.23
+  gaia:
+    container_name: gaia
+    image: ghcr.io/cosmos/gaia:v22.3.1
+    entrypoint: /entrypoint.sh
+    networks:
+      namada-net:
+        ipv4_address: 30.0.0.31
+    volumes:
+      - ./gaia-0/:/gaia-0
+      - ./gaia.sh:/entrypoint.sh
+  hermes:
+    container_name: hermes
+    image: ghcr.io/informalsystems/hermes:1.12.0
+    entrypoint: /entrypoint.sh
+    environment:
+      - RPC_ADDRESS=30.0.0.14:27658
+      - TARGET_VALIDATOR=validator-2
+    networks:
+      namada-net:
+        ipv4_address: 30.0.0.30
+    volumes:
+      - ./hermes/:/hermes
+      - ./hermes.sh:/entrypoint.sh
+      - ./container_ready/:/container_ready
+      # for import relayer keys
+      - ./gaia-0/:/gaia-0
+      - ./validator-2/:/validator-2
+
 networks:
   namada-net:
     driver: bridge

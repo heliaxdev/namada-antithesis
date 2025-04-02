@@ -84,6 +84,9 @@ for ((i = 0; i < len; i++)); do
 
 done
 
+# TODO: update the actual file
+sed -i 's/epochs_per_year = 10512000/epochs_per_year = 1051200/g' ${network_template_path}/parameters.toml
+
 # 7. Start the chain
 CHAIN_PREFIX="devnet"
 GENESIS_TIME=$(date -Iseconds)
