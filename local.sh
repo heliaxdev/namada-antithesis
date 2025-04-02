@@ -20,4 +20,4 @@ touch config/gaia-0/DO_NOT_REMOVE
 touch config/container_ready/DO_NOT_REMOVE
 
 docker-compose -f config/docker-compose-test.yml down
-docker-compose -f config/docker-compose-test.yml up
+docker-compose -f config/docker-compose-test.yml up --force-recreate
