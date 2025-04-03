@@ -3,7 +3,7 @@ use std::{env, str::FromStr, time::Duration};
 use antithesis_sdk::antithesis_init;
 use clap::Parser;
 use namada_chain_workload::code::Code;
-use namada_chain_workload::config::AppConfig;
+use namada_chain_workload::config::{AppConfig, Args};
 use namada_chain_workload::error::CheckError;
 use namada_chain_workload::executor::WorkloadExecutor;
 use namada_chain_workload::sdk::namada::Sdk;
@@ -47,7 +47,11 @@ async fn inner_main() -> Code {
     rlimit::increase_nofile_limit(10240).unwrap();
     rlimit::increase_nofile_limit(u64::MAX).unwrap();
 
-    let config = AppConfig::parse();
+    let args = Args::parse();
+    let config = match AppConfig::load(args.config) {
+        Ok(config) => config,
+        Err(e) => return Code::ConfigFatal(e.to_string()),
+    };
 
     let (state, locked_file) = match State::load(config.id) {
         Ok(result) => result,
@@ -61,7 +65,9 @@ async fn inner_main() -> Code {
         Err(e) => return Code::StateFatal(e),
     };
 
-    tracing::info!("Using config: {:#?}", config);
+    let next_step = args.step_type;
+    tracing::info!("Using config: {config:#?}");
+    tracing::info!("StepType: {next_step}");
 
     // just to report the workload version
     antithesis_sdk::assert_always!(
@@ -105,7 +111,6 @@ async fn inner_main() -> Code {
         return Code::InitFatal(e);
     }
 
-    let next_step = config.step_type;
     match workload_executor.is_valid(&next_step).await {
         Ok(true) => {}
         _ => {
@@ -129,7 +134,7 @@ async fn inner_main() -> Code {
     };
     tracing::info!("Built tasks for {next_step}");
 
-    let checks = if config.no_check {
+    let checks = if args.no_check {
         vec![]
     } else {
         match workload_executor.build_check(&tasks).await {

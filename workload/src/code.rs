@@ -8,6 +8,7 @@ pub enum Code {
     Fatal(StepType, CheckError),
     StateFatal(StateError),
     InitFatal(StepError),
+    ConfigFatal(String),
     // No execution
     Skip(StepType),
     NoTask(StepType),
@@ -30,6 +31,7 @@ impl Code {
             Code::Fatal(_, _) => 1,
             Code::StateFatal(_) => 2,
             Code::InitFatal(_) => 3,
+            Code::ConfigFatal(_) => 4,
             // system state is as expected
             _ => 0,
         }
@@ -41,6 +43,7 @@ impl Code {
             Code::Fatal(st, _) => Some(st),
             Code::StateFatal(_) => None,
             Code::InitFatal(_) => None,
+            Code::ConfigFatal(_) => None,
             Code::Skip(st) => Some(st),
             Code::NoTask(st) => Some(st),
             Code::StepFailure(st, _) => Some(st),
@@ -74,13 +77,18 @@ impl Code {
             Code::InitFatal(reason) => {
                 tracing::error!("Init error -> {reason}")
             }
+            Code::ConfigFatal(reason) => {
+                tracing::error!("Config error -> {reason}")
+            }
         }
     }
 
     pub fn code_type(&self) -> CodeType {
         match self {
             Code::Success(_) => CodeType::Success,
-            Code::Fatal(_, _) | Code::StateFatal(_) | Code::InitFatal(_) => CodeType::Fatal,
+            Code::Fatal(_, _) | Code::StateFatal(_) | Code::InitFatal(_) | Code::ConfigFatal(_) => {
+                CodeType::Fatal
+            }
             Code::Skip(_) | Code::NoTask(_) => CodeType::Skip,
             _ => CodeType::Failed,
         }
@@ -92,6 +100,7 @@ impl Code {
             Code::Fatal(_, e) => ("Fatal failure", e.to_string()),
             Code::StateFatal(e) => ("Fatal state failure", e.to_string()),
             Code::InitFatal(e) => ("Fatal init failure", e.to_string()),
+            Code::ConfigFatal(e) => ("Fatal config failure", e.clone()),
             Code::Skip(_) => ("Skipped step", Default::default()),
             Code::NoTask(_) => ("No task", Default::default()),
             Code::StepFailure(_, e) => ("Step failure", e.to_string()),

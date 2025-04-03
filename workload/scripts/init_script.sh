@@ -31,15 +31,20 @@ do
     sleep 2
 done
 
+echo "Creating config.toml..."
+cat <<EOF > config.toml
+id = ${WORKLOAD_ID}
+chain_id = "${CHAIN_ID}"
+rpc = "http://${RPC}"
+masp_indexer_url = "${MASP_INDEXER_URL}"
+faucet_sk = "${FAUCET_SK}"
+EOF
+
 echo "Initializing workload-${WORKLOAD_ID} state..."
 
 output=$(/app/namada-chain-workload initialize \
-    --no-check \
-    --rpc http://${RPC} \
-    --chain-id ${CHAIN_ID} \
-    --faucet-sk ${FAUCET_SK} \
-    --id ${WORKLOAD_ID} \
-    --masp-indexer-url ${MASP_INDEXER_URL} | tee /dev/stderr)
+    --config config.toml \
+    --no-check | tee /dev/stderr)
 if echo "$output" | grep -q "Done initialize"
 then
     echo "Initialization succeeded!"
@@ -49,11 +54,7 @@ else
 fi
 
 output=$(/app/namada-chain-workload fund-all \
-    --rpc http://${RPC} \
-    --chain-id ${CHAIN_ID} \
-    --faucet-sk ${FAUCET_SK} \
-    --id ${WORKLOAD_ID} \
-    --masp-indexer-url ${MASP_INDEXER_URL} | tee /dev/stderr)
+    --config config.toml | tee /dev/stderr)
 if echo "$output" | grep -q "Done fund-all"
 then
     # Ready to start workload

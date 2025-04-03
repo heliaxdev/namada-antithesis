@@ -10,6 +10,8 @@ pub enum Error {
     Task(TaskError),
     #[error("State check failed: `{0}`")]
     StateCheck(CheckError),
+    #[error("Config error: `{0}`")]
+    Config(String),
 }
 
 #[derive(Error, Debug)]
