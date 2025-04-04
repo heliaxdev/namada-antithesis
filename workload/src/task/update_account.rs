@@ -8,8 +8,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Threshold};
@@ -36,8 +36,8 @@ impl TaskContext for UpdateAccount {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
         let target = wallet
             .find_address(&self.target.name)
             .ok_or_else(|| TaskError::Wallet(format!("No target address: {}", self.target.name)))?;
@@ -55,7 +55,7 @@ impl TaskContext for UpdateAccount {
             .map_err(|e| TaskError::Wallet(e.to_string()))?;
 
         let mut update_account_builder =
-            sdk.namada
+            ctx.namada
                 .new_update_account(target.into_owned(), public_keys, self.threshold as u8);
 
         update_account_builder =
@@ -73,7 +73,7 @@ impl TaskContext for UpdateAccount {
         drop(wallet);
 
         let (update_account, signing_data) = update_account_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -86,7 +86,7 @@ impl TaskContext for UpdateAccount {
 
     async fn build_checks(
         &self,
-        _sdk: &Sdk,
+        _ctx: &Ctx,
         _retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         Ok(vec![Check::AccountExist(

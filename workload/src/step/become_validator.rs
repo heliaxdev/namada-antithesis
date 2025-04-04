@@ -1,8 +1,8 @@
 use namada_sdk::dec::Dec;
 
 use crate::code::{Code, CodeType};
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{self, Task, TaskSettings};
 use crate::{assert_always_step, assert_sometimes_step, assert_unreachable_step};
@@ -18,11 +18,11 @@ impl StepContext for BecomeValidator {
         "become-validator".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.min_n_established_accounts(1))
     }
 
-    async fn build_task(&self, _sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, _ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
         let commission_rate = utils::random_between::<u64>(0, 100);
         let commission_rate = Dec::new(commission_rate as i128, 2).unwrap();
 

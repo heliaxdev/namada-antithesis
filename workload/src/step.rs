@@ -4,8 +4,8 @@ use std::str::FromStr;
 use enum_dispatch::enum_dispatch;
 
 use crate::code::Code;
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::Task;
 
@@ -107,10 +107,10 @@ pub trait StepContext {
     fn name(&self) -> String;
 
     #[allow(async_fn_in_trait)]
-    async fn is_valid(&self, sdk: &Sdk, state: &State) -> Result<bool, StepError>;
+    async fn is_valid(&self, ctx: &Ctx, state: &State) -> Result<bool, StepError>;
 
     #[allow(async_fn_in_trait)]
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError>;
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError>;
 
     fn assert(&self, code: &Code);
 }

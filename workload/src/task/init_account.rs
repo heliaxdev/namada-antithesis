@@ -8,8 +8,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Threshold};
@@ -36,8 +36,8 @@ impl TaskContext for InitAccount {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
 
         let mut public_keys = vec![];
         for source in &self.sources {
@@ -51,7 +51,7 @@ impl TaskContext for InitAccount {
             .find_public_key(&self.settings.gas_payer.name)
             .map_err(|e| TaskError::Wallet(e.to_string()))?;
 
-        let mut init_account_builder = sdk
+        let mut init_account_builder = ctx
             .namada
             .new_init_account(public_keys, Some(self.threshold as u8))
             .initialized_account_alias(self.target.name.clone())
@@ -72,7 +72,7 @@ impl TaskContext for InitAccount {
         drop(wallet);
 
         let (init_account_tx, signing_data) = init_account_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -81,7 +81,7 @@ impl TaskContext for InitAccount {
 
     async fn build_checks(
         &self,
-        _sdk: &Sdk,
+        _ctx: &Ctx,
         _retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         Ok(vec![Check::AccountExist(

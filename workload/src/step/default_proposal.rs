@@ -2,8 +2,8 @@ use namada_sdk::rpc;
 
 use crate::code::{Code, CodeType};
 use crate::constants::PROPOSAL_DEPOSIT;
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
@@ -20,17 +20,17 @@ impl StepContext for DefaultProposal {
         "default-proposal".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.any_account_with_min_balance(PROPOSAL_DEPOSIT))
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
-        let client = &sdk.namada.client;
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
+        let client = &ctx.namada.client;
         let source_account = state
             .random_account_with_min_balance(vec![], PROPOSAL_DEPOSIT)
             .ok_or(StepError::BuildTask("No more accounts".to_string()))?;
 
-        let current_epoch = get_epoch(sdk, retry_config()).await?;
+        let current_epoch = get_epoch(ctx, retry_config()).await?;
 
         let gov_prams = rpc::query_governance_parameters(client).await;
 

@@ -5,8 +5,8 @@ use serde_json::json;
 use typed_builder::TypedBuilder;
 
 use crate::check::{CheckContext, CheckInfo};
+use crate::context::Ctx;
 use crate::error::CheckError;
-use crate::sdk::namada::Sdk;
 use crate::types::{Alias, Amount, Balance, Fee};
 use crate::utils::{get_balance, RetryConfig};
 
@@ -40,12 +40,12 @@ impl CheckContext for BalanceTarget {
 
     async fn do_check(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         fees: &HashMap<Alias, Fee>,
         check_info: CheckInfo,
         retry_config: RetryConfig,
     ) -> Result<(), CheckError> {
-        let (target_address, post_balance) = get_balance(sdk, &self.target, retry_config).await?;
+        let (target_address, post_balance) = get_balance(ctx, &self.target, retry_config).await?;
 
         let fee = fees.get(&self.target).cloned().unwrap_or_default();
 

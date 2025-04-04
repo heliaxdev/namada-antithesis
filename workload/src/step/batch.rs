@@ -6,8 +6,8 @@ use rand::seq::SliceRandom;
 use crate::code::{Code, CodeType};
 use crate::constants::MAX_BATCH_TX_NUM;
 use crate::constants::MIN_TRANSFER_BALANCE;
+use crate::context::Ctx;
 use crate::error::{StepError, TaskError};
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::{StepContext, StepType};
 use crate::task::{self, Task, TaskSettings};
@@ -21,13 +21,13 @@ impl StepContext for BatchBond {
         "batch-bond".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.min_n_account_with_min_balance(3, MIN_TRANSFER_BALANCE))
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
         Box::pin(build_batch(
-            sdk,
+            ctx,
             vec![StepType::Bond(Default::default())],
             MAX_BATCH_TX_NUM,
             state,
@@ -53,13 +53,13 @@ impl StepContext for BatchRandom {
         "batch-random".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.min_n_account_with_min_balance(3, MIN_TRANSFER_BALANCE) && state.min_bonds(3))
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
         Box::pin(build_batch(
-            sdk,
+            ctx,
             vec![
                 StepType::TransparentTransfer(Default::default()),
                 StepType::Bond(Default::default()),
@@ -93,7 +93,7 @@ impl StepContext for BatchRandom {
 }
 
 async fn build_batch(
-    sdk: &Sdk,
+    ctx: &Ctx,
     possibilities: Vec<StepType>,
     max_size: u64,
     state: &State,
@@ -103,7 +103,7 @@ async fn build_batch(
         let step = possibilities
             .choose(&mut AntithesisRng)
             .expect("at least one StepType should exist");
-        let tasks = step.build_task(sdk, state).await.unwrap_or_default();
+        let tasks = step.build_task(ctx, state).await.unwrap_or_default();
         if !tasks.is_empty() {
             tracing::info!("Added {step} to the batch...");
             batch_tasks.extend(tasks);

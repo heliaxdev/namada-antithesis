@@ -74,7 +74,6 @@ pub struct State {
     pub deactivated_validators: HashMap<Alias, (Account, Epoch)>,
     pub proposals: HashMap<u64, (u64, u64)>,
     pub id: u64,
-    pub base_dir: PathBuf,
     pub stats: HashMap<String, u64>,
 }
 
@@ -92,7 +91,6 @@ impl State {
             deactivated_validators: HashMap::default(),
             proposals: HashMap::default(),
             id,
-            base_dir: env::current_dir().unwrap().join("base"),
             stats: HashMap::default(),
         }
     }

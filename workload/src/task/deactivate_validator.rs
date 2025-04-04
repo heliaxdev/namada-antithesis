@@ -6,8 +6,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Epoch, ValidatorStatus};
@@ -33,8 +33,8 @@ impl TaskContext for DeactivateValidator {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
         let target_address = wallet
             .find_address(&self.target.name)
             .ok_or_else(|| TaskError::Wallet(format!("No target address: {}", self.target.name)))?;
@@ -42,7 +42,7 @@ impl TaskContext for DeactivateValidator {
             .find_public_key(&self.settings.gas_payer.name)
             .map_err(|e| TaskError::Wallet(e.to_string()))?;
 
-        let mut deactivate_validator_builder_tx = sdk
+        let mut deactivate_validator_builder_tx = ctx
             .namada
             .new_deactivate_validator(target_address.into_owned());
 
@@ -62,7 +62,7 @@ impl TaskContext for DeactivateValidator {
             deactivate_validator_builder_tx.signing_keys(signing_keys);
 
         let (deactivate_validator, signing_data) = deactivate_validator_builder_tx
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -75,7 +75,7 @@ impl TaskContext for DeactivateValidator {
 
     async fn build_checks(
         &self,
-        _sdk: &Sdk,
+        _ctx: &Ctx,
         _retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         Ok(vec![Check::ValidatorStatus(

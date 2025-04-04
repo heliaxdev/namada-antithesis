@@ -5,8 +5,8 @@ use serde_json::json;
 use typed_builder::TypedBuilder;
 
 use crate::check::{CheckContext, CheckInfo};
+use crate::context::Ctx;
 use crate::error::CheckError;
-use crate::sdk::namada::Sdk;
 use crate::types::{Alias, Fee, ValidatorStatus as Status};
 use crate::utils::{get_epoch, get_validator_state, RetryConfig};
 
@@ -23,14 +23,14 @@ impl CheckContext for ValidatorStatus {
 
     async fn do_check(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         _fees: &HashMap<Alias, Fee>,
         check_info: CheckInfo,
         retry_config: RetryConfig,
     ) -> Result<(), CheckError> {
-        let epoch = get_epoch(sdk, retry_config).await?;
+        let epoch = get_epoch(ctx, retry_config).await?;
         let (target_address, (state, _epoch)) =
-            get_validator_state(sdk, &self.target, epoch + 2, retry_config).await?;
+            get_validator_state(ctx, &self.target, epoch + 2, retry_config).await?;
         let state = state.ok_or_else(|| {
             antithesis_sdk::assert_unreachable!(
                 "OnChain validator account doesn't exist",

@@ -8,8 +8,8 @@ use rand::rngs::OsRng;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, CommissionChange, CommissionRate};
@@ -40,8 +40,8 @@ impl TaskContext for BecomeValidator {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let mut wallet = sdk.namada.wallet.write().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let mut wallet = ctx.namada.wallet.write().await;
 
         let consensus_pk = wallet
             .gen_store_secret_key(
@@ -101,7 +101,7 @@ impl TaskContext for BecomeValidator {
             .save()
             .map_err(|e| TaskError::Wallet(format!("Failed to save the wallet: {e}")))?;
 
-        let mut become_validator_tx_builder = sdk
+        let mut become_validator_tx_builder = ctx
             .namada
             .new_become_validator(
                 source_address.into_owned(),
@@ -130,7 +130,7 @@ impl TaskContext for BecomeValidator {
         drop(wallet);
 
         let (become_validator, signing_data) = become_validator_tx_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -143,7 +143,7 @@ impl TaskContext for BecomeValidator {
 
     async fn build_checks(
         &self,
-        _sdk: &Sdk,
+        _ctx: &Ctx,
         _retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         Ok(vec![Check::IsValidatorAccount(

@@ -10,8 +10,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount, Epoch, ValidatorAddress};
@@ -42,8 +42,8 @@ impl TaskContext for Unbond {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
 
         let source_address = wallet
             .find_address(&self.source.name)
@@ -55,7 +55,7 @@ impl TaskContext for Unbond {
         let validator =
             Address::from_str(&self.validator).expect("ValidatorAddress should be converted");
 
-        let mut unbond_tx_builder = sdk
+        let mut unbond_tx_builder = ctx
             .namada
             .new_unbond(validator, token_amount)
             .source(source_address.into_owned());
@@ -72,7 +72,7 @@ impl TaskContext for Unbond {
         drop(wallet);
 
         let (unbond_tx, signing_data, _epoch) = unbond_tx_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -81,11 +81,11 @@ impl TaskContext for Unbond {
 
     async fn build_checks(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         let pre_bond =
-            get_bond(sdk, &self.source, &self.validator, self.epoch, retry_config).await?;
+            get_bond(ctx, &self.source, &self.validator, self.epoch, retry_config).await?;
 
         Ok(vec![Check::BondDecrease(
             check::bond_decrease::BondDecrease::builder()

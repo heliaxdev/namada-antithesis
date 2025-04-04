@@ -7,8 +7,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount};
@@ -38,8 +38,8 @@ impl TaskContext for TransparentTransfer {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
 
         let native_token_alias = Alias::nam();
 
@@ -69,7 +69,7 @@ impl TaskContext for TransparentTransfer {
             amount: InputAmount::Unvalidated(DenominatedAmount::native(token_amount)),
         };
 
-        let mut transfer_tx_builder = sdk.namada.new_transparent_transfer(vec![tx_transfer_data]);
+        let mut transfer_tx_builder = ctx.namada.new_transparent_transfer(vec![tx_transfer_data]);
         transfer_tx_builder =
             transfer_tx_builder.gas_limit(GasLimit::from(self.settings.gas_limit));
         transfer_tx_builder = transfer_tx_builder.wrapper_fee_payer(fee_payer);
@@ -84,7 +84,7 @@ impl TaskContext for TransparentTransfer {
         drop(wallet);
 
         let (transfer_tx, signing_data) = transfer_tx_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -93,10 +93,10 @@ impl TaskContext for TransparentTransfer {
 
     async fn build_checks(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        let (_, pre_balance) = get_balance(sdk, &self.source, retry_config).await?;
+        let (_, pre_balance) = get_balance(ctx, &self.source, retry_config).await?;
         let source_check = Check::BalanceSource(
             check::balance_source::BalanceSource::builder()
                 .target(self.source.clone())
@@ -105,7 +105,7 @@ impl TaskContext for TransparentTransfer {
                 .build(),
         );
 
-        let (_, pre_balance) = get_balance(sdk, &self.target, retry_config).await?;
+        let (_, pre_balance) = get_balance(ctx, &self.target, retry_config).await?;
         let target_check = Check::BalanceTarget(
             check::balance_target::BalanceTarget::builder()
                 .target(self.target.clone())

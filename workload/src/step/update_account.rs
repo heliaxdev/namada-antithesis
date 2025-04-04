@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
 use crate::code::{Code, CodeType};
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
@@ -19,11 +19,11 @@ impl StepContext for UpdateAccount {
         "update-account".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.min_n_established_accounts(1) && state.min_n_implicit_accounts(3))
     }
 
-    async fn build_task(&self, _sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, _ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
         let account = state.random_established_account(vec![], 1).pop().unwrap();
 
         let total_signers = utils::random_between(1, 4);

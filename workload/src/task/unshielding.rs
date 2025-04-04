@@ -11,8 +11,8 @@ use rand::rngs::OsRng;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount, Height, MaspEpoch};
@@ -55,10 +55,10 @@ impl TaskContext for Unshielding {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
         let mut bparams = RngBuildParams::new(OsRng);
 
-        let mut wallet = sdk.namada.wallet.write().await;
+        let mut wallet = ctx.namada.wallet.write().await;
 
         let source_spending_key = wallet
             .find_spending_key(&self.source.name, None)
@@ -98,7 +98,7 @@ impl TaskContext for Unshielding {
             None
         };
 
-        let mut transfer_tx_builder = sdk.namada.new_unshielding_transfer(
+        let mut transfer_tx_builder = ctx.namada.new_unshielding_transfer(
             pseudo_spending_key_from_spending_key,
             vec![tx_transfer_data],
             gas_spending_key,
@@ -117,25 +117,25 @@ impl TaskContext for Unshielding {
         // signing key isn't needed for unshielding transfer
 
         let (transfer_tx, signing_data) = transfer_tx_builder
-            .build(&sdk.namada, &mut bparams)
+            .build(&ctx.namada, &mut bparams)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
         Ok((transfer_tx, vec![signing_data], transfer_tx_builder.tx))
     }
 
-    async fn execute(&self, sdk: &Sdk) -> Result<Height, TaskError> {
-        self.execute_shielded_tx(sdk, self.epoch).await
+    async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
+        self.execute_shielded_tx(ctx, self.epoch).await
     }
 
     async fn build_checks(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        shielded_sync_with_retry(sdk, &self.source, None, false).await?;
+        shielded_sync_with_retry(ctx, &self.source, None, false).await?;
 
-        let pre_balance = get_shielded_balance(sdk, &self.source, retry_config)
+        let pre_balance = get_shielded_balance(ctx, &self.source, retry_config)
             .await?
             .unwrap_or_default();
         let source_check = Check::BalanceShieldedSource(
@@ -146,7 +146,7 @@ impl TaskContext for Unshielding {
                 .build(),
         );
 
-        let (_, pre_balance) = get_balance(sdk, &self.target, retry_config).await?;
+        let (_, pre_balance) = get_balance(ctx, &self.target, retry_config).await?;
         let target_check = Check::BalanceTarget(
             check::balance_target::BalanceTarget::builder()
                 .target(self.target.clone())

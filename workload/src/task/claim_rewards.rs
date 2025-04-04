@@ -9,8 +9,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount, ValidatorAddress};
@@ -43,8 +43,8 @@ impl TaskContext for ClaimRewards {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
 
         let source_address = wallet
             .find_address(&self.source.name)
@@ -55,7 +55,7 @@ impl TaskContext for ClaimRewards {
         let from_validator =
             Address::from_str(&self.from_validator).expect("ValidatorAddress should be converted");
 
-        let mut claim_rewards_tx_builder = sdk.namada.new_claim_rewards(from_validator);
+        let mut claim_rewards_tx_builder = ctx.namada.new_claim_rewards(from_validator);
         claim_rewards_tx_builder.source = Some(source_address.into_owned());
         claim_rewards_tx_builder =
             claim_rewards_tx_builder.gas_limit(GasLimit::from(self.settings.gas_limit));
@@ -71,7 +71,7 @@ impl TaskContext for ClaimRewards {
         drop(wallet);
 
         let (claim_tx, signing_data) = claim_rewards_tx_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -80,10 +80,10 @@ impl TaskContext for ClaimRewards {
 
     async fn build_checks(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        let (_, pre_balance) = get_balance(sdk, &self.source, retry_config).await?;
+        let (_, pre_balance) = get_balance(ctx, &self.source, retry_config).await?;
 
         Ok(vec![Check::BalanceTarget(
             check::balance_target::BalanceTarget::builder()

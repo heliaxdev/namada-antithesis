@@ -1,6 +1,6 @@
 use crate::code::{Code, CodeType};
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
@@ -18,13 +18,13 @@ impl StepContext for Vote {
         "vote".to_string()
     }
 
-    async fn is_valid(&self, sdk: &Sdk, state: &State) -> Result<bool, StepError> {
-        let current_epoch = get_epoch(sdk, retry_config()).await?;
+    async fn is_valid(&self, ctx: &Ctx, state: &State) -> Result<bool, StepError> {
+        let current_epoch = get_epoch(ctx, retry_config()).await?;
         Ok(state.any_bond() && state.any_votable_proposal(current_epoch))
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
-        let current_epoch = get_epoch(sdk, retry_config()).await?;
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
+        let current_epoch = get_epoch(ctx, retry_config()).await?;
         let Some(proposal_id) = state.random_votable_proposal(current_epoch) else {
             return Ok(vec![]);
         };

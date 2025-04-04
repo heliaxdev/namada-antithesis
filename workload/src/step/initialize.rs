@@ -5,8 +5,8 @@ use crate::code::{Code, CodeType};
 use crate::constants::{
     FAUCET_AMOUNT, INIT_ESTABLISHED_ADDR_NUM, INIT_IMPLICIT_ADDR_NUM, MAX_BATCH_TX_NUM,
 };
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::{StepContext, StepType};
 use crate::task::{self, Task, TaskSettings};
@@ -25,11 +25,11 @@ impl StepContext for Initialize {
         "initialize".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.stats.is_empty())
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
         let mut tasks = vec![];
         let mut implicit_aliases = vec![];
         let mut established_aliases = vec![];
@@ -38,7 +38,7 @@ impl StepContext for Initialize {
         let mut batch_tasks = vec![];
         for _ in 0..INIT_IMPLICIT_ADDR_NUM {
             let step_type = StepType::NewWalletKeyPair(Default::default());
-            let task = Box::pin(step_type.build_task(sdk, state)).await?.remove(0);
+            let task = Box::pin(step_type.build_task(ctx, state)).await?.remove(0);
             if let Task::NewWalletKeyPair(ref inner) = task {
                 implicit_aliases.push(inner.source().clone());
                 batch_tasks.push(task);
@@ -100,8 +100,8 @@ impl StepContext for Initialize {
         ));
 
         // bond
-        let current_epoch = get_epoch(sdk, retry_config()).await?;
-        let validators = get_validator_addresses(sdk, retry_config()).await?;
+        let current_epoch = get_epoch(ctx, retry_config()).await?;
+        let validators = get_validator_addresses(ctx, retry_config()).await?;
         let mut batch_tasks = vec![];
         for alias in implicit_aliases {
             // limit the amount to avoid the insufficent balance for the batch fee

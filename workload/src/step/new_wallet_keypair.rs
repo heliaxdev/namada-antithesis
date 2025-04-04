@@ -5,8 +5,8 @@ use namada_sdk::PaymentAddress;
 use rand::rngs::OsRng;
 
 use crate::code::{Code, CodeType};
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task};
@@ -23,16 +23,16 @@ impl StepContext for NewWalletKeyPair {
         "new-wallet-keypair".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, _state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, _state: &State) -> Result<bool, StepError> {
         Ok(true)
     }
 
-    async fn build_task(&self, sdk: &Sdk, _state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, ctx: &Ctx, _state: &State) -> Result<Vec<Task>, StepError> {
         let alias = utils::random_alias();
 
-        let height = get_block_height(sdk, retry_config()).await?;
+        let height = get_block_height(ctx, retry_config()).await?;
 
-        let mut wallet = sdk.namada.wallet.write().await;
+        let mut wallet = ctx.namada.wallet.write().await;
 
         wallet
             .gen_store_secret_key(

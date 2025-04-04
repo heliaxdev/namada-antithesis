@@ -1,6 +1,6 @@
 use crate::code::{Code, CodeType};
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
@@ -17,12 +17,12 @@ impl StepContext for ClaimRewards {
         "claim-rewards".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.any_bond())
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
-        let epoch = get_epoch(sdk, retry_config()).await?;
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
+        let epoch = get_epoch(ctx, retry_config()).await?;
         let Some(source_bond) = state.random_bond(epoch) else {
             return Ok(vec![]);
         };
@@ -36,7 +36,7 @@ impl StepContext for ClaimRewards {
             0u64
         } else {
             let rewards = get_rewards(
-                sdk,
+                ctx,
                 &source_bond.alias,
                 &source_bond.validator,
                 epoch,

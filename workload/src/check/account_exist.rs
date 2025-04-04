@@ -4,8 +4,8 @@ use serde_json::json;
 use typed_builder::TypedBuilder;
 
 use crate::check::{CheckContext, CheckInfo};
+use crate::context::Ctx;
 use crate::error::CheckError;
-use crate::sdk::namada::Sdk;
 use crate::types::{Alias, Fee, Threshold};
 use crate::utils::{get_account_info, RetryConfig};
 
@@ -23,12 +23,12 @@ impl CheckContext for AccountExist {
 
     async fn do_check(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         _fees: &HashMap<Alias, Fee>,
         check_info: CheckInfo,
         retry_config: RetryConfig,
     ) -> Result<(), CheckError> {
-        let (target_address, account) = get_account_info(sdk, &self.target, retry_config).await?;
+        let (target_address, account) = get_account_info(ctx, &self.target, retry_config).await?;
         let account = account.ok_or_else(|| {
             antithesis_sdk::assert_unreachable!(
                 "OnChain account doesn't exist",

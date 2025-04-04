@@ -4,8 +4,8 @@ use std::fmt::{Display, Formatter};
 use enum_dispatch::enum_dispatch;
 use serde_json::json;
 
+use crate::context::Ctx;
 use crate::error::CheckError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::types::{Alias, Balance, Fee, Height};
 use crate::utils::RetryConfig;
@@ -129,7 +129,7 @@ pub trait CheckContext {
     #[allow(async_fn_in_trait)]
     async fn do_check(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         fees: &HashMap<Alias, Fee>,
         check_info: CheckInfo,
         retry_config: RetryConfig,

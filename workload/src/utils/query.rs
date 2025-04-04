@@ -18,24 +18,24 @@ use serde_json::json;
 use tokio::time::{sleep, Duration};
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
 
+use crate::context::Ctx;
 use crate::error::QueryError;
-use crate::sdk::namada::Sdk;
 use crate::types::{Alias, Epoch, Height, ProposalId, ProposalVote};
 use crate::utils::RetryConfig;
 
 pub async fn get_account_info(
-    sdk: &Sdk,
+    ctx: &Ctx,
     source: &Alias,
     retry_config: RetryConfig,
 ) -> Result<(Address, Option<Account>), QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let source_address = wallet
         .find_address(&source.name)
         .ok_or_else(|| QueryError::Wallet(format!("No account address: {}", source.name)))?
         .into_owned();
     drop(wallet);
 
-    let account = tryhard::retry_fn(|| rpc::get_account_info(&sdk.namada.client, &source_address))
+    let account = tryhard::retry_fn(|| rpc::get_account_info(&ctx.namada.client, &source_address))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();
@@ -50,18 +50,18 @@ pub async fn get_account_info(
 }
 
 pub async fn is_validator(
-    sdk: &Sdk,
+    ctx: &Ctx,
     target: &Alias,
     retry_config: RetryConfig,
 ) -> Result<(Address, bool), QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let source_address = wallet
         .find_address(&target.name)
         .ok_or_else(|| QueryError::Wallet(format!("No target address: {}", target.name)))?
         .into_owned();
     drop(wallet);
 
-    let is_validator = tryhard::retry_fn(|| rpc::is_validator(&sdk.namada.client, &source_address))
+    let is_validator = tryhard::retry_fn(|| rpc::is_validator(&ctx.namada.client, &source_address))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();
@@ -76,12 +76,12 @@ pub async fn is_validator(
 }
 
 pub async fn get_validator_state(
-    sdk: &Sdk,
+    ctx: &Ctx,
     target: &Alias,
     epoch: Epoch,
     retry_config: RetryConfig,
 ) -> Result<(Address, ValidatorStateInfo), QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let target_address = wallet
         .find_address(&target.name)
         .ok_or_else(|| QueryError::Wallet(format!("No target address: {}", target.name)))?
@@ -89,7 +89,7 @@ pub async fn get_validator_state(
     drop(wallet);
 
     let state = tryhard::retry_fn(|| {
-        rpc::get_validator_state(&sdk.namada.client, &target_address, Some(epoch.into()))
+        rpc::get_validator_state(&ctx.namada.client, &target_address, Some(epoch.into()))
     })
     .with_config(retry_config)
     .on_retry(|attempt, _, error| {
@@ -105,11 +105,11 @@ pub async fn get_validator_state(
 }
 
 pub async fn get_validator_addresses(
-    sdk: &Sdk,
+    ctx: &Ctx,
     retry_config: RetryConfig,
 ) -> Result<Vec<Address>, QueryError> {
-    let current_epoch = get_epoch(sdk, retry_config).await?;
-    let validators = rpc::get_all_consensus_validators(&sdk.namada.client, current_epoch.into())
+    let current_epoch = get_epoch(ctx, retry_config).await?;
+    let validators = rpc::get_all_consensus_validators(&ctx.namada.client, current_epoch.into())
         .await
         .map_err(QueryError::Rpc)?
         .into_iter()
@@ -120,18 +120,18 @@ pub async fn get_validator_addresses(
 }
 
 pub async fn is_pk_revealed(
-    sdk: &Sdk,
+    ctx: &Ctx,
     target: &Alias,
     retry_config: RetryConfig,
 ) -> Result<bool, QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let target_address = wallet
         .find_address(&target.name)
         .ok_or_else(|| QueryError::Wallet(format!("No target address: {}", target.name)))?
         .into_owned();
     drop(wallet);
 
-    tryhard::retry_fn(|| rpc::is_public_key_revealed(&sdk.namada.client, &target_address))
+    tryhard::retry_fn(|| rpc::is_public_key_revealed(&ctx.namada.client, &target_address))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();
@@ -144,11 +144,11 @@ pub async fn is_pk_revealed(
 }
 
 pub async fn get_balance(
-    sdk: &Sdk,
+    ctx: &Ctx,
     source: &Alias,
     retry_config: RetryConfig,
 ) -> Result<(Address, token::Amount), QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let native_token_alias = Alias::nam();
     let native_token_address = wallet
         .find_address(&native_token_alias.name)
@@ -164,7 +164,7 @@ pub async fn get_balance(
 
     let balance = tryhard::retry_fn(|| {
         rpc::get_token_balance(
-            &sdk.namada.client,
+            &ctx.namada.client,
             &native_token_address,
             &target_address,
             None,
@@ -185,15 +185,15 @@ pub async fn get_balance(
 
 /// Shielded balance. Need shielded-sync in advance.
 pub async fn get_shielded_balance(
-    sdk: &Sdk,
+    ctx: &Ctx,
     source: &Alias,
     retry_config: RetryConfig,
 ) -> Result<Option<token::Amount>, QueryError> {
-    let client = &sdk.namada.client;
+    let client = &ctx.namada.client;
 
-    let masp_epoch = get_masp_epoch(sdk, retry_config).await?;
+    let masp_epoch = get_masp_epoch(ctx, retry_config).await?;
 
-    let mut wallet = sdk.namada.wallet.write().await;
+    let mut wallet = ctx.namada.wallet.write().await;
     let native_token_alias = Alias::nam();
     let native_token_address = wallet
         .find_address(&native_token_alias.name)
@@ -211,7 +211,7 @@ pub async fn get_shielded_balance(
         .to_owned();
     drop(wallet);
 
-    let mut shielded_ctx = sdk.namada.shielded_mut().await;
+    let mut shielded_ctx = ctx.namada.shielded_mut().await;
 
     let viewing_key = zip32::ExtendedFullViewingKey::from(&target_spending_key.into())
         .fvk
@@ -234,8 +234,8 @@ pub async fn get_shielded_balance(
     Ok(Some(total_balance.into()))
 }
 
-pub async fn get_block_height(sdk: &Sdk, retry_config: RetryConfig) -> Result<Height, QueryError> {
-    let block = tryhard::retry_fn(|| rpc::query_block(&sdk.namada.client))
+pub async fn get_block_height(ctx: &Ctx, retry_config: RetryConfig) -> Result<Height, QueryError> {
+    let block = tryhard::retry_fn(|| rpc::query_block(&ctx.namada.client))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();
@@ -249,9 +249,9 @@ pub async fn get_block_height(sdk: &Sdk, retry_config: RetryConfig) -> Result<He
     Ok(block.height.into())
 }
 
-pub async fn wait_block_settlement(sdk: &Sdk, height: Height, retry_config: RetryConfig) {
+pub async fn wait_block_settlement(ctx: &Ctx, height: Height, retry_config: RetryConfig) {
     loop {
-        if let Ok(current_height) = get_block_height(sdk, retry_config).await {
+        if let Ok(current_height) = get_block_height(ctx, retry_config).await {
             if current_height > height {
                 break;
             } else {
@@ -266,8 +266,8 @@ pub async fn wait_block_settlement(sdk: &Sdk, height: Height, retry_config: Retr
     }
 }
 
-pub async fn get_epoch(sdk: &Sdk, retry_config: RetryConfig) -> Result<Epoch, QueryError> {
-    tryhard::retry_fn(|| rpc::query_epoch(&sdk.namada.client))
+pub async fn get_epoch(ctx: &Ctx, retry_config: RetryConfig) -> Result<Epoch, QueryError> {
+    tryhard::retry_fn(|| rpc::query_epoch(&ctx.namada.client))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();
@@ -280,8 +280,8 @@ pub async fn get_epoch(sdk: &Sdk, retry_config: RetryConfig) -> Result<Epoch, Qu
         .map_err(QueryError::Rpc)
 }
 
-pub async fn get_masp_epoch(sdk: &Sdk, retry_config: RetryConfig) -> Result<MaspEpoch, QueryError> {
-    tryhard::retry_fn(|| rpc::query_masp_epoch(&sdk.namada.client))
+pub async fn get_masp_epoch(ctx: &Ctx, retry_config: RetryConfig) -> Result<MaspEpoch, QueryError> {
+    tryhard::retry_fn(|| rpc::query_masp_epoch(&ctx.namada.client))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();
@@ -294,11 +294,11 @@ pub async fn get_masp_epoch(sdk: &Sdk, retry_config: RetryConfig) -> Result<Masp
 }
 
 pub async fn get_masp_epoch_at_height(
-    sdk: &Sdk,
+    ctx: &Ctx,
     height: Height,
     retry_config: RetryConfig,
 ) -> Result<MaspEpoch, QueryError> {
-    let epoch = tryhard::retry_fn(|| rpc::query_epoch_at_height(&sdk.namada.client, height.into()))
+    let epoch = tryhard::retry_fn(|| rpc::query_epoch_at_height(&ctx.namada.client, height.into()))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();
@@ -311,7 +311,7 @@ pub async fn get_masp_epoch_at_height(
         .expect("Epoch should exist");
     let key = namada_sdk::parameters::storage::get_masp_epoch_multiplier_key();
     let masp_epoch_multiplier =
-        tryhard::retry_fn(|| rpc::query_storage_value(&sdk.namada.client, &key))
+        tryhard::retry_fn(|| rpc::query_storage_value(&ctx.namada.client, &key))
             .with_config(retry_config)
             .on_retry(|attempt, _, error| {
                 let error = error.to_string();
@@ -327,13 +327,13 @@ pub async fn get_masp_epoch_at_height(
 }
 
 pub async fn get_bond(
-    sdk: &Sdk,
+    ctx: &Ctx,
     source: &Alias,
     validator: &str,
     epoch: Epoch,
     retry_config: RetryFutureConfig<ExponentialBackoff, NoOnRetry>,
 ) -> Result<token::Amount, QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let source_address = wallet
         .find_address(&source.name)
         .ok_or_else(|| QueryError::Wallet(format!("No source address: {}", source.name)))?;
@@ -343,7 +343,7 @@ pub async fn get_bond(
 
     tryhard::retry_fn(|| {
         rpc::get_bond_amount_at(
-            &sdk.namada.client,
+            &ctx.namada.client,
             &source_address,
             &validator_address,
             epoch.next().next(),
@@ -361,13 +361,13 @@ pub async fn get_bond(
 }
 
 pub async fn get_rewards(
-    sdk: &Sdk,
+    ctx: &Ctx,
     source: &Alias,
     validator: &str,
     epoch: Epoch,
     retry_config: RetryFutureConfig<ExponentialBackoff, NoOnRetry>,
 ) -> Result<token::Amount, QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let source_address = wallet
         .find_address(&source.name)
         .ok_or_else(|| QueryError::Wallet(format!("No source address: {}", source.name)))?;
@@ -377,7 +377,7 @@ pub async fn get_rewards(
     let epoch = Some(namada_sdk::state::Epoch::from(epoch));
 
     tryhard::retry_fn(|| {
-        rpc::query_rewards(&sdk.namada.client, &source, &validator_address, &epoch)
+        rpc::query_rewards(&ctx.namada.client, &source, &validator_address, &epoch)
     })
     .with_config(retry_config)
     .on_retry(|attempt, _, error| {
@@ -391,12 +391,12 @@ pub async fn get_rewards(
 }
 
 pub async fn shielded_sync_with_retry(
-    sdk: &Sdk,
+    ctx: &Ctx,
     source: &Alias,
     height: Option<Height>,
     with_indexer: bool,
 ) -> Result<(), QueryError> {
-    let (is_successful, error) = match shielded_sync(sdk, height, with_indexer).await {
+    let (is_successful, error) = match shielded_sync(ctx, height, with_indexer).await {
         Ok(_) => (true, "".to_string()),
         Err(e) => (false, e.to_string()),
     };
@@ -430,7 +430,7 @@ pub async fn shielded_sync_with_retry(
     }
 
     // Try shielded sync without indexer only if the shielded sync with indexer failed
-    let (is_successful, error) = match shielded_sync(sdk, height, false).await {
+    let (is_successful, error) = match shielded_sync(ctx, height, false).await {
         Ok(_) => (true, "".to_string()),
         Err(e) => (false, e.to_string()),
     };
@@ -454,14 +454,14 @@ pub async fn shielded_sync_with_retry(
 }
 
 async fn shielded_sync(
-    sdk: &Sdk,
+    ctx: &Ctx,
     height: Option<Height>,
     with_indexer: bool,
 ) -> Result<(), QueryError> {
     let now = Instant::now();
     tracing::info!("Started shielded sync (using indexer: {})...", with_indexer);
 
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let vks = wallet
         .get_viewing_keys()
         .iter()
@@ -472,7 +472,7 @@ async fn shielded_sync(
         .collect::<Vec<_>>();
     drop(wallet);
 
-    let mut shielded_ctx = sdk.namada.shielded_mut().await;
+    let mut shielded_ctx = ctx.namada.shielded_mut().await;
 
     let task_env = MaspLocalTaskEnv::new(4).map_err(|e| QueryError::ShieldedSync(e.to_string()))?;
     let shutdown_signal = install_shutdown_signal(true);
@@ -487,7 +487,7 @@ async fn shielded_sync(
             .expect("Client should be built");
         let masp_client = IndexerMaspClient::new(
             client,
-            Url::parse(&sdk.masp_indexer_url).unwrap(),
+            Url::parse(&ctx.masp_indexer_url).unwrap(),
             false,
             20,
         );
@@ -507,7 +507,7 @@ async fn shielded_sync(
             .map_err(|e| QueryError::ShieldedSync(e.to_string()))
     } else {
         let masp_client =
-            LedgerMaspClient::new(sdk.namada.clone_client(), 10, time::Duration::from_secs(1));
+            LedgerMaspClient::new(ctx.namada.clone_client(), 10, time::Duration::from_secs(1));
 
         let config = ShieldedSyncConfig::builder()
             .client(masp_client)
@@ -541,12 +541,12 @@ async fn shielded_sync(
 }
 
 pub async fn get_proposals(
-    sdk: &Sdk,
+    ctx: &Ctx,
     last_proposal_id: Option<ProposalId>,
 ) -> Result<HashMap<ProposalId, (Epoch, Epoch)>, QueryError> {
     let mut proposals = HashMap::new();
     let mut proposal_id = last_proposal_id.map(|id| id + 1).unwrap_or_default();
-    while let Some(proposal) = rpc::query_proposal_by_id(&sdk.namada.client, proposal_id)
+    while let Some(proposal) = rpc::query_proposal_by_id(&ctx.namada.client, proposal_id)
         .await
         .map_err(QueryError::Rpc)?
     {
@@ -562,19 +562,19 @@ pub async fn get_proposals(
 }
 
 pub async fn get_vote_results(
-    sdk: &Sdk,
+    ctx: &Ctx,
     target: &Alias,
     proposal_id: ProposalId,
     retry_config: RetryConfig,
 ) -> Result<Vec<ProposalVote>, QueryError> {
-    let wallet = sdk.namada.wallet.read().await;
+    let wallet = ctx.namada.wallet.read().await;
     let target_address = wallet
         .find_address(&target.name)
         .ok_or_else(|| QueryError::Wallet(format!("No target address: {}", target.name)))?
         .into_owned();
     drop(wallet);
 
-    let votes = tryhard::retry_fn(|| rpc::query_proposal_votes(&sdk.namada.client, proposal_id))
+    let votes = tryhard::retry_fn(|| rpc::query_proposal_votes(&ctx.namada.client, proposal_id))
         .with_config(retry_config)
         .on_retry(|attempt, _, error| {
             let error = error.to_string();

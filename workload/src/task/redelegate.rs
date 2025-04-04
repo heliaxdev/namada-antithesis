@@ -10,8 +10,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount, Epoch, ValidatorAddress};
@@ -53,8 +53,8 @@ impl TaskContext for Redelegate {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
 
         let source_address = wallet
             .find_address(&self.source.name)
@@ -68,7 +68,7 @@ impl TaskContext for Redelegate {
         let to_validator =
             Address::from_str(&self.to_validator).expect("ValidatorAddress should be converted");
 
-        let mut redelegate_tx_builder = sdk.namada.new_redelegation(
+        let mut redelegate_tx_builder = ctx.namada.new_redelegation(
             source_address.into_owned(),
             from_validator,
             to_validator,
@@ -88,7 +88,7 @@ impl TaskContext for Redelegate {
         drop(wallet);
 
         let (bond_tx, signing_data) = redelegate_tx_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -97,11 +97,11 @@ impl TaskContext for Redelegate {
 
     async fn build_checks(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         let pre_bond = get_bond(
-            sdk,
+            ctx,
             &self.source,
             &self.from_validator,
             self.epoch,
@@ -119,7 +119,7 @@ impl TaskContext for Redelegate {
         );
 
         let pre_bond = get_bond(
-            sdk,
+            ctx,
             &self.source,
             &self.to_validator,
             self.epoch,

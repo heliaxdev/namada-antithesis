@@ -1,7 +1,7 @@
 use crate::code::{Code, CodeType};
 use crate::constants::{MAX_BATCH_TX_NUM, MIN_TRANSFER_BALANCE};
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
@@ -17,11 +17,11 @@ impl StepContext for TransparentTransfer {
         "transparent-transfer".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.at_least_accounts(2) && state.any_account_can_make_transfer())
     }
 
-    async fn build_task(&self, _sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, _ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
         let source_account = state
             .random_account_with_min_balance(vec![], MIN_TRANSFER_BALANCE)
             .ok_or(StepError::BuildTask("No more accounts".to_string()))?;

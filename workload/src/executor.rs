@@ -5,8 +5,8 @@ use namada_sdk::rpc;
 use tokio::time::{sleep, Duration};
 
 use crate::check::{Check, CheckContext, CheckInfo};
+use crate::context::Ctx;
 use crate::error::{CheckError, StepError, TaskError};
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::{StepContext, StepType};
 use crate::task::{Task, TaskContext};
@@ -17,17 +17,17 @@ use crate::utils::{
 };
 
 pub struct WorkloadExecutor {
-    sdk: Sdk,
+    ctx: Ctx,
     state: State,
 }
 
 impl WorkloadExecutor {
-    pub fn new(sdk: Sdk, state: State) -> Self {
-        Self { sdk, state }
+    pub fn new(ctx: Ctx, state: State) -> Self {
+        Self { ctx, state }
     }
 
-    pub fn sdk(&self) -> &Sdk {
-        &self.sdk
+    pub fn ctx(&self) -> &Ctx {
+        &self.ctx
     }
 
     pub fn state(&self) -> &State {
@@ -36,7 +36,7 @@ impl WorkloadExecutor {
 
     async fn fetch_epoch_at_height(&self, height: Height) -> Epoch {
         loop {
-            let epoch = rpc::query_epoch_at_height(&self.sdk.namada.client, height.into()).await;
+            let epoch = rpc::query_epoch_at_height(&self.ctx.namada.client, height.into()).await;
             if let Ok(epoch) = epoch {
                 return epoch.expect("Epoch should exist").into();
             }
@@ -45,8 +45,8 @@ impl WorkloadExecutor {
     }
 
     pub async fn init(&self) -> Result<(), StepError> {
-        let client = &self.sdk.namada.client;
-        let wallet = self.sdk.namada.wallet.read().await;
+        let client = &self.ctx.namada.client;
+        let wallet = self.ctx.namada.wallet.read().await;
         let faucet_alias = Alias::faucet();
         let faucet_address = wallet
             .find_address(&faucet_alias.name)
@@ -85,13 +85,13 @@ impl WorkloadExecutor {
         }
 
         loop {
-            if let Ok(is_revealed) = is_pk_revealed(&self.sdk, &faucet_alias, retry_config()).await
+            if let Ok(is_revealed) = is_pk_revealed(&self.ctx, &faucet_alias, retry_config()).await
             {
                 if is_revealed {
                     break;
                 }
             }
-            if execute_reveal_pk(&self.sdk, faucet_public_key.clone())
+            if execute_reveal_pk(&self.ctx, faucet_public_key.clone())
                 .await
                 .is_ok()
             {
@@ -105,18 +105,18 @@ impl WorkloadExecutor {
     }
 
     pub async fn is_valid(&self, step_type: &StepType) -> Result<bool, StepError> {
-        step_type.is_valid(&self.sdk, &self.state).await
+        step_type.is_valid(&self.ctx, &self.state).await
     }
 
     pub async fn build_tasks(&self, step_type: &StepType) -> Result<Vec<Task>, StepError> {
-        step_type.build_task(&self.sdk, &self.state).await
+        step_type.build_task(&self.ctx, &self.state).await
     }
 
     pub async fn build_check(&self, tasks: &[Task]) -> Result<Vec<Check>, TaskError> {
         let retry_config = retry_config();
         let mut checks = vec![];
         for task in tasks {
-            let built_checks = task.build_checks(&self.sdk, retry_config).await?;
+            let built_checks = task.build_checks(&self.ctx, retry_config).await?;
             built_checks
                 .iter()
                 .for_each(|check| check.assert_pre_balance(&self.state));
@@ -137,14 +137,14 @@ impl WorkloadExecutor {
             return Ok(());
         }
 
-        let check_height = get_block_height(&self.sdk, retry_config)
+        let check_height = get_block_height(&self.ctx, retry_config)
             .await
             .unwrap_or_default();
         for check in checks {
             tracing::info!("Running {check} check...");
             check
                 .do_check(
-                    &self.sdk,
+                    &self.ctx,
                     fees,
                     CheckInfo {
                         execution_height,
@@ -165,7 +165,7 @@ impl WorkloadExecutor {
         let mut fees = HashMap::new();
         let mut execution_height = 0;
 
-        let start_height = get_block_height(&self.sdk, retry_config())
+        let start_height = get_block_height(&self.ctx, retry_config())
             .await
             .unwrap_or_default();
 
@@ -174,21 +174,21 @@ impl WorkloadExecutor {
         for task in tasks {
             tracing::info!("Executing {task}...");
             let now = Instant::now();
-            execution_height = match task.execute(&self.sdk).await {
+            execution_height = match task.execute(&self.ctx).await {
                 Ok(height) => height,
                 Err(e) => {
                     match e {
                         // aggreate fees when the tx has been executed
                         TaskError::Execution { .. } => task.aggregate_fees(&mut fees, false),
                         TaskError::Broadcast(_) => {
-                            wait_block_settlement(&self.sdk, start_height, retry_config()).await;
+                            wait_block_settlement(&self.ctx, start_height, retry_config()).await;
                         }
                         TaskError::InvalidShielded { was_fee_paid, .. } => {
                             if was_fee_paid {
                                 task.aggregate_fees(&mut fees, false)
                             } else {
                                 // Broadcast error
-                                wait_block_settlement(&self.sdk, start_height, retry_config())
+                                wait_block_settlement(&self.ctx, start_height, retry_config())
                                     .await;
                             }
                         }
@@ -202,7 +202,7 @@ impl WorkloadExecutor {
             task.aggregate_fees(&mut fees, true);
 
             // wait for the execution block settlement
-            wait_block_settlement(&self.sdk, execution_height, retry_config()).await;
+            wait_block_settlement(&self.ctx, execution_height, retry_config()).await;
         }
 
         (Ok(execution_height), fees)
@@ -222,7 +222,7 @@ impl WorkloadExecutor {
                 Task::ClaimRewards(cr) => {
                     // workaround for exact balance update after claim-rewards
                     let (_, balance) = crate::utils::get_balance(
-                        &self.sdk,
+                        &self.ctx,
                         cr.source(),
                         crate::utils::retry_config(),
                     )
@@ -238,14 +238,14 @@ impl WorkloadExecutor {
                 }
                 Task::InitAccount(_) => {
                     // save wallet for init-account
-                    let wallet = self.sdk.namada.wallet.read().await;
+                    let wallet = self.ctx.namada.wallet.read().await;
                     wallet
                         .save()
                         .map_err(|e| TaskError::Wallet(e.to_string()))?;
                 }
                 Task::DefaultProposal(_) | Task::Vote(_) => {
                     let last_proposal_id = self.state.proposals.keys().max().cloned();
-                    let new_proposals = get_proposals(&self.sdk, last_proposal_id).await?;
+                    let new_proposals = get_proposals(&self.ctx, last_proposal_id).await?;
                     self.state.add_proposals(new_proposals);
                 }
                 _ => {}

@@ -6,8 +6,8 @@ use namada_sdk::Namada;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, ProposalId, ProposalVote};
@@ -37,8 +37,8 @@ impl TaskContext for Vote {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
-        let wallet = sdk.namada.wallet.read().await;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+        let wallet = ctx.namada.wallet.read().await;
         let source_address = wallet
             .find_address(&self.source.name)
             .ok_or_else(|| TaskError::Wallet(format!("No source address: {}", self.source.name)))?;
@@ -46,7 +46,7 @@ impl TaskContext for Vote {
             .find_public_key(&self.settings.gas_payer.name)
             .map_err(|e| TaskError::Wallet(e.to_string()))?;
 
-        let mut vote_tx_builder = sdk.namada.new_proposal_vote(
+        let mut vote_tx_builder = ctx.namada.new_proposal_vote(
             self.proposal_id,
             self.vote.to_string(),
             source_address.into_owned(),
@@ -64,7 +64,7 @@ impl TaskContext for Vote {
         drop(wallet);
 
         let (vote_tx, signing_data) = vote_tx_builder
-            .build(&sdk.namada)
+            .build(&ctx.namada)
             .await
             .map_err(|e| TaskError::BuildTx(e.to_string()))?;
 
@@ -73,7 +73,7 @@ impl TaskContext for Vote {
 
     async fn build_checks(
         &self,
-        _sdk: &Sdk,
+        _ctx: &Ctx,
         _retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         Ok(vec![Check::VoteResult(

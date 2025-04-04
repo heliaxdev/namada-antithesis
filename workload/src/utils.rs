@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConfig};
@@ -9,6 +10,10 @@ mod tx;
 
 pub use query::*;
 pub use tx::*;
+
+pub fn base_dir() -> PathBuf {
+    std::env::current_dir().unwrap().join("base")
+}
 
 pub type RetryConfig = RetryFutureConfig<ExponentialBackoff, NoOnRetry>;
 

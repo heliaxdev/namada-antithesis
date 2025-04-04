@@ -4,8 +4,8 @@ use namada_sdk::{args, signing::SigningTxData, tx::Tx};
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::task::{Task, TaskContext, TaskSettings};
 use crate::types::{Alias, Height};
@@ -43,20 +43,20 @@ impl TaskContext for Batch {
         Some(&self.settings)
     }
 
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError> {
         let mut txs = vec![];
         for task in &self.tasks {
-            let (tx, mut signing_data, _) = Box::pin(task.build_tx(sdk)).await?;
+            let (tx, mut signing_data, _) = Box::pin(task.build_tx(ctx)).await?;
             if signing_data.len() != 1 {
                 return Err(TaskError::BuildTx("Unexpected sigining data".to_string()));
             }
             txs.push((tx, signing_data.remove(0)));
         }
 
-        merge_tx(sdk, txs, &self.settings).await
+        merge_tx(ctx, txs, &self.settings).await
     }
 
-    async fn execute(&self, sdk: &Sdk) -> Result<Height, TaskError> {
+    async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
         if self.tasks.iter().any(|task| {
             matches!(
                 task,
@@ -74,21 +74,21 @@ impl TaskContext for Batch {
                 })
                 .min()
                 .expect("Epoch should be set");
-            self.execute_shielded_tx(sdk, epoch).await
+            self.execute_shielded_tx(ctx, epoch).await
         } else {
-            let (tx, signing_data, tx_args) = self.build_tx(sdk).await?;
-            execute_tx(sdk, tx, signing_data, &tx_args).await
+            let (tx, signing_data, tx_args) = self.build_tx(ctx).await?;
+            execute_tx(ctx, tx, signing_data, &tx_args).await
         }
     }
 
     async fn build_checks(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
         let mut checks = vec![];
         for task in &self.tasks {
-            let task_checks = Box::pin(task.build_checks(sdk, retry_config)).await?;
+            let task_checks = Box::pin(task.build_checks(ctx, retry_config)).await?;
             checks.extend(task_checks);
         }
 
@@ -156,7 +156,7 @@ impl TaskContext for Batch {
         }
 
         for (alias, amount) in balances {
-            let (_, pre_balance) = get_balance(sdk, &alias, retry_config).await?;
+            let (_, pre_balance) = get_balance(ctx, &alias, retry_config).await?;
             if amount >= 0 {
                 prepared_checks.push(Check::BalanceTarget(
                     check::balance_target::BalanceTarget::builder()
@@ -179,7 +179,7 @@ impl TaskContext for Batch {
         for (key, (epoch, amount)) in bonds {
             let (source, validator) = key.split_once('@').unwrap();
             let pre_bond =
-                get_bond(sdk, &Alias::from(source), validator, epoch, retry_config).await?;
+                get_bond(ctx, &Alias::from(source), validator, epoch, retry_config).await?;
             if amount > 0 {
                 prepared_checks.push(Check::BondIncrease(
                     check::bond_increase::BondIncrease::builder()
@@ -205,7 +205,7 @@ impl TaskContext for Batch {
 
         for (alias, amount) in shielded_balances {
             // shielded-sync has been already done in each task.build_checks()
-            let pre_balance = get_shielded_balance(sdk, &alias, retry_config)
+            let pre_balance = get_shielded_balance(ctx, &alias, retry_config)
                 .await?
                 .unwrap_or_default();
             if amount >= 0 {

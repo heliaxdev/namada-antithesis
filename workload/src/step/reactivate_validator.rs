@@ -1,6 +1,6 @@
 use crate::code::{Code, CodeType};
+use crate::context::Ctx;
 use crate::error::StepError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
@@ -17,12 +17,12 @@ impl StepContext for ReactivateValidator {
         "reactivate-validator".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(state.min_n_deactivated_validators(1))
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
-        let epoch = get_epoch(sdk, retry_config()).await?;
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
+        let epoch = get_epoch(ctx, retry_config()).await?;
         let Some(account) = state.random_deactivated_validator(vec![], epoch, 1).pop() else {
             return Ok(vec![]);
         };

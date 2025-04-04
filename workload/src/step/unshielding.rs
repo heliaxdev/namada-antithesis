@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 
 use crate::code::{Code, CodeType};
 use crate::constants::{DEFAULT_FEE, MAX_BATCH_TX_NUM, MIN_TRANSFER_BALANCE};
+use crate::context::Ctx;
 use crate::error::{StepError, TaskError};
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::step::utils::coin_flip;
 use crate::step::StepContext;
@@ -21,19 +21,19 @@ impl StepContext for Unshielding {
         "unshielding".to_string()
     }
 
-    async fn is_valid(&self, _sdk: &Sdk, state: &State) -> Result<bool, StepError> {
+    async fn is_valid(&self, _ctx: &Ctx, state: &State) -> Result<bool, StepError> {
         Ok(
             state.at_least_masp_account_with_minimal_balance(1, MIN_TRANSFER_BALANCE)
                 && state.at_least_accounts(1),
         )
     }
 
-    async fn build_task(&self, sdk: &Sdk, state: &State) -> Result<Vec<Task>, StepError> {
+    async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
         let source_account = state
             .random_masp_account_with_min_balance(vec![], MIN_TRANSFER_BALANCE)
             .ok_or(StepError::BuildTask("No more accounts".to_string()))?;
 
-        let epoch = get_masp_epoch(sdk, retry_config()).await?;
+        let epoch = get_masp_epoch(ctx, retry_config()).await?;
         let target_account = state
             .random_account(vec![])
             .ok_or(StepError::BuildTask("No more accounts".to_string()))?;

@@ -1,19 +1,15 @@
-use std::{env, str::FromStr, time::Duration};
+use std::{env, time::Duration};
 
 use antithesis_sdk::antithesis_init;
 use clap::Parser;
 use namada_chain_workload::code::Code;
 use namada_chain_workload::config::{AppConfig, Args};
+use namada_chain_workload::context::Ctx;
 use namada_chain_workload::error::CheckError;
 use namada_chain_workload::executor::WorkloadExecutor;
-use namada_chain_workload::sdk::namada::Sdk;
 use namada_chain_workload::state::{State, StateError};
-use namada_sdk::io::{Client, NullIo};
-use namada_sdk::masp::fs::FsShieldedUtils;
-use namada_sdk::masp::ShieldedContext;
-use namada_wallet::fs::FsWalletUtils;
+use namada_chain_workload::utils::base_dir;
 use serde_json::json;
-use tendermint_rpc::{HttpClient, Url};
 use tokio::time::sleep;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -74,39 +70,22 @@ async fn inner_main() -> Code {
         true,
         "ID should be greater than 0",
         &json!({
-            "base dir": state.base_dir.to_string_lossy().into_owned(),
+            "base dir": base_dir(),
             "commit_sha": env!("VERGEN_GIT_SHA")
         })
     );
 
-    let url = Url::from_str(&config.rpc).expect("invalid RPC address");
-    tracing::debug!("Opening connection to {url}");
-    let http_client = HttpClient::new(url).unwrap();
-
-    // Wait for the first 2 blocks
-    loop {
-        match http_client.latest_block().await {
-            Ok(block) if block.block.header.height.value() >= 2 => break,
-            Ok(block) => tracing::info!(
-                "Block height {}, waiting to be > 2...",
-                block.block.header.height
-            ),
-            Err(e) => tracing::info!("No response from CometBFT, retrying... -> {e}"),
-        }
-        sleep(Duration::from_secs(5)).await;
-    }
-
-    let sdk = loop {
-        match setup_sdk(&http_client, &state, &config).await {
-            Ok(sdk) => break sdk,
+    let ctx = loop {
+        match Ctx::new(&config).await {
+            Ok(ctx) => break ctx,
             Err(_) => {
-                tracing::info!("Setup SDK failed, retrying...");
+                tracing::info!("Setup Context failed, retrying...");
                 sleep(Duration::from_secs(2)).await;
             }
         }
     };
 
-    let mut workload_executor = WorkloadExecutor::new(sdk, state);
+    let mut workload_executor = WorkloadExecutor::new(ctx, state);
     if let Err(e) = workload_executor.init().await {
         return Code::InitFatal(e);
     }
@@ -183,36 +162,4 @@ async fn inner_main() -> Code {
     }
 
     exit_code
-}
-
-async fn setup_sdk(client: &HttpClient, state: &State, config: &AppConfig) -> Result<Sdk, String> {
-    // Setup wallet storage
-    let wallet_path = state.base_dir.join(format!("wallet-{}", config.id));
-    let mut wallet = FsWalletUtils::new(wallet_path.clone());
-    if wallet_path.join("wallet.toml").exists() {
-        wallet.load().expect("Should be able to load the wallet");
-    }
-
-    // Setup shielded context storage
-    let shielded_ctx_path = state.base_dir.join(format!("masp-{}", config.id));
-
-    let mut shielded_ctx = ShieldedContext::new(FsShieldedUtils::new(shielded_ctx_path.clone()));
-    if shielded_ctx_path.join("shielded.dat").exists() {
-        shielded_ctx
-            .load()
-            .await
-            .expect("Should be able to load shielded context");
-    } else {
-        shielded_ctx.save().await.unwrap();
-    }
-
-    Sdk::new(
-        config,
-        &state.base_dir,
-        client.clone(),
-        wallet,
-        shielded_ctx,
-        NullIo,
-    )
-    .await
 }

@@ -5,8 +5,8 @@ use serde_json::json;
 use typed_builder::TypedBuilder;
 
 use crate::check::{CheckContext, CheckInfo};
+use crate::context::Ctx;
 use crate::error::CheckError;
-use crate::sdk::namada::Sdk;
 use crate::types::{Alias, Amount, Balance, Fee};
 use crate::utils::{get_shielded_balance, shielded_sync_with_retry, RetryConfig};
 
@@ -38,15 +38,15 @@ impl CheckContext for BalanceShieldedTarget {
 
     async fn do_check(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         fees: &HashMap<Alias, Fee>,
         check_info: CheckInfo,
         retry_config: RetryConfig,
     ) -> Result<(), CheckError> {
-        shielded_sync_with_retry(sdk, &self.target, Some(check_info.execution_height), true)
+        shielded_sync_with_retry(ctx, &self.target, Some(check_info.execution_height), true)
             .await?;
 
-        let post_balance = get_shielded_balance(sdk, &self.target, retry_config)
+        let post_balance = get_shielded_balance(ctx, &self.target, retry_config)
             .await?
             .ok_or_else(|| {
                 antithesis_sdk::assert_unreachable!(

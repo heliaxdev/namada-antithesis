@@ -6,8 +6,8 @@ use namada_sdk::{args, signing::SigningTxData, tx::Tx};
 
 use crate::check::Check;
 use crate::constants::DEFAULT_GAS_LIMIT;
+use crate::context::Ctx;
 use crate::error::TaskError;
-use crate::sdk::namada::Sdk;
 use crate::state::State;
 use crate::types::{Alias, Fee, Height, MaspEpoch};
 use crate::utils;
@@ -149,26 +149,26 @@ pub trait TaskContext {
     fn task_settings(&self) -> Option<&TaskSettings>;
 
     #[allow(async_fn_in_trait)]
-    async fn build_tx(&self, sdk: &Sdk) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError>;
+    async fn build_tx(&self, ctx: &Ctx) -> Result<(Tx, Vec<SigningTxData>, args::Tx), TaskError>;
 
     #[allow(async_fn_in_trait)]
-    async fn execute(&self, sdk: &Sdk) -> Result<Height, TaskError> {
-        let (tx, signing_data, tx_args) = self.build_tx(sdk).await?;
-        utils::execute_tx(sdk, tx, signing_data, &tx_args).await
+    async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
+        let (tx, signing_data, tx_args) = self.build_tx(ctx).await?;
+        utils::execute_tx(ctx, tx, signing_data, &tx_args).await
     }
 
     #[allow(async_fn_in_trait)]
     async fn execute_shielded_tx(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         start_epoch: MaspEpoch,
     ) -> Result<Height, TaskError> {
         let retry_config = utils::retry_config();
 
-        let height = utils::get_block_height(sdk, retry_config).await?;
-        let result = match self.build_tx(sdk).await {
+        let height = utils::get_block_height(ctx, retry_config).await?;
+        let result = match self.build_tx(ctx).await {
             Ok((tx, signing_data, tx_args)) => {
-                utils::execute_tx(sdk, tx, signing_data, &tx_args).await
+                utils::execute_tx(ctx, tx, signing_data, &tx_args).await
             }
             Err(e) => Err(e),
         };
@@ -177,12 +177,12 @@ pub trait TaskContext {
             Ok(_) => None,
             Err(TaskError::Execution { height, .. })
             | Err(TaskError::InsufficientGas { height, .. }) => {
-                utils::wait_block_settlement(sdk, height, retry_config).await;
-                Some(utils::get_masp_epoch_at_height(sdk, height, retry_config).await?)
+                utils::wait_block_settlement(ctx, height, retry_config).await;
+                Some(utils::get_masp_epoch_at_height(ctx, height, retry_config).await?)
             }
             Err(_) => {
-                utils::wait_block_settlement(sdk, height + 1, retry_config).await;
-                Some(utils::get_masp_epoch(sdk, retry_config).await?)
+                utils::wait_block_settlement(ctx, height + 1, retry_config).await;
+                Some(utils::get_masp_epoch(ctx, retry_config).await?)
             }
         };
 
@@ -201,7 +201,7 @@ pub trait TaskContext {
     #[allow(async_fn_in_trait)]
     async fn build_checks(
         &self,
-        sdk: &Sdk,
+        ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError>;
 
