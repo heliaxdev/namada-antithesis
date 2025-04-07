@@ -24,6 +24,8 @@ pub struct AppConfig {
     pub rpc: String,
     pub masp_indexer_url: String,
     pub faucet_sk: String,
+    pub cosmos_rpc: String,
+    pub cosmos_base_dir: PathBuf,
 }
 
 impl AppConfig {

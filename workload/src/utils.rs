@@ -15,6 +15,10 @@ pub fn base_dir() -> PathBuf {
     std::env::current_dir().unwrap().join("base")
 }
 
+pub fn cosmos_base_dir() -> PathBuf {
+    std::env::current_dir().unwrap().join("cosmos")
+}
+
 pub type RetryConfig = RetryFutureConfig<ExponentialBackoff, NoOnRetry>;
 
 pub fn retry_config() -> RetryConfig {

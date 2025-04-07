@@ -5,11 +5,15 @@ use std::time::{self, Instant};
 use namada_sdk::account::Account;
 use namada_sdk::address::Address;
 use namada_sdk::control_flow::install_shutdown_signal;
-use namada_sdk::io::DevNullProgressBar;
+use namada_sdk::ibc::apps::transfer::types::packet::PacketData;
+use namada_sdk::ibc::core::host::types::identifiers::{ChannelId, Sequence};
+use namada_sdk::ibc::event::IbcEventType;
+use namada_sdk::io::{Client, DevNullProgressBar};
 use namada_sdk::masp::shielded_wallet::ShieldedApi;
 use namada_sdk::masp::{IndexerMaspClient, LedgerMaspClient, MaspLocalTaskEnv, ShieldedSyncConfig};
 use namada_sdk::masp_primitives::zip32;
 use namada_sdk::proof_of_stake::types::ValidatorStateInfo;
+use namada_sdk::queries::RPC;
 use namada_sdk::token::{self, MaspEpoch};
 use namada_sdk::{rpc, Namada};
 use namada_wallet::DatedKeypair;
@@ -615,4 +619,125 @@ pub async fn get_vote_results(
         .collect();
 
     Ok(votes)
+}
+
+/// Get the IBC packet sequence.
+/// This function assumes that the workload has submitted only one tx with send_packet at once.
+pub async fn get_ibc_packet_sequence(
+    ctx: &Ctx,
+    sender: &Alias,
+    receiver: &Alias,
+    height: Height,
+    retry_config: RetryConfig,
+) -> Result<u64, QueryError> {
+    let block_results = tryhard::retry_fn(|| ctx.namada.client.block_results(height))
+        .with_config(retry_config)
+        .on_retry(|attempt, _, error| {
+            let error = error.to_string();
+            async move {
+                tracing::info!("Retry {} due to {}...", attempt, error);
+            }
+        })
+        .await
+        .map_err(|e| {
+            QueryError::Rpc(namada_sdk::error::Error::Query(
+                namada_sdk::error::QueryError::General(e.to_string()),
+            ))
+        })?;
+
+    let events = block_results.end_block_events.expect("events should exist");
+    for event in events {
+        if event.kind == "send_packet" {
+            let mut is_target = false;
+            for attr in &event.attributes {
+                if attr.key_str().expect("key should exist") == "packet_data" {
+                    let val = attr.value_str().expect("value should exist");
+                    let packet_data: PacketData =
+                        serde_json::from_str(val).expect("packet should be parsable");
+                    if packet_data.sender.as_ref() == sender.name
+                        && packet_data.receiver.as_ref() == receiver.name
+                    {
+                        is_target = true;
+                        break;
+                    }
+                }
+            }
+            if is_target {
+                for attr in &event.attributes {
+                    if attr.key_str().expect("key should exist") == "packet_sequence" {
+                        return Ok(attr
+                            .value_str()
+                            .expect("value should exist")
+                            .parse()
+                            .expect("sequence should be parsable"));
+                    }
+                }
+            }
+        }
+    }
+    Err(QueryError::Ibc(format!(
+        "Packet not found: sender {}, receiver {}",
+        sender.name, receiver.name
+    )))
+}
+
+/// Extend an `Event` with packet acknowledgement
+struct Ack(String);
+
+impl namada_sdk::events::extend::EventAttributeEntry<'static> for Ack {
+    type Value = String;
+    type ValueOwned = Self::Value;
+
+    const KEY: &'static str = "packet_ack";
+
+    fn into_value(self) -> Self::Value {
+        self.0
+    }
+}
+
+pub async fn is_ibc_transfer_successful(
+    ctx: &Ctx,
+    src_channel_id: &ChannelId,
+    dest_channel_id: &ChannelId,
+    sequence: Sequence,
+    retry_config: RetryConfig,
+) -> Result<bool, QueryError> {
+    let ibc_event_type = IbcEventType("acknowledge_packet".to_string());
+    let port_id = "transfer".parse().expect("port ID should be parsable");
+    let shell = RPC.shell();
+
+    let mut height = get_block_height(ctx, retry_config).await?;
+    let timeout_height = height + 100;
+    let mut event = None;
+    while event.is_none() && height < timeout_height {
+        match shell
+            .ibc_packet(
+                &ctx.namada.client,
+                &ibc_event_type,
+                &port_id,
+                src_channel_id,
+                &port_id,
+                dest_channel_id,
+                &sequence,
+            )
+            .await
+        {
+            Ok(Some(evt)) => event = Some(evt),
+            _ => {
+                sleep(Duration::from_secs(2)).await;
+                height = get_block_height(ctx, retry_config).await?;
+                tracing::info!("Retry IBC ack event query at {height}...");
+            }
+        }
+    }
+
+    match event {
+        Some(evt) => {
+            let ack = evt.read_attribute::<Ack>().expect("Ack should exist");
+            Ok(ack == "AQ==")
+        }
+        None => Err(QueryError::Ibc(format!(
+            "Ack not found for sequence {sequence}"
+        ))),
+    }
 }
