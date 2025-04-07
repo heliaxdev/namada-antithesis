@@ -66,6 +66,7 @@ pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub balances: HashMap<Alias, u64>,
     pub masp_balances: HashMap<Alias, u64>,
+    pub foreign_balances: HashMap<Alias, u64>,
     pub bonds: HashMap<Alias, HashMap<String, (u64, Epoch)>>,
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
@@ -83,6 +84,7 @@ impl State {
             accounts: HashMap::default(),
             balances: HashMap::default(),
             masp_balances: HashMap::default(),
+            foreign_balances: HashMap::default(),
             bonds: HashMap::default(),
             unbonds: HashMap::default(),
             redelegations: HashMap::default(),
@@ -463,11 +465,19 @@ impl State {
         *self.balances.get_mut(target).unwrap() += amount;
     }
 
+    pub fn increase_foreign_balance(&mut self, target: &Alias, amount: u64) {
+        *self.foreign_balances.get_mut(target).unwrap() += amount;
+    }
+
     pub fn decrease_balance(&mut self, target: &Alias, amount: u64) {
         if target.is_faucet() {
             return;
         }
         *self.balances.get_mut(target).unwrap() -= amount;
+    }
+
+    pub fn decrease_foreign_balance(&mut self, target: &Alias, amount: u64) {
+        *self.foreign_balances.get_mut(target).unwrap() -= amount;
     }
 
     pub fn modify_balance_fee(&mut self, source: &Alias, fee: u64) {

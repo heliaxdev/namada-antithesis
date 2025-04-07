@@ -69,7 +69,7 @@ rpc_addr = 'http://30.0.0.31:26657'
 grpc_addr = 'http://30.0.0.31:9090'
 event_source = { mode = 'push', url = 'ws://30.0.0.31:26657/websocket', batch_delay = '500ms' }
 account_prefix = 'cosmos'
-key_name = 'user'
+key_name = 'relayer'
 store_prefix = 'ibc'
 gas_price = { price = 1.0, denom = 'stake' }
 gas_multiplier = 1.3
@@ -81,7 +81,7 @@ echo "${HERMES_CONFIG_TEMPLATE}" \
   > config.toml
 
 hermes --config config.toml keys add --chain $NAMADA_CHAIN_ID --key-file /$TARGET_VALIDATOR/$NAMADA_CHAIN_ID/wallet.toml --overwrite
-hermes --config config.toml keys add --chain $GAIA_CHAIN_ID --key-file /gaia-0/user_seed.json --overwrite
+hermes --config config.toml keys add --chain $GAIA_CHAIN_ID --key-file /gaia-0/relayer_seed.json --overwrite
 
 result=$(hermes --config config.toml \
   create channel --a-chain $NAMADA_CHAIN_ID \

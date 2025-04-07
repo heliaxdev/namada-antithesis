@@ -66,6 +66,8 @@ pub enum QueryError {
     ShieldedContext(String),
     #[error("Conversion failed: `{0}`")]
     Convert(String),
+    #[error("IBC-related query failed: `{0}`")]
+    Ibc(String),
 }
 
 impl From<QueryError> for StepError {

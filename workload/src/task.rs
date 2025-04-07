@@ -22,6 +22,7 @@ pub mod claim_rewards;
 pub mod deactivate_validator;
 pub mod default_proposal;
 pub mod faucet_transfer;
+pub mod ibc_transfer;
 pub mod init_account;
 pub mod new_wallet_keypair;
 pub mod reactivate_validator;
@@ -73,6 +74,7 @@ pub enum Task {
     NewWalletKeyPair(new_wallet_keypair::NewWalletKeyPair),
     FaucetTransfer(faucet_transfer::FaucetTransfer),
     TransparentTransfer(transparent_transfer::TransparentTransfer),
+    IbcTransferSend(ibc_transfer::IbcTransferSend),
     Bond(bond::Bond),
     Unbond(unbond::Unbond),
     Redelegate(redelegate::Redelegate),
