@@ -62,6 +62,13 @@ impl CheckContext for AckIbcTransfer {
 
         antithesis_sdk::assert_always!(is_successful, "IBC transfer was acknowledged", &details);
 
-        Ok(())
+        if is_successful {
+            Ok(())
+        } else {
+            tracing::error!("{}", details);
+            Err(CheckError::State(
+                "IBC transfer was not acknowledged".to_string(),
+            ))
+        }
     }
 }

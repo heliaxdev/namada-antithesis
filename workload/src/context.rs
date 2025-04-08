@@ -19,8 +19,8 @@ impl Ctx {
             namada: namada::namada_ctx(config).await?,
             cosmos: cosmos::CosmosCtx::new(config)?,
             // TODO: set channels
-            namada_channel_id: "channel-0".parse().unwrap(),
-            cosmos_channel_id: "channel-0".parse().unwrap(),
+            namada_channel_id: config.namada_channel_id.parse().unwrap(),
+            cosmos_channel_id: config.cosmos_channel_id.parse().unwrap(),
             masp_indexer_url: format!("{}/api/v1", config.masp_indexer_url.clone()),
         })
     }

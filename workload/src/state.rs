@@ -466,7 +466,7 @@ impl State {
     }
 
     pub fn increase_foreign_balance(&mut self, target: &Alias, amount: u64) {
-        *self.foreign_balances.get_mut(target).unwrap() += amount;
+        *self.foreign_balances.entry(target.clone()).or_insert(0) += amount;
     }
 
     pub fn decrease_balance(&mut self, target: &Alias, amount: u64) {
