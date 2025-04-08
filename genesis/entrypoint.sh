@@ -86,6 +86,8 @@ done
 
 # TODO: update the actual file
 sed -i 's/epochs_per_year = 10512000/epochs_per_year = 1051200/g' ${network_template_path}/parameters.toml
+sed -i 's/default_mint_limit = .*/default_mint_limit = "1000000000000000000"/g' ${network_template_path}/parameters.toml
+sed -i 's/default_per_epoch_throughput_limit = .*/default_per_epoch_throughput_limit = "1000000000000000000"/g' ${network_template_path}/parameters.toml
 
 # 7. Start the chain
 CHAIN_PREFIX="devnet"

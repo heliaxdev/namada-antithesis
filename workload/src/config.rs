@@ -26,6 +26,8 @@ pub struct AppConfig {
     pub faucet_sk: String,
     pub cosmos_rpc: String,
     pub cosmos_base_dir: PathBuf,
+    pub namada_channel_id: String,
+    pub cosmos_channel_id: String,
 }
 
 impl AppConfig {

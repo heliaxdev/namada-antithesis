@@ -94,4 +94,7 @@ result=$(hermes --config config.toml \
 namada_channel_id=$(echo $result | sed -n 's/.*a_side:.*channel_id: Some( ChannelId( "\([^"]*\)".*/\1/p')
 gaia_channel_id=$(echo $result | sed -n 's/.*b_side:.*channel_id: Some( ChannelId( "\([^"]*\)".*/\1/p')
 
+echo "namada->cosmos ${namada_channel_id}" > /container_ready/ibc_channels
+echo "cosmos->namada ${gaia_channel_id}" >> /container_ready/ibc_channels
+
 hermes --config config.toml start

@@ -31,6 +31,16 @@ do
     sleep 2
 done
 
+# Wait for IBC channel
+while [ ! -f /container_ready/ibc_channels ]
+do
+    echo "Waiting for IBC channels to be created..."
+    sleep 5
+done
+
+namada_channel_id=$(grep "namada->cosmos" /container_ready/ibc_channels | grep -o "channel-[0-9]\+")
+cosmos_channel_id=$(grep "cosmos->namada" /container_ready/ibc_channels | grep -o "channel-[0-9]\+")
+
 echo "Creating config.toml..."
 cat <<EOF > config.toml
 id = ${WORKLOAD_ID}
@@ -38,6 +48,10 @@ chain_id = "${CHAIN_ID}"
 rpc = "http://${RPC}"
 masp_indexer_url = "${MASP_INDEXER_URL}"
 faucet_sk = "${FAUCET_SK}"
+cosmos_rpc = "http://${COSMOS_RPC}"
+cosmos_base_dir = "${COSMOS_DIR}"
+namada_channel_id = "${namada_channel_id}"
+cosmos_channel_id = "${cosmos_channel_id}"
 EOF
 
 echo "Initializing workload-${WORKLOAD_ID} state..."

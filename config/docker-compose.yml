@@ -109,10 +109,13 @@ services:
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
       - MASP_INDEXER_URL=http://30.0.0.20:5000
       - WORKLOAD_ID=0
+      - COSMOS_RPC=30.0.0.31:26657
+      - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
       - NO_CHECK=false
     volumes:
       - ./container_ready/:/container_ready
+      - ./gaia-0/:/gaia-0
     networks:
       namada-net:
         ipv4_address: 30.0.0.16
@@ -126,10 +129,13 @@ services:
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
       - MASP_INDEXER_URL=http://30.0.0.20:5000
       - WORKLOAD_ID=1
+      - COSMOS_RPC=30.0.0.31:26657
+      - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
       - NO_CHECK=false
     volumes:
       - ./container_ready/:/container_ready
+      - ./gaia-0/:/gaia-0
     networks:
       namada-net:
         ipv4_address: 30.0.0.17
@@ -143,10 +149,13 @@ services:
       - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
       - MASP_INDEXER_URL=http://30.0.0.20:5000
       - WORKLOAD_ID=2
+      - COSMOS_RPC=30.0.0.31:26657
+      - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
       - NO_CHECK=false
     volumes:
       - ./container_ready/:/container_ready
+      - ./gaia-0/:/gaia-0
     networks:
       namada-net:
         ipv4_address: 30.0.0.18
@@ -241,7 +250,6 @@ services:
       namada-net:
         ipv4_address: 30.0.0.30
     volumes:
-      - ./hermes/:/hermes
       - ./hermes.sh:/entrypoint.sh
       - ./container_ready/:/container_ready
       # for import relayer keys
