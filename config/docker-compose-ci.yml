@@ -194,6 +194,8 @@ services:
     - FAUCET_SK=00dfd790bd727b708f8b846374c596d886eaf1ebf0fc4394530e0a9b24aa630963
     - MASP_INDEXER_URL=http://30.0.0.20:5000
     - WORKLOAD_ID=0
+    - COSMOS_RPC=30.0.0.31:26657
+    - COSMOS_DIR=/gaia-0
     - NO_CHECK=false
     hostname: workload0
     build:
@@ -208,4 +210,5 @@ services:
     restart: no
     volumes:
     - ./container_ready/:/container_ready
+    - ./gaia-0/:/gaia-0
 version: '3.8'
