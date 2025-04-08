@@ -141,6 +141,15 @@ then
     exit 1
 fi
 
+output=$(/opt/antithesis/test/v1/namada/parallel_driver_ibc_transfer_send.sh | tee /dev/stderr)
+if echo "$output" | grep -q "Done ibc-transfer-send"
+then
+    echo "<OK> IBC transfer send"
+else
+    echo "<ERROR> IBC transfer send"
+    exit 1
+fi
+
 output=$(/opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh | tee /dev/stderr)
 if echo "$output" | grep -q "Done claim-rewards"
 then

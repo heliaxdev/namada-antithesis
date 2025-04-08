@@ -8,8 +8,10 @@ build = "build.rs"
 
 [dependencies]
 antithesis_sdk = "0.2.5"
+bip32 = "0.5.3"
 chrono = "0.4.38"
 clap = { version = "4.4.2", features = ["derive", "env"] }
+cosmrs = { version = "0.22.0", features = ["rpc"] }
 enum_dispatch = "0.3.13"
 fs2 = "0.4.3"
 futures = "0.3.30"
