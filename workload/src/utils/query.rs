@@ -417,7 +417,16 @@ pub async fn shielded_sync_with_retry(
     if with_indexer {
         antithesis_sdk::assert_sometimes!(
             is_successful,
-            "shielded sync (indexer) was successful",
+            "First shielded sync (indexer) was successful",
+            &json!({
+                "source": source,
+                "error": error
+            })
+        );
+    } else {
+        antithesis_sdk::assert_sometimes!(
+            is_successful,
+            "First shielded sync (node) was successful",
             &json!({
                 "source": source,
                 "error": error
