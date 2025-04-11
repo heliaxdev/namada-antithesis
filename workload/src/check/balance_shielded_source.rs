@@ -43,8 +43,14 @@ impl CheckContext for BalanceShieldedSource {
         check_info: CheckInfo,
         retry_config: RetryConfig,
     ) -> Result<(), CheckError> {
-        shielded_sync_with_retry(ctx, &self.target, Some(check_info.execution_height), true)
-            .await?;
+        shielded_sync_with_retry(
+            ctx,
+            &self.target,
+            Some(check_info.execution_height),
+            true,
+            retry_config,
+        )
+        .await?;
 
         let post_balance = get_shielded_balance(ctx, &self.target, retry_config)
             .await?

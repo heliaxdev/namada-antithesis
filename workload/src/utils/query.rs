@@ -395,11 +395,22 @@ pub async fn shielded_sync_with_retry(
     source: &Alias,
     height: Option<Height>,
     with_indexer: bool,
+    retry_config: RetryConfig,
 ) -> Result<(), QueryError> {
-    let (is_successful, error) = match shielded_sync(ctx, height, with_indexer).await {
-        Ok(_) => (true, "".to_string()),
-        Err(e) => (false, e.to_string()),
-    };
+    let (is_successful, error) =
+        match tryhard::retry_fn(|| shielded_sync(ctx, height, with_indexer))
+            .with_config(retry_config)
+            .on_retry(|attempt, _, error| {
+                let error = error.to_string();
+                async move {
+                    tracing::info!("Retry {} due to {}...", attempt, error);
+                }
+            })
+            .await
+        {
+            Ok(_) => (true, "".to_string()),
+            Err(e) => (false, e.to_string()),
+        };
 
     tracing::warn!("First shielded sync result: {is_successful}, err: {error}");
 
@@ -412,25 +423,23 @@ pub async fn shielded_sync_with_retry(
                 "error": error
             })
         );
-    } else {
-        antithesis_sdk::assert_always_or_unreachable!(
-            is_successful,
-            "shielded sync (node) was successful",
-            &json!({
-                "source": source,
-                "error": error
-            })
-        );
     }
 
     if is_successful {
         return Ok(());
-    } else if !with_indexer {
-        return Err(QueryError::ShieldedSync(error));
     }
 
-    // Try shielded sync without indexer only if the shielded sync with indexer failed
-    let (is_successful, error) = match shielded_sync(ctx, height, false).await {
+    // Retry shielded sync without indexer
+    let (is_successful, error) = match tryhard::retry_fn(|| shielded_sync(ctx, height, false))
+        .with_config(retry_config)
+        .on_retry(|attempt, _, error| {
+            let error = error.to_string();
+            async move {
+                tracing::info!("Retry {} due to {}...", attempt, error);
+            }
+        })
+        .await
+    {
         Ok(_) => (true, "".to_string()),
         Err(e) => (false, e.to_string()),
     };

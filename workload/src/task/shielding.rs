@@ -122,7 +122,7 @@ impl TaskContext for Shielding {
                 .build(),
         );
 
-        shielded_sync_with_retry(ctx, &self.target, None, false).await?;
+        shielded_sync_with_retry(ctx, &self.target, None, false, retry_config).await?;
 
         let pre_balance = get_shielded_balance(ctx, &self.target, retry_config)
             .await?

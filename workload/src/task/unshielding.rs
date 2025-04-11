@@ -133,7 +133,7 @@ impl TaskContext for Unshielding {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        shielded_sync_with_retry(ctx, &self.source, None, false).await?;
+        shielded_sync_with_retry(ctx, &self.source, None, false, retry_config).await?;
 
         let pre_balance = get_shielded_balance(ctx, &self.source, retry_config)
             .await?
