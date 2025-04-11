@@ -13,16 +13,15 @@ clap = { version = "4.4.2", features = ["derive", "env"] }
 enum_dispatch = "0.3.13"
 fs2 = "0.4.3"
 futures = "0.3.30"
-namada_sdk = { version = "0.48.0", default-features = false, features = ["std", "async-send", "download-params"] }
-namada_wallet = { version = "0.48.0", default-features = false, features = ["std"] }
+namada_sdk = { git = "https://github.com/anoma/namada", tag = "libs-v0.48.3", default-features = false, features = ["std", "async-send", "download-params"] }
+namada_wallet = { git = "https://github.com/anoma/namada", tag = "libs-v0.48.3", default-features = false, features = ["std"] }
 rand = {version = "0.8.5", default-features = false}
 rand_chacha = { version = "0.3.1", features = ["serde1"] }
 reqwest = "0.12.12"
 rlimit = "0.10.2"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = { version = "1.0.114", features = ["preserve_order"] }
-tendermint-config = "0.40.1"
-tendermint-rpc = {version = "0.40.1", features = ["http-client"]}
+tendermint-rpc = {version = "0.40.3", features = ["http-client"]}
 thiserror = "1.0.63"
 tokio = {version = "1.8.2", default-features = false}
 tracing = { version = "0.1.40" }
