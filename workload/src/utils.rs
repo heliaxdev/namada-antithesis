@@ -5,9 +5,11 @@ use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConf
 
 use crate::constants::{INIT_DELAY_SEC, MAX_DELAY_SEC, MAX_RETRY_COUNT};
 
+mod cosmos;
 mod query;
 mod tx;
 
+pub use cosmos::*;
 pub use query::*;
 pub use tx::*;
 

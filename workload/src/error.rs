@@ -44,6 +44,8 @@ pub enum TaskError {
     InvalidShielded { err: String, was_fee_paid: bool },
     #[error("Query failed: `{0}`")]
     Query(QueryError),
+    #[error("Cosmos tx failed: `{0}`")]
+    CosmosTx(String),
 }
 
 #[derive(Error, Debug)]

@@ -21,3 +21,10 @@ pub const DEFAULT_GAS_LIMIT: u64 = namada_sdk::DEFAULT_GAS_LIMIT * 3;
 pub const DEFAULT_FEE: u64 = DEFAULT_GAS_LIMIT * (DEFAULT_GAS_PRICE * NATIVE_SCALE as f64) as u64;
 pub const MIN_TRANSFER_BALANCE: u64 = MAX_BATCH_TX_NUM * NATIVE_SCALE + DEFAULT_FEE;
 pub const PROPOSAL_DEPOSIT: u64 = 50 * NATIVE_SCALE;
+
+pub const COSMOS_CHAIN_ID: &str = "gaia-0";
+pub const COSMOS_TOKEN: &str = "samoleans";
+pub const COSMOS_FEE_TOKEN: &str = "stake";
+pub const MAX_COSMOS_TRANSFER_AMOUNT: u64 = 100;
+pub const COSMOS_FEE_AMOUNT: u64 = 5000;
+pub const COSMOS_GAS_LIMIT: u64 = 200_000;

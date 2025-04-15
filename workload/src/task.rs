@@ -1,6 +1,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Display;
 
+use cosmrs::Any;
 use enum_dispatch::enum_dispatch;
 use namada_sdk::{args, signing::SigningTxData, tx::Tx};
 
@@ -198,6 +199,17 @@ pub trait TaskContext {
                 }
             }
         })
+    }
+
+    #[allow(async_fn_in_trait)]
+    async fn build_cosmos_tx(&self, _ctx: &Ctx) -> Result<Any, TaskError> {
+        unimplemented!("Implement for a tx on Cosmos")
+    }
+
+    #[allow(async_fn_in_trait)]
+    async fn execute_cosmos_tx(&self, ctx: &Ctx) -> Result<(), TaskError> {
+        let any_msg = self.build_cosmos_tx(ctx).await?;
+        utils::execute_cosmos_tx(ctx, any_msg).await
     }
 
     #[allow(async_fn_in_trait)]
