@@ -6,19 +6,17 @@ use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConf
 use crate::constants::{INIT_DELAY_SEC, MAX_DELAY_SEC, MAX_RETRY_COUNT};
 
 mod cosmos;
+mod ibc;
 mod query;
 mod tx;
 
 pub use cosmos::*;
+pub use ibc::*;
 pub use query::*;
 pub use tx::*;
 
 pub fn base_dir() -> PathBuf {
     std::env::current_dir().unwrap().join("base")
-}
-
-pub fn cosmos_base_dir() -> PathBuf {
-    std::env::current_dir().unwrap().join("cosmos")
 }
 
 pub type RetryConfig = RetryFutureConfig<ExponentialBackoff, NoOnRetry>;

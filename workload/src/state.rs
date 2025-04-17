@@ -269,6 +269,19 @@ impl State {
             .choose(&mut AntithesisRng)
     }
 
+    pub fn random_account_with_ibc_balance(&self, blacklist: Vec<Alias>) -> Option<Account> {
+        self.accounts
+            .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
+            .filter(|(alias, _)| {
+                self.ibc_balances
+                    .get(alias)
+                    .is_some_and(|balances| balances.iter().any(|(_, b)| *b > 0))
+            })
+            .map(|(_, account)| account.clone())
+            .choose(&mut AntithesisRng)
+    }
+
     pub fn random_payment_address(&self, blacklist: Vec<Alias>) -> Option<Account> {
         self.random_implicit_accounts(blacklist, 1).first().cloned()
     }
@@ -394,7 +407,7 @@ impl State {
 
     pub fn get_foreign_balance_for(&self, alias: &Alias) -> u64 {
         self.foreign_balances
-            .get(&alias)
+            .get(alias)
             .cloned()
             .unwrap_or_default()
     }
@@ -474,16 +487,16 @@ impl State {
         *self.balances.get_mut(target).unwrap() += amount;
     }
 
-    pub fn increase_ibc_balance(&mut self, target: &Alias, token: &str, amount: u64) {
+    pub fn increase_ibc_balance(&mut self, target: &Alias, denom: &str, amount: u64) {
         if target.is_faucet() {
             return;
         }
-        let default = HashMap::from_iter([(token.to_string(), 0)]);
+        let default = HashMap::from_iter([(denom.to_string(), 0)]);
         *self
             .ibc_balances
             .entry(target.clone())
             .or_insert(default)
-            .entry(token.to_string())
+            .entry(denom.to_string())
             .or_insert(0) += amount;
     }
 
@@ -498,13 +511,13 @@ impl State {
         *self.balances.get_mut(target).unwrap() -= amount;
     }
 
-    pub fn decrease_ibc_balance(&mut self, target: &Alias, token: &str, amount: u64) {
+    pub fn decrease_ibc_balance(&mut self, target: &Alias, denom: &str, amount: u64) {
         if target.is_faucet() {
             return;
         }
         self.ibc_balances
             .entry(target.clone())
-            .and_modify(|balance| *balance.get_mut(token).unwrap() -= amount);
+            .and_modify(|balance| *balance.get_mut(denom).unwrap() -= amount);
     }
 
     pub fn decrease_foreign_balance(&mut self, target: &Alias, amount: u64) {

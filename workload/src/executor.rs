@@ -224,6 +224,7 @@ impl WorkloadExecutor {
                     let (_, balance) = crate::utils::get_balance(
                         &self.ctx,
                         cr.source(),
+                        &Alias::nam().name,
                         crate::utils::retry_config(),
                     )
                     .await?;

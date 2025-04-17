@@ -76,6 +76,7 @@ pub enum Task {
     FaucetTransfer(faucet_transfer::FaucetTransfer),
     TransparentTransfer(transparent_transfer::TransparentTransfer),
     IbcTransferSend(ibc_transfer::IbcTransferSend),
+    IbcTransferRecv(ibc_transfer::IbcTransferRecv),
     Bond(bond::Bond),
     Unbond(unbond::Unbond),
     Redelegate(redelegate::Redelegate),
@@ -207,7 +208,7 @@ pub trait TaskContext {
     }
 
     #[allow(async_fn_in_trait)]
-    async fn execute_cosmos_tx(&self, ctx: &Ctx) -> Result<(), TaskError> {
+    async fn execute_cosmos_tx(&self, ctx: &Ctx) -> Result<Height, TaskError> {
         let any_msg = self.build_cosmos_tx(ctx).await?;
         utils::execute_cosmos_tx(ctx, any_msg).await
     }

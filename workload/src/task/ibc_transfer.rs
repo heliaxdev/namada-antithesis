@@ -16,14 +16,17 @@ use crate::context::Ctx;
 use crate::error::TaskError;
 use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
-use crate::types::{Alias, Amount};
-use crate::utils::{get_balance, RetryConfig, build_cosmos_ibc_transfer};
+use crate::types::{Alias, Amount, Height};
+use crate::utils::{
+    build_cosmos_ibc_transfer, cosmos_denom_hash, get_balance, ibc_denom, ibc_token_address,
+    is_native_denom, RetryConfig,
+};
 
 #[derive(Clone, Debug, TypedBuilder)]
 pub struct IbcTransferSend {
     source: Alias,
     receiver: Alias,
-    token: String,
+    denom: String,
     amount: Amount,
     src_channel_id: ChannelId,
     dest_channel_id: ChannelId,
@@ -37,8 +40,8 @@ impl TaskContext for IbcTransferSend {
 
     fn summary(&self) -> String {
         format!(
-            "ibc-transfer-send/{}/{}/{}",
-            self.source.name, self.receiver.name, self.amount
+            "ibc-transfer-send/{}/{}/'{}'/{}",
+            self.source.name, self.receiver.name, self.denom, self.amount
         )
     }
 
@@ -54,14 +57,16 @@ impl TaskContext for IbcTransferSend {
         let source_address = wallet
             .find_address(&self.source.name)
             .ok_or_else(|| TaskError::Wallet(format!("No source address: {}", self.source.name)))?;
-        let token_address = wallet
-            .find_address(&self.token)
-            .ok_or_else(|| {
-                TaskError::Wallet(format!(
-                    "No native token address: {}",
-                    self.token
-                ))
-            })?;
+        let token_address = if is_native_denom(&self.denom) {
+            wallet
+                .find_address(&self.denom)
+                .ok_or_else(|| {
+                    TaskError::Wallet(format!("No native token address: {}", self.denom))
+                })?
+                .into_owned()
+        } else {
+            ibc_token_address(&self.denom)
+        };
         let fee_payer = wallet
             .find_public_key(&self.settings.gas_payer.name)
             .map_err(|e| TaskError::Wallet(e.to_string()))?;
@@ -72,7 +77,7 @@ impl TaskContext for IbcTransferSend {
         let mut tx_builder = ctx.namada.new_ibc_transfer(
             source,
             self.receiver.name.clone(),
-            token_address.into_owned(),
+            token_address,
             amount,
             self.src_channel_id.clone(),
             false,
@@ -102,11 +107,12 @@ impl TaskContext for IbcTransferSend {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        let (_, pre_balance) = get_balance(ctx, &self.source, retry_config).await?;
+        let (_, pre_balance) = get_balance(ctx, &self.source, &self.denom, retry_config).await?;
         let source_check = Check::BalanceSource(
             check::balance_source::BalanceSource::builder()
                 .target(self.source.clone())
                 .pre_balance(pre_balance)
+                .denom(self.denom.clone())
                 .amount(self.amount)
                 .build(),
         );
@@ -124,7 +130,11 @@ impl TaskContext for IbcTransferSend {
     }
 
     fn update_state(&self, state: &mut State) {
-        state.decrease_balance(&self.source, self.amount);
+        if is_native_denom(&self.denom) {
+            state.decrease_balance(&self.source, self.amount);
+        } else {
+            state.decrease_ibc_balance(&self.source, &self.denom, self.amount);
+        }
         state.increase_foreign_balance(&self.receiver, self.amount);
     }
 }
@@ -133,7 +143,7 @@ impl TaskContext for IbcTransferSend {
 pub struct IbcTransferRecv {
     sender: Alias,
     target: Alias,
-    token: String,
+    denom: String,
     amount: Amount,
     src_channel_id: ChannelId,
     dest_channel_id: ChannelId,
@@ -147,8 +157,8 @@ impl TaskContext for IbcTransferRecv {
 
     fn summary(&self) -> String {
         format!(
-            "ibc-transfer-recv/{}/{}/{}",
-            self.sender.name, self.target.name, self.amount
+            "ibc-transfer-recv/{}/{}/'{}'/{}",
+            self.sender.name, self.target.name, self.denom, self.amount
         )
     }
 
@@ -160,6 +170,10 @@ impl TaskContext for IbcTransferRecv {
         unreachable!("Namada tx shouldn't be built")
     }
 
+    async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
+        self.execute_cosmos_tx(ctx).await
+    }
+
     async fn build_cosmos_tx(&self, ctx: &Ctx) -> Result<Any, TaskError> {
         let wallet = ctx.namada.wallet.read().await;
         let target_address = wallet
@@ -168,7 +182,20 @@ impl TaskContext for IbcTransferRecv {
             .into_owned();
         drop(wallet);
 
-        let any_msg = build_cosmos_ibc_transfer(&self.sender.name, &target_address.to_string(), &self.token, self.amount, &PortId::transfer(), &self.src_channel_id, None);
+        let denom = if self.denom == COSMOS_TOKEN {
+            self.denom.clone()
+        } else {
+            cosmos_denom_hash(&self.denom)
+        };
+        let any_msg = build_cosmos_ibc_transfer(
+            &self.sender.name,
+            &target_address.to_string(),
+            &denom,
+            self.amount,
+            &PortId::transfer(),
+            &self.src_channel_id,
+            None,
+        );
 
         Ok(any_msg)
     }
@@ -178,20 +205,20 @@ impl TaskContext for IbcTransferRecv {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        // TODO: transfer nam back
-        let (_, pre_balance) = get_balance(ctx, &self.target, retry_config).await?;
+        let (_, pre_balance) = get_balance(ctx, &self.target, &self.denom, retry_config).await?;
         let source_check = Check::BalanceTarget(
             check::balance_target::BalanceTarget::builder()
                 .target(self.target.clone())
                 .pre_balance(pre_balance)
+                .denom(self.denom.clone())
                 .amount(self.amount)
                 .build(),
         );
 
         let ibc_ack = Check::RecvIbcPacket(
-            check::ack_ibc_transfer::AckIbcTransfer::builder()
-                .source(self.sender.clone())
-                .receiver(self.target.clone())
+            check::recv_ibc_packet::RecvIbcPacket::builder()
+                .sender(self.sender.clone())
+                .target(self.target.clone())
                 .src_channel_id(self.src_channel_id.clone())
                 .dest_channel_id(self.dest_channel_id.clone())
                 .build(),
@@ -201,7 +228,11 @@ impl TaskContext for IbcTransferRecv {
     }
 
     fn update_state(&self, state: &mut State) {
-        // TODO: transfer nam back
-        state.increase_ibc_balance(&self.target, &self.token, self.amount);
+        if self.denom == ibc_denom(&self.dest_channel_id, &Alias::nam().name) {
+            state.increase_balance(&self.target, self.amount);
+        } else {
+            let ibc_denom = ibc_denom(&self.dest_channel_id, &self.denom);
+            state.increase_ibc_balance(&self.target, &ibc_denom, self.amount);
+        }
     }
 }

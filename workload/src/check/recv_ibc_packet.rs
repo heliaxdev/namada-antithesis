@@ -8,22 +8,20 @@ use crate::check::{CheckContext, CheckInfo};
 use crate::context::Ctx;
 use crate::error::CheckError;
 use crate::types::{Alias, Fee};
-use crate::utils::{get_ibc_packet_sequence, is_ibc_transfer_successful, RetryConfig};
+
+use crate::utils::{get_ibc_packet_sequence, is_recv_packet, RetryConfig};
 
 #[derive(TypedBuilder)]
-pub struct AckIbcTransfer {
-    source: Alias,
-    receiver: Alias,
+pub struct RecvIbcPacket {
+    sender: Alias,
+    target: Alias,
     src_channel_id: ChannelId,
     dest_channel_id: ChannelId,
 }
 
-impl CheckContext for AckIbcTransfer {
+impl CheckContext for RecvIbcPacket {
     fn summary(&self) -> String {
-        format!(
-            "ack-ibc-transfer/{}/{}",
-            self.source.name, self.receiver.name
-        )
+        format!("recv-ibc-packet/{}/{}", self.sender.name, self.target.name)
     }
 
     async fn do_check(
@@ -35,14 +33,14 @@ impl CheckContext for AckIbcTransfer {
     ) -> Result<(), CheckError> {
         let sequence = get_ibc_packet_sequence(
             ctx,
-            &self.source,
-            &self.receiver,
+            &self.sender,
+            &self.target,
             check_info.execution_height,
-            true,
+            false,
             retry_config,
         )
         .await?;
-        let is_successful = is_ibc_transfer_successful(
+        let is_successful = is_recv_packet(
             ctx,
             &self.src_channel_id,
             &self.dest_channel_id,
@@ -52,8 +50,8 @@ impl CheckContext for AckIbcTransfer {
         .await?;
 
         let details = json!({
-            "source_alias": self.source,
-            "receiver": self.receiver,
+            "sender": self.sender,
+            "target_alias": self.target,
             "src_channel_id": self.src_channel_id,
             "dest_channel_id": self.dest_channel_id,
             "sequence": sequence,
@@ -61,14 +59,14 @@ impl CheckContext for AckIbcTransfer {
             "check_height": check_info.check_height,
         });
 
-        antithesis_sdk::assert_always!(is_successful, "IBC transfer was acknowledged", &details);
+        antithesis_sdk::assert_always!(is_successful, "IBC packet was received", &details);
 
         if is_successful {
             Ok(())
         } else {
             tracing::error!("{}", details);
             Err(CheckError::State(
-                "IBC transfer was not acknowledged".to_string(),
+                "IBC packet was not received properly".to_string(),
             ))
         }
     }

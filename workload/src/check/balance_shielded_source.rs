@@ -14,6 +14,7 @@ use crate::utils::{get_shielded_balance, shielded_sync_with_retry, RetryConfig};
 pub struct BalanceShieldedSource {
     target: Alias,
     pre_balance: Balance,
+    denom: String,
     amount: Amount,
 }
 
@@ -52,7 +53,7 @@ impl CheckContext for BalanceShieldedSource {
         )
         .await?;
 
-        let post_balance = get_shielded_balance(ctx, &self.target, retry_config)
+        let post_balance = get_shielded_balance(ctx, &self.target, &self.denom, retry_config)
             .await?
             .ok_or_else(|| {
                 antithesis_sdk::assert_unreachable!(
