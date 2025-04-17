@@ -26,5 +26,5 @@ pub const COSMOS_CHAIN_ID: &str = "gaia-0";
 pub const COSMOS_TOKEN: &str = "samoleans";
 pub const COSMOS_FEE_TOKEN: &str = "stake";
 pub const MAX_COSMOS_TRANSFER_AMOUNT: u64 = 100;
-pub const COSMOS_FEE_AMOUNT: u64 = 50_000;
+pub const COSMOS_FEE_AMOUNT: u64 = 200_000;
 pub const COSMOS_GAS_LIMIT: u64 = 200_000;

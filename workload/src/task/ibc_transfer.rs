@@ -11,7 +11,6 @@ use rand::rngs::OsRng;
 use typed_builder::TypedBuilder;
 
 use crate::check::{self, Check};
-use crate::constants::COSMOS_TOKEN;
 use crate::context::Ctx;
 use crate::error::TaskError;
 use crate::state::State;
@@ -180,13 +179,18 @@ impl TaskContext for IbcTransferRecv {
             .find_address(&self.target.name)
             .ok_or_else(|| TaskError::Wallet(format!("No source address: {}", self.target.name)))?
             .into_owned();
-        drop(wallet);
 
-        let denom = if self.denom == COSMOS_TOKEN {
+        let denom = if is_native_denom(&self.denom) {
             self.denom.clone()
         } else {
-            cosmos_denom_hash(&self.denom)
+            let base_token = base_denom(&self.denom);
+            let token_address = wallet.find_address(&base_token).ok_or_else(|| {
+                TaskError::Wallet(format!("No native token address: {base_token}",))
+            })?;
+            let denom = self.denom.replace(&base_token, &token_address.to_string());
+            cosmos_denom_hash(&denom)
         };
+        drop(wallet);
         let any_msg = build_cosmos_ibc_transfer(
             &self.sender.name,
             &target_address.to_string(),
@@ -205,22 +209,7 @@ impl TaskContext for IbcTransferRecv {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        let recv_denom = if is_native_denom(&self.denom) {
-            ibc_denom(&self.dest_channel_id, &self.denom)
-        } else {
-            base_denom(&self.denom)
-        };
-        let (_, pre_balance) = get_balance(ctx, &self.target, &recv_denom, retry_config).await?;
-        let source_check = Check::BalanceTarget(
-            check::balance_target::BalanceTarget::builder()
-                .target(self.target.clone())
-                .pre_balance(pre_balance)
-                .denom(recv_denom)
-                .amount(self.amount)
-                .build(),
-        );
-
-        let ibc_ack = Check::RecvIbcPacket(
+        let recv_packet = Check::RecvIbcPacket(
             check::recv_ibc_packet::RecvIbcPacket::builder()
                 .sender(self.sender.clone())
                 .target(self.target.clone())
@@ -229,7 +218,23 @@ impl TaskContext for IbcTransferRecv {
                 .build(),
         );
 
-        Ok(vec![source_check, ibc_ack])
+        let recv_denom = if is_native_denom(&self.denom) {
+            ibc_denom(&self.dest_channel_id, &self.denom)
+        } else {
+            base_denom(&self.denom)
+        };
+        let (_, pre_balance) = get_balance(ctx, &self.target, &recv_denom, retry_config).await?;
+        let target_check = Check::BalanceTarget(
+            check::balance_target::BalanceTarget::builder()
+                .target(self.target.clone())
+                .pre_balance(pre_balance)
+                .denom(recv_denom)
+                .amount(self.amount)
+                .build(),
+        );
+
+        // Check receiving IBC packet before checking the target balance
+        Ok(vec![recv_packet, target_check])
     }
 
     fn update_state(&self, state: &mut State) {

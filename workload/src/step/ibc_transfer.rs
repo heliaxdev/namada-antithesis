@@ -84,12 +84,15 @@ impl StepContext for IbcTransferRecv {
             .random_account(vec![])
             .ok_or(StepError::BuildTask("No more accounts".to_string()))?;
         let foreign_balance = state.get_foreign_balance_for(&source);
-        let denom = if foreign_balance > 0 && utils::coin_flip(0.5) {
-            ibc_denom(&ctx.cosmos_channel_id, &Alias::nam().name)
+        let (denom, max_amount) = if foreign_balance > 0 && utils::coin_flip(0.5) {
+            (
+                ibc_denom(&ctx.cosmos_channel_id, &Alias::nam().name),
+                foreign_balance / MAX_BATCH_TX_NUM,
+            )
         } else {
-            COSMOS_TOKEN.to_string()
+            (COSMOS_TOKEN.to_string(), MAX_COSMOS_TRANSFER_AMOUNT)
         };
-        let amount = utils::random_between(1, MAX_COSMOS_TRANSFER_AMOUNT);
+        let amount = utils::random_between(1, max_amount);
 
         // task settings is not used, but required
         let task_settings = TaskSettings::faucet();

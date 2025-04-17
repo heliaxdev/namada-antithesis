@@ -13,7 +13,7 @@ use crate::state::State;
 use crate::types::{Alias, Fee, Height, MaspEpoch};
 use crate::utils::{
     execute_cosmos_tx, execute_tx, get_block_height, get_masp_epoch, get_masp_epoch_at_height,
-    retry_config, wait_block_settlement, RetryConfig,
+    retry_config, wait_block_settlement, wait_cosmos_settlement, RetryConfig,
 };
 
 pub mod batch;
@@ -228,7 +228,9 @@ pub trait TaskContext {
     #[allow(async_fn_in_trait)]
     async fn execute_cosmos_tx(&self, ctx: &Ctx) -> Result<Height, TaskError> {
         let any_msg = self.build_cosmos_tx(ctx).await?;
-        execute_cosmos_tx(ctx, any_msg).await
+        let height = execute_cosmos_tx(ctx, any_msg).await?;
+        wait_cosmos_settlement(ctx, height).await;
+        Ok(height)
     }
 
     #[allow(async_fn_in_trait)]

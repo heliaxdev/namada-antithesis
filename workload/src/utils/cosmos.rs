@@ -9,6 +9,7 @@ use ibc_proto::cosmos::base::v1beta1::Coin;
 use ibc_proto::ibc::apps::transfer::v1::MsgTransfer;
 use namada_sdk::ibc::core::host::types::identifiers::{ChannelId, PortId};
 use tendermint_rpc::Client;
+use tokio::time::{sleep, Duration};
 
 use crate::constants::{COSMOS_CHAIN_ID, COSMOS_FEE_AMOUNT, COSMOS_FEE_TOKEN, COSMOS_GAS_LIMIT};
 use crate::context::Ctx;
@@ -29,13 +30,17 @@ pub fn build_cosmos_ibc_transfer(
         amount: amount.to_string(),
     };
 
+    let height_offset = ibc_proto::ibc::core::client::v1::Height {
+        revision_number: 0,
+        revision_height: 1000,
+    };
     let msg = MsgTransfer {
         source_port: src_port_id.to_string(),
         source_channel: src_channel_id.to_string(),
         token: Some(token),
         sender: sender.to_string(),
         receiver: receiver.to_string(),
-        timeout_height: None,
+        timeout_height: Some(height_offset),
         timeout_timestamp: 0,
         memo: memo.unwrap_or_default().to_string(),
     };
@@ -106,5 +111,22 @@ pub async fn execute_cosmos_tx(ctx: &Ctx, any_msg: Any) -> Result<Height, TaskEr
         Err(TaskError::CosmosTx(response.check_tx.log))
     } else {
         Err(TaskError::CosmosTx(response.tx_result.log))
+    }
+}
+
+pub async fn wait_cosmos_settlement(ctx: &Ctx, height: Height) {
+    loop {
+        if let Ok(status) = ctx.cosmos.client.status().await {
+            let current_height: u64 = status.sync_info.latest_block_height.into();
+            if current_height > height {
+                break;
+            }
+            tracing::info!(
+                "Waiting for cosmos block settlement at height: {}, currently at: {}",
+                height,
+                current_height
+            );
+        }
+        sleep(Duration::from_secs(2)).await
     }
 }

@@ -97,15 +97,25 @@ pub async fn get_ibc_packet_sequence(
             ))
         })?;
 
-    get_packet_sequence(block_results, &sender, &receiver)
+    get_packet_sequence(block_results, &sender, &receiver, from_namada)
 }
 
 fn get_packet_sequence(
     block_results: tendermint_rpc::endpoint::block_results::Response,
     sender: &str,
     receiver: &str,
+    from_namada: bool,
 ) -> Result<u64, QueryError> {
-    let events = block_results.end_block_events.expect("events should exist");
+    let events = if from_namada {
+        block_results.end_block_events.expect("events should exist")
+    } else {
+        block_results
+            .txs_results
+            .expect("results should exist")
+            .into_iter()
+            .flat_map(|result| result.events)
+            .collect()
+    };
     for event in events {
         if event.kind == "send_packet" {
             let mut is_target = false;
