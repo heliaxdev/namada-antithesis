@@ -8,7 +8,7 @@ use crate::context::Ctx;
 use crate::error::CheckError;
 use crate::state::State;
 use crate::types::{Alias, Balance, Fee, Height};
-use crate::utils::RetryConfig;
+use crate::utils::{is_native_denom, RetryConfig};
 
 pub mod account_exist;
 pub mod ack_ibc_transfer;
@@ -51,10 +51,15 @@ impl Check {
     pub fn assert_pre_balance(&self, state: &State) {
         let (matched, details) = match self {
             Check::BalanceSource(bs) => {
-                let expected_pre_balance = Balance::from_u64(state.get_balance_for(bs.target()));
-                let matched = bs.pre_balance() == expected_pre_balance;
+                let expected_pre_balance = if is_native_denom(bs.denom()) {
+                    state.get_balance_for(bs.target())
+                } else {
+                    state.get_ibc_balance_for(bs.target(), bs.denom())
+                };
+                let matched = bs.pre_balance() == Balance::from_u64(expected_pre_balance);
                 let details = json!({
                     "source_alias": bs.target(),
+                    "denom": bs.denom(),
                     "expected_pre_balance": expected_pre_balance,
                     "actual_pre_balance": bs.pre_balance(),
                 });
@@ -66,10 +71,15 @@ impl Check {
                 (matched, details)
             }
             Check::BalanceTarget(bt) => {
-                let expected_pre_balance = Balance::from_u64(state.get_balance_for(bt.target()));
-                let matched = bt.pre_balance() == expected_pre_balance;
+                let expected_pre_balance = if is_native_denom(bt.denom()) {
+                    state.get_balance_for(bt.target())
+                } else {
+                    state.get_ibc_balance_for(bt.target(), bt.denom())
+                };
+                let matched = bt.pre_balance() == Balance::from_u64(expected_pre_balance);
                 let details = json!({
                     "target_alias": bt.target(),
+                    "denom": bt.denom(),
                     "expected_pre_balance": expected_pre_balance,
                     "actual_pre_balance": bt.pre_balance(),
                 });

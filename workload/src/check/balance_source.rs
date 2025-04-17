@@ -27,6 +27,10 @@ impl BalanceSource {
         self.pre_balance
     }
 
+    pub fn denom(&self) -> &str {
+        &self.denom
+    }
+
     pub fn amount(&self) -> Amount {
         self.amount
     }

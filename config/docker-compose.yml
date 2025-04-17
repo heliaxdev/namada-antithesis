@@ -110,6 +110,7 @@ services:
       - MASP_INDEXER_URL=http://30.0.0.20:5000
       - WORKLOAD_ID=0
       - COSMOS_RPC=30.0.0.31:26657
+      - COSMOS_GRPC=30.0.0.31:9090
       - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
       - NO_CHECK=false
@@ -130,6 +131,7 @@ services:
       - MASP_INDEXER_URL=http://30.0.0.20:5000
       - WORKLOAD_ID=1
       - COSMOS_RPC=30.0.0.31:26657
+      - COSMOS_GRPC=30.0.0.31:9090
       - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
       - NO_CHECK=false
@@ -150,6 +152,7 @@ services:
       - MASP_INDEXER_URL=http://30.0.0.20:5000
       - WORKLOAD_ID=2
       - COSMOS_RPC=30.0.0.31:26657
+      - COSMOS_GRPC=30.0.0.31:9090
       - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
       - NO_CHECK=false

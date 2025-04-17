@@ -11,6 +11,7 @@ use crate::config::AppConfig;
 
 pub struct CosmosCtx {
     pub client: HttpClient,
+    pub grpc_endpoint: String,
     pub account: AccountId,
     pub signing_key: SigningKey,
 }
@@ -24,6 +25,7 @@ impl CosmosCtx {
         let (account, signing_key) = load_key(&wallet_path)?;
         Ok(Self {
             client,
+            grpc_endpoint: config.cosmos_grpc.clone(),
             account,
             signing_key,
         })

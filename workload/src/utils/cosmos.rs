@@ -3,6 +3,8 @@ use std::str::FromStr;
 use cosmrs::proto::prost::{Message, Name};
 use cosmrs::tx::{AuthInfo, Body, Fee, SignDoc, SignerInfo};
 use cosmrs::Any;
+use ibc_proto::cosmos::auth::v1beta1::query_client::QueryClient;
+use ibc_proto::cosmos::auth::v1beta1::{BaseAccount, QueryAccountRequest};
 use ibc_proto::cosmos::base::v1beta1::Coin;
 use ibc_proto::ibc::apps::transfer::v1::MsgTransfer;
 use namada_sdk::ibc::core::host::types::identifiers::{ChannelId, PortId};
@@ -10,7 +12,7 @@ use tendermint_rpc::Client;
 
 use crate::constants::{COSMOS_CHAIN_ID, COSMOS_FEE_AMOUNT, COSMOS_FEE_TOKEN, COSMOS_GAS_LIMIT};
 use crate::context::Ctx;
-use crate::error::TaskError;
+use crate::error::{QueryError, TaskError};
 use crate::types::{Amount, Height};
 
 pub fn build_cosmos_ibc_transfer(
@@ -48,9 +50,23 @@ pub async fn execute_cosmos_tx(ctx: &Ctx, any_msg: Any) -> Result<Height, TaskEr
     let body = Body::new(vec![any_msg], "", 0u32);
     let signing_key = &ctx.cosmos.signing_key;
 
+    // Account
+    let mut grpc_client = QueryClient::connect(ctx.cosmos.grpc_endpoint.clone())
+        .await
+        .expect("invalid gRPC");
+    let res = grpc_client
+        .account(QueryAccountRequest {
+            address: ctx.cosmos.account.to_string(),
+        })
+        .await
+        .map_err(|e| QueryError::Grpc(e.to_string()))?;
+    let any = res.into_inner().account.expect("Account should exist");
+    let base_account: BaseAccount = prost::Message::decode(any.value.as_slice())
+        .map_err(|e| QueryError::Convert(e.to_string()))?;
+
     // AuthInfo
     let public_key = signing_key.public_key();
-    let signer_info = SignerInfo::single_direct(Some(public_key), 0);
+    let signer_info = SignerInfo::single_direct(Some(public_key), base_account.sequence);
     let fee = Fee::from_amount_and_gas(
         cosmrs::Coin {
             denom: COSMOS_FEE_TOKEN.parse().expect("token should be parsable"),
@@ -68,7 +84,7 @@ pub async fn execute_cosmos_tx(ctx: &Ctx, any_msg: Any) -> Result<Height, TaskEr
         &body,
         &auth_info,
         &tendermint::chain::Id::from_str(COSMOS_CHAIN_ID).expect("chain ID should be parsable"),
-        0,
+        base_account.account_number,
     )
     .map_err(|e| TaskError::CosmosTx(e.to_string()))?;
     let tx_raw = sign_doc
@@ -84,10 +100,11 @@ pub async fn execute_cosmos_tx(ctx: &Ctx, any_msg: Any) -> Result<Height, TaskEr
         .await
         .map_err(|e| TaskError::CosmosTx(e.to_string()))?;
 
-    if response.tx_result.code.is_ok() {
+    if response.check_tx.code.is_ok() && response.tx_result.code.is_ok() {
         Ok(response.height.into())
+    } else if response.check_tx.code.is_err() {
+        Err(TaskError::CosmosTx(response.check_tx.log))
     } else {
-        tracing::info!("Cosmos tx response {response:?}");
-        Err(TaskError::CosmosTx(response.tx_result.info))
+        Err(TaskError::CosmosTx(response.tx_result.log))
     }
 }

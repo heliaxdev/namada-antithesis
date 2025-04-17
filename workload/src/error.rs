@@ -62,6 +62,8 @@ pub enum QueryError {
     Wallet(String),
     #[error("Namada RPC request failed `{0}`")]
     Rpc(namada_sdk::error::Error),
+    #[error("Cosmos gRPC request failed `{0}`")]
+    Grpc(String),
     #[error("Fetching shielded context data failed: `{0}`")]
     ShieldedSync(String),
     #[error("Shielded context failed: `{0}`")]

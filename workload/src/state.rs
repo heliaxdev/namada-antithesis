@@ -405,6 +405,13 @@ impl State {
             .unwrap_or_default()
     }
 
+    pub fn get_ibc_balance_for(&self, alias: &Alias, denom: &str) -> u64 {
+        let Some(balances) = self.ibc_balances.get(alias) else {
+            return 0;
+        };
+        balances.get(denom).cloned().unwrap_or_default()
+    }
+
     pub fn get_foreign_balance_for(&self, alias: &Alias) -> u64 {
         self.foreign_balances
             .get(alias)
