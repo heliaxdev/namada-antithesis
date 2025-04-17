@@ -18,8 +18,8 @@ use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount, Height};
 use crate::utils::{
-    build_cosmos_ibc_transfer, cosmos_denom_hash, get_balance, ibc_denom, ibc_token_address,
-    is_native_denom, RetryConfig,
+    base_denom, build_cosmos_ibc_transfer, cosmos_denom_hash, get_balance, ibc_denom,
+    ibc_token_address, is_native_denom, RetryConfig,
 };
 
 #[derive(Clone, Debug, TypedBuilder)]
@@ -205,12 +205,17 @@ impl TaskContext for IbcTransferRecv {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        let (_, pre_balance) = get_balance(ctx, &self.target, &self.denom, retry_config).await?;
+        let recv_denom = if is_native_denom(&self.denom) {
+            ibc_denom(&self.dest_channel_id, &self.denom)
+        } else {
+            base_denom(&self.denom)
+        };
+        let (_, pre_balance) = get_balance(ctx, &self.target, &recv_denom, retry_config).await?;
         let source_check = Check::BalanceTarget(
             check::balance_target::BalanceTarget::builder()
                 .target(self.target.clone())
                 .pre_balance(pre_balance)
-                .denom(self.denom.clone())
+                .denom(recv_denom)
                 .amount(self.amount)
                 .build(),
         );

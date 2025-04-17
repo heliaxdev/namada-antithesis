@@ -34,7 +34,7 @@ impl BalanceSource {
 
 impl CheckContext for BalanceSource {
     fn summary(&self) -> String {
-        format!("balance/source/{}", self.target.name)
+        format!("balance/source/'{}'/{}", self.denom, self.target.name)
     }
 
     async fn do_check(

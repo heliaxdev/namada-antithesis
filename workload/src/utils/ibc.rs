@@ -24,11 +24,15 @@ use crate::types::{Alias, Height};
 use crate::utils::{get_block_height, wait_block_settlement, RetryConfig};
 
 pub fn is_native_denom(denom: &str) -> bool {
-    denom == Alias::nam().name
+    !denom.contains('/')
 }
 
 pub fn ibc_denom(channel_id: &ChannelId, base_token: &str) -> String {
     format!("transfer/{channel_id}/{base_token}")
+}
+
+pub fn base_denom(denom: &str) -> String {
+    denom.split('/').skip(2).collect::<Vec<_>>().join("/")
 }
 
 pub fn ibc_token_address(denom: &str) -> Address {
