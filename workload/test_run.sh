@@ -150,6 +150,15 @@ else
     exit 1
 fi
 
+output=$(/opt/antithesis/test/v1/namada/parallel_driver_ibc_transfer_recv.sh | tee /dev/stderr)
+if echo "$output" | grep -q "Done ibc-transfer-recv"
+then
+    echo "<OK> IBC transfer recv"
+else
+    echo "<ERROR> IBC transfer recv"
+    exit 1
+fi
+
 output=$(/opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh | tee /dev/stderr)
 if echo "$output" | grep -q "Done claim-rewards"
 then
