@@ -10,8 +10,6 @@ NUM_USERS=3
 STAKE="100000000000stake"
 USER_COINS="${STAKE},1000000samoleans"
 
-chown -R $(id -u):$(id -g) $BASE_DIR
-
 gaiad --home $BASE_DIR --chain-id $CHAIN_ID init $CHAIN_ID &> /dev/null
 sleep 1
 
