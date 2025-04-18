@@ -21,7 +21,7 @@ use tryhard::{backoff_strategies::ExponentialBackoff, NoOnRetry, RetryFutureConf
 use crate::context::Ctx;
 use crate::error::QueryError;
 use crate::types::{Alias, Epoch, Height, ProposalId, ProposalVote};
-use crate::utils::RetryConfig;
+use crate::utils::{ibc_token_address, is_native_denom, RetryConfig};
 
 pub async fn get_account_info(
     ctx: &Ctx,
@@ -146,29 +146,24 @@ pub async fn is_pk_revealed(
 pub async fn get_balance(
     ctx: &Ctx,
     source: &Alias,
+    denom: &str,
     retry_config: RetryConfig,
 ) -> Result<(Address, token::Amount), QueryError> {
     let wallet = ctx.namada.wallet.read().await;
-    let native_token_alias = Alias::nam();
-    let native_token_address = wallet
-        .find_address(&native_token_alias.name)
-        .ok_or_else(|| {
-            QueryError::Wallet(format!(
-                "No native token address: {}",
-                native_token_alias.name
-            ))
-        })?;
+    let token_address = if is_native_denom(denom) {
+        wallet
+            .find_address(denom)
+            .ok_or_else(|| QueryError::Wallet(format!("No native token address: {denom}",)))?
+            .into_owned()
+    } else {
+        ibc_token_address(denom)
+    };
     let target_address = wallet
         .find_address(&source.name)
         .ok_or_else(|| QueryError::Wallet(format!("No target address: {}", source.name)))?;
 
     let balance = tryhard::retry_fn(|| {
-        rpc::get_token_balance(
-            &ctx.namada.client,
-            &native_token_address,
-            &target_address,
-            None,
-        )
+        rpc::get_token_balance(&ctx.namada.client, &token_address, &target_address, None)
     })
     .with_config(retry_config)
     .on_retry(|attempt, _, error| {
@@ -187,6 +182,7 @@ pub async fn get_balance(
 pub async fn get_shielded_balance(
     ctx: &Ctx,
     source: &Alias,
+    denom: &str,
     retry_config: RetryConfig,
 ) -> Result<Option<token::Amount>, QueryError> {
     let client = &ctx.namada.client;
@@ -194,16 +190,14 @@ pub async fn get_shielded_balance(
     let masp_epoch = get_masp_epoch(ctx, retry_config).await?;
 
     let mut wallet = ctx.namada.wallet.write().await;
-    let native_token_alias = Alias::nam();
-    let native_token_address = wallet
-        .find_address(&native_token_alias.name)
-        .ok_or_else(|| {
-            QueryError::Wallet(format!(
-                "No native token address: {}",
-                native_token_alias.name
-            ))
-        })?
-        .into_owned();
+    let token_address = if is_native_denom(denom) {
+        wallet
+            .find_address(denom)
+            .ok_or_else(|| QueryError::Wallet(format!("No native token address: {denom}",)))?
+            .into_owned()
+    } else {
+        ibc_token_address(denom)
+    };
     let spending_key = source.spending_key().name;
     let target_spending_key = wallet
         .find_spending_key(&spending_key, None)
@@ -229,7 +223,7 @@ pub async fn get_shielded_balance(
         .decode_combine_sum_to_epoch(client, balance, masp_epoch)
         .await
         .0
-        .get(&native_token_address);
+        .get(&token_address);
 
     Ok(Some(total_balance.into()))
 }

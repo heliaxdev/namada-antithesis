@@ -44,6 +44,8 @@ pub enum TaskError {
     InvalidShielded { err: String, was_fee_paid: bool },
     #[error("Query failed: `{0}`")]
     Query(QueryError),
+    #[error("Cosmos tx failed: `{0}`")]
+    CosmosTx(String),
 }
 
 #[derive(Error, Debug)]
@@ -60,12 +62,16 @@ pub enum QueryError {
     Wallet(String),
     #[error("Namada RPC request failed `{0}`")]
     Rpc(namada_sdk::error::Error),
+    #[error("Cosmos gRPC request failed `{0}`")]
+    Grpc(String),
     #[error("Fetching shielded context data failed: `{0}`")]
     ShieldedSync(String),
     #[error("Shielded context failed: `{0}`")]
     ShieldedContext(String),
     #[error("Conversion failed: `{0}`")]
     Convert(String),
+    #[error("IBC-related query failed: `{0}`")]
+    Ibc(String),
 }
 
 impl From<QueryError> for StepError {

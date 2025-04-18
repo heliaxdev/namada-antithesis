@@ -135,22 +135,25 @@ impl TaskContext for Unshielding {
     ) -> Result<Vec<Check>, TaskError> {
         shielded_sync_with_retry(ctx, &self.source, None, false, retry_config).await?;
 
-        let pre_balance = get_shielded_balance(ctx, &self.source, retry_config)
+        let denom = Alias::nam().name;
+        let pre_balance = get_shielded_balance(ctx, &self.source, &denom, retry_config)
             .await?
             .unwrap_or_default();
         let source_check = Check::BalanceShieldedSource(
             check::balance_shielded_source::BalanceShieldedSource::builder()
                 .target(self.source.clone())
                 .pre_balance(pre_balance)
+                .denom(denom.clone())
                 .amount(self.amount)
                 .build(),
         );
 
-        let (_, pre_balance) = get_balance(ctx, &self.target, retry_config).await?;
+        let (_, pre_balance) = get_balance(ctx, &self.target, &denom, retry_config).await?;
         let target_check = Check::BalanceTarget(
             check::balance_target::BalanceTarget::builder()
                 .target(self.target.clone())
                 .pre_balance(pre_balance)
+                .denom(denom)
                 .amount(self.amount)
                 .build(),
         );

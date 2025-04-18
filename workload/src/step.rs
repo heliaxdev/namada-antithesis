@@ -19,6 +19,7 @@ mod deactivate_validator;
 mod default_proposal;
 mod faucet_transfer;
 mod fund_all;
+mod ibc_transfer;
 mod init_account;
 mod initialize;
 mod new_wallet_keypair;
@@ -44,6 +45,8 @@ pub enum StepType {
     Shielding(shielding::Shielding),
     Shielded(shielded_transfer::ShieldedTransfer),
     Unshielding(unshielding::Unshielding),
+    IbcTransferSend(ibc_transfer::IbcTransferSend),
+    IbcTransferRecv(ibc_transfer::IbcTransferRecv),
     Bond(bond::Bond),
     Unbond(unbond::Unbond),
     Redelegate(redelegate::Redelegate),
@@ -74,6 +77,8 @@ impl FromStr for StepType {
             "shielding" => Self::Shielding(Default::default()),
             "shielded" => Self::Shielded(Default::default()),
             "unshielding" => Self::Unshielding(Default::default()),
+            "ibc-transfer-send" => Self::IbcTransferSend(Default::default()),
+            "ibc-transfer-recv" => Self::IbcTransferRecv(Default::default()),
             "bond" => Self::Bond(Default::default()),
             "unbond" => Self::Unbond(Default::default()),
             "redelegate" => Self::Redelegate(Default::default()),

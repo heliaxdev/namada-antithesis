@@ -66,6 +66,8 @@ pub struct State {
     pub accounts: HashMap<Alias, Account>,
     pub balances: HashMap<Alias, u64>,
     pub masp_balances: HashMap<Alias, u64>,
+    pub ibc_balances: HashMap<Alias, HashMap<String, u64>>,
+    pub foreign_balances: HashMap<Alias, u64>,
     pub bonds: HashMap<Alias, HashMap<String, (u64, Epoch)>>,
     pub unbonds: HashMap<Alias, HashMap<String, u64>>,
     pub redelegations: HashMap<Alias, HashMap<String, u64>>,
@@ -83,6 +85,8 @@ impl State {
             accounts: HashMap::default(),
             balances: HashMap::default(),
             masp_balances: HashMap::default(),
+            ibc_balances: HashMap::default(),
+            foreign_balances: HashMap::default(),
             bonds: HashMap::default(),
             unbonds: HashMap::default(),
             redelegations: HashMap::default(),
@@ -265,6 +269,19 @@ impl State {
             .choose(&mut AntithesisRng)
     }
 
+    pub fn random_account_with_ibc_balance(&self, blacklist: Vec<Alias>) -> Option<Account> {
+        self.accounts
+            .iter()
+            .filter(|(alias, _)| !blacklist.contains(alias))
+            .filter(|(alias, _)| {
+                self.ibc_balances
+                    .get(alias)
+                    .is_some_and(|balances| balances.iter().any(|(_, b)| *b > 0))
+            })
+            .map(|(_, account)| account.clone())
+            .choose(&mut AntithesisRng)
+    }
+
     pub fn random_payment_address(&self, blacklist: Vec<Alias>) -> Option<Account> {
         self.random_implicit_accounts(blacklist, 1).first().cloned()
     }
@@ -388,6 +405,20 @@ impl State {
             .unwrap_or_default()
     }
 
+    pub fn get_ibc_balance_for(&self, alias: &Alias, denom: &str) -> u64 {
+        let Some(balances) = self.ibc_balances.get(alias) else {
+            return 0;
+        };
+        balances.get(denom).cloned().unwrap_or_default()
+    }
+
+    pub fn get_foreign_balance_for(&self, alias: &Alias) -> u64 {
+        self.foreign_balances
+            .get(alias)
+            .cloned()
+            .unwrap_or_default()
+    }
+
     pub fn get_redelegations_targets_for(&self, alias: &Alias) -> HashSet<String> {
         self.redelegations
             .get(alias)
@@ -463,11 +494,41 @@ impl State {
         *self.balances.get_mut(target).unwrap() += amount;
     }
 
+    pub fn increase_ibc_balance(&mut self, target: &Alias, denom: &str, amount: u64) {
+        if target.is_faucet() {
+            return;
+        }
+        let default = HashMap::from_iter([(denom.to_string(), 0)]);
+        *self
+            .ibc_balances
+            .entry(target.clone())
+            .or_insert(default)
+            .entry(denom.to_string())
+            .or_insert(0) += amount;
+    }
+
+    pub fn increase_foreign_balance(&mut self, target: &Alias, amount: u64) {
+        *self.foreign_balances.entry(target.clone()).or_insert(0) += amount;
+    }
+
     pub fn decrease_balance(&mut self, target: &Alias, amount: u64) {
         if target.is_faucet() {
             return;
         }
         *self.balances.get_mut(target).unwrap() -= amount;
+    }
+
+    pub fn decrease_ibc_balance(&mut self, target: &Alias, denom: &str, amount: u64) {
+        if target.is_faucet() {
+            return;
+        }
+        self.ibc_balances
+            .entry(target.clone())
+            .and_modify(|balance| *balance.get_mut(denom).unwrap() -= amount);
+    }
+
+    pub fn decrease_foreign_balance(&mut self, target: &Alias, amount: u64) {
+        *self.foreign_balances.get_mut(target).unwrap() -= amount;
     }
 
     pub fn modify_balance_fee(&mut self, source: &Alias, fee: u64) {

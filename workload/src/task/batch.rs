@@ -155,13 +155,15 @@ impl TaskContext for Batch {
             }
         }
 
+        let denom = Alias::nam().name;
         for (alias, amount) in balances {
-            let (_, pre_balance) = get_balance(ctx, &alias, retry_config).await?;
+            let (_, pre_balance) = get_balance(ctx, &alias, &denom, retry_config).await?;
             if amount >= 0 {
                 prepared_checks.push(Check::BalanceTarget(
                     check::balance_target::BalanceTarget::builder()
                         .target(alias)
                         .pre_balance(pre_balance)
+                        .denom(denom.clone())
                         .amount(amount.unsigned_abs())
                         .build(),
                 ));
@@ -170,6 +172,7 @@ impl TaskContext for Batch {
                     check::balance_source::BalanceSource::builder()
                         .target(alias)
                         .pre_balance(pre_balance)
+                        .denom(denom.clone())
                         .amount(amount.unsigned_abs())
                         .build(),
                 ));
@@ -205,7 +208,7 @@ impl TaskContext for Batch {
 
         for (alias, amount) in shielded_balances {
             // shielded-sync has been already done in each task.build_checks()
-            let pre_balance = get_shielded_balance(ctx, &alias, retry_config)
+            let pre_balance = get_shielded_balance(ctx, &alias, &denom, retry_config)
                 .await?
                 .unwrap_or_default();
             if amount >= 0 {
@@ -213,6 +216,7 @@ impl TaskContext for Batch {
                     check::balance_shielded_target::BalanceShieldedTarget::builder()
                         .target(alias.payment_address())
                         .pre_balance(pre_balance)
+                        .denom(denom.clone())
                         .amount(amount.unsigned_abs())
                         .build(),
                 ));
@@ -221,6 +225,7 @@ impl TaskContext for Batch {
                     check::balance_shielded_source::BalanceShieldedSource::builder()
                         .target(alias.spending_key())
                         .pre_balance(pre_balance)
+                        .denom(denom.clone())
                         .amount(amount.unsigned_abs())
                         .build(),
                 ));

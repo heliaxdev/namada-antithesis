@@ -97,11 +97,13 @@ impl TaskContext for Bond {
                 .build(),
         );
 
-        let (_, pre_balance) = get_balance(ctx, &self.source, retry_config).await?;
+        let denom = Alias::nam().name;
+        let (_, pre_balance) = get_balance(ctx, &self.source, &denom, retry_config).await?;
         let check_balance = Check::BalanceSource(
             check::balance_source::BalanceSource::builder()
                 .target(self.source.clone())
                 .pre_balance(pre_balance)
+                .denom(denom)
                 .amount(self.amount)
                 .build(),
         );

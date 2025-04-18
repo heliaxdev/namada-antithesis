@@ -14,6 +14,7 @@ use crate::utils::{get_balance, RetryConfig};
 pub struct BalanceTarget {
     target: Alias,
     pre_balance: Balance,
+    denom: String,
     amount: Amount,
     #[builder(default)]
     allow_greater: bool,
@@ -28,6 +29,10 @@ impl BalanceTarget {
         self.pre_balance
     }
 
+    pub fn denom(&self) -> &str {
+        &self.denom
+    }
+
     pub fn amount(&self) -> Amount {
         self.amount
     }
@@ -35,7 +40,7 @@ impl BalanceTarget {
 
 impl CheckContext for BalanceTarget {
     fn summary(&self) -> String {
-        format!("balance/target/{}", self.target.name)
+        format!("balance/target/'{}'/{}", self.denom, self.target.name)
     }
 
     async fn do_check(
@@ -45,7 +50,8 @@ impl CheckContext for BalanceTarget {
         check_info: CheckInfo,
         retry_config: RetryConfig,
     ) -> Result<(), CheckError> {
-        let (target_address, post_balance) = get_balance(ctx, &self.target, retry_config).await?;
+        let (target_address, post_balance) =
+            get_balance(ctx, &self.target, &self.denom, retry_config).await?;
 
         let fee = fees.get(&self.target).cloned().unwrap_or_default();
 

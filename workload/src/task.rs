@@ -1,6 +1,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Display;
 
+use cosmrs::Any;
 use enum_dispatch::enum_dispatch;
 use namada_sdk::{args, signing::SigningTxData, tx::Tx};
 
@@ -10,8 +11,10 @@ use crate::context::Ctx;
 use crate::error::TaskError;
 use crate::state::State;
 use crate::types::{Alias, Fee, Height, MaspEpoch};
-use crate::utils;
-use crate::utils::RetryConfig;
+use crate::utils::{
+    execute_cosmos_tx, execute_tx, get_block_height, get_masp_epoch, get_masp_epoch_at_height,
+    retry_config, wait_block_settlement, wait_cosmos_settlement, RetryConfig,
+};
 
 pub mod batch;
 pub mod become_validator;
@@ -22,6 +25,7 @@ pub mod claim_rewards;
 pub mod deactivate_validator;
 pub mod default_proposal;
 pub mod faucet_transfer;
+pub mod ibc_transfer;
 pub mod init_account;
 pub mod new_wallet_keypair;
 pub mod reactivate_validator;
@@ -73,6 +77,8 @@ pub enum Task {
     NewWalletKeyPair(new_wallet_keypair::NewWalletKeyPair),
     FaucetTransfer(faucet_transfer::FaucetTransfer),
     TransparentTransfer(transparent_transfer::TransparentTransfer),
+    IbcTransferSend(ibc_transfer::IbcTransferSend),
+    IbcTransferRecv(ibc_transfer::IbcTransferRecv),
     Bond(bond::Bond),
     Unbond(unbond::Unbond),
     Redelegate(redelegate::Redelegate),
@@ -153,8 +159,23 @@ pub trait TaskContext {
 
     #[allow(async_fn_in_trait)]
     async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
+        let retry_config = retry_config();
         let (tx, signing_data, tx_args) = self.build_tx(ctx).await?;
-        utils::execute_tx(ctx, tx, signing_data, &tx_args).await
+
+        let start_height = get_block_height(ctx, retry_config)
+            .await
+            .unwrap_or_default();
+
+        match execute_tx(ctx, tx, signing_data, &tx_args).await {
+            Ok(height) => {
+                wait_block_settlement(ctx, height, retry_config).await;
+                Ok(height)
+            }
+            Err(e) => {
+                wait_block_settlement(ctx, start_height, retry_config).await;
+                Err(e)
+            }
+        }
     }
 
     #[allow(async_fn_in_trait)]
@@ -163,26 +184,27 @@ pub trait TaskContext {
         ctx: &Ctx,
         start_epoch: MaspEpoch,
     ) -> Result<Height, TaskError> {
-        let retry_config = utils::retry_config();
+        let retry_config = retry_config();
 
-        let height = utils::get_block_height(ctx, retry_config).await?;
+        let height = get_block_height(ctx, retry_config).await?;
         let result = match self.build_tx(ctx).await {
-            Ok((tx, signing_data, tx_args)) => {
-                utils::execute_tx(ctx, tx, signing_data, &tx_args).await
-            }
+            Ok((tx, signing_data, tx_args)) => execute_tx(ctx, tx, signing_data, &tx_args).await,
             Err(e) => Err(e),
         };
 
         let epoch = match result {
-            Ok(_) => None,
+            Ok(height) => {
+                wait_block_settlement(ctx, height, retry_config).await;
+                None
+            }
             Err(TaskError::Execution { height, .. })
             | Err(TaskError::InsufficientGas { height, .. }) => {
-                utils::wait_block_settlement(ctx, height, retry_config).await;
-                Some(utils::get_masp_epoch_at_height(ctx, height, retry_config).await?)
+                wait_block_settlement(ctx, height, retry_config).await;
+                Some(get_masp_epoch_at_height(ctx, height, retry_config).await?)
             }
             Err(_) => {
-                utils::wait_block_settlement(ctx, height + 1, retry_config).await;
-                Some(utils::get_masp_epoch(ctx, retry_config).await?)
+                wait_block_settlement(ctx, height + 1, retry_config).await;
+                Some(get_masp_epoch(ctx, retry_config).await?)
             }
         };
 
@@ -196,6 +218,19 @@ pub trait TaskContext {
                 }
             }
         })
+    }
+
+    #[allow(async_fn_in_trait)]
+    async fn build_cosmos_tx(&self, _ctx: &Ctx) -> Result<Any, TaskError> {
+        unimplemented!("Implement for a tx on Cosmos")
+    }
+
+    #[allow(async_fn_in_trait)]
+    async fn execute_cosmos_tx(&self, ctx: &Ctx) -> Result<Height, TaskError> {
+        let any_msg = self.build_cosmos_tx(ctx).await?;
+        let height = execute_cosmos_tx(ctx, any_msg).await?;
+        wait_cosmos_settlement(ctx, height).await;
+        Ok(height)
     }
 
     #[allow(async_fn_in_trait)]

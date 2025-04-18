@@ -95,12 +95,14 @@ impl TaskContext for FaucetTransfer {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        let (_, pre_balance) = get_balance(ctx, &self.target, retry_config).await?;
+        let denom = Alias::nam().name;
+        let (_, pre_balance) = get_balance(ctx, &self.target, &denom, retry_config).await?;
 
         Ok(vec![Check::BalanceTarget(
             check::balance_target::BalanceTarget::builder()
                 .target(self.target.clone())
                 .pre_balance(pre_balance)
+                .denom(denom)
                 .amount(self.amount)
                 .build(),
         )])
