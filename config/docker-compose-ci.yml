@@ -127,6 +127,7 @@ services:
       # for import relayer keys
       - ./gaia-0/:/gaia-0
       - ./validator-2/:/validator-2
+    user: "0"
   validator0:
     container_name: validator0
     entrypoint: /entrypoint.sh
