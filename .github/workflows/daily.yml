@@ -15,14 +15,14 @@ jobs:
             genesis: "main"
             masp_indexer: "03c0fe13016f00338b844b831c84f8017f63a868"
             workload: "master"
-            duration: 12
+            duration: 14
             config: "main"
           - image: "v1.1.5-inst"
             genesis: "v1.1.5"
             config: "v1.1.5"
             masp_indexer: "master"
             workload: "for-stable-namada"
-            duration: 4
+            duration: 2
 
     steps:
       - uses: antithesishq/antithesis-trigger-action@v0.7
