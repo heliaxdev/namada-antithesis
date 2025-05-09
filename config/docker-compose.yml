@@ -113,6 +113,7 @@ services:
       - COSMOS_GRPC=30.0.0.31:9090
       - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
+      - WORKLOAD_NUM=3
     volumes:
       - ./container_ready/:/container_ready
       - ./gaia-0/:/gaia-0
@@ -133,6 +134,7 @@ services:
       - COSMOS_GRPC=30.0.0.31:9090
       - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
+      - WORKLOAD_NUM=3
     volumes:
       - ./container_ready/:/container_ready
       - ./gaia-0/:/gaia-0
@@ -153,6 +155,7 @@ services:
       - COSMOS_GRPC=30.0.0.31:9090
       - COSMOS_DIR=/gaia-0
       - NAMADA_LOG=debug
+      - WORKLOAD_NUM=3
     volumes:
       - ./container_ready/:/container_ready
       - ./gaia-0/:/gaia-0

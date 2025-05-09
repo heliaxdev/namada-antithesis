@@ -15,6 +15,9 @@ pub struct Args {
     #[clap(long, env)]
     #[clap(default_value_t = false)]
     pub no_check: bool,
+    #[clap(long)]
+    #[clap(default_value_t = false)]
+    pub setup_complete: bool,
 }
 
 #[derive(Debug, Deserialize)]

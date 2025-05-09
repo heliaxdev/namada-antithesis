@@ -199,6 +199,7 @@ services:
     - COSMOS_RPC=30.0.0.31:26657
     - COSMOS_GRPC=30.0.0.31:9090
     - COSMOS_DIR=/gaia-0
+    - WORKLOAD_NUM=1
     hostname: workload0
     build:
       context: ../workload

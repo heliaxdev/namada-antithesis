@@ -79,3 +79,19 @@ else
     echo "Fund failed!"
     exit 1
 fi
+
+for id in $(seq 0 $(({WORKLOAD_NUM} - 1))); do
+    while [ ! -f "/container_ready/workload-${id}" ]; do
+        echo "Waiting for workload-${id} initialization..."
+        sleep 2
+    done
+    echo "workload-${id} is ready"
+done
+
+# Emit `setup_complete` to Antithesis
+if [ "${WORKLOAD_ID}" -eq 0 ]
+then
+  /app/namada-chain-workload --config config.toml new-wallet-key-pair --setup-complete
+fi
+
+echo "All workloads are ready"

@@ -16,7 +16,15 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
-    let code = inner_main().await;
+    let args = Args::parse();
+    if args.setup_complete {
+        antithesis_sdk::lifecycle::setup_complete(&json!({
+            "commit_sha": env!("VERGEN_GIT_SHA")
+        }));
+        std::process::exit(0);
+    }
+
+    let code = inner_main(args).await;
 
     code.output_logs();
 
@@ -25,7 +33,7 @@ async fn main() {
     std::process::exit(code.code());
 }
 
-async fn inner_main() -> Code {
+async fn inner_main(args: Args) -> Code {
     antithesis_init();
 
     let filter = EnvFilter::builder()
@@ -43,7 +51,6 @@ async fn inner_main() -> Code {
     rlimit::increase_nofile_limit(10240).unwrap();
     rlimit::increase_nofile_limit(u64::MAX).unwrap();
 
-    let args = Args::parse();
     let config = match AppConfig::load(args.config) {
         Ok(config) => config,
         Err(e) => return Code::ConfigFatal(e.to_string()),
