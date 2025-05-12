@@ -85,7 +85,7 @@ for ((i = 0; i < len; i++)); do
 done
 
 # TODO: update the actual file
-sed -i 's/epochs_per_year = 10512000/epochs_per_year = 1051200/g' ${network_template_path}/parameters.toml
+sed -i 's/epochs_per_year = 10512000/epochs_per_year = 105120/g' ${network_template_path}/parameters.toml
 sed -i 's/default_mint_limit = .*/default_mint_limit = "1000000000000000000"/g' ${network_template_path}/parameters.toml
 sed -i 's/default_per_epoch_throughput_limit = .*/default_per_epoch_throughput_limit = "1000000000000000000"/g' ${network_template_path}/parameters.toml
 

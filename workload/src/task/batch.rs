@@ -10,7 +10,8 @@ use crate::state::State;
 use crate::task::{Task, TaskContext, TaskSettings};
 use crate::types::{Alias, Height};
 use crate::utils::{
-    execute_tx, get_balance, get_bond, get_shielded_balance, merge_tx, RetryConfig,
+    execute_tx, get_balance, get_block_height, get_bond, get_shielded_balance, merge_tx,
+    retry_config, wait_block_settlement, RetryConfig,
 };
 
 #[derive(Clone, Debug, TypedBuilder)]
@@ -76,8 +77,22 @@ impl TaskContext for Batch {
                 .expect("Epoch should be set");
             self.execute_shielded_tx(ctx, epoch).await
         } else {
+            let retry_config = retry_config();
             let (tx, signing_data, tx_args) = self.build_tx(ctx).await?;
-            execute_tx(ctx, tx, signing_data, &tx_args).await
+
+            let start_height = get_block_height(ctx, retry_config)
+                .await
+                .unwrap_or_default();
+            match execute_tx(ctx, tx, signing_data, &tx_args).await {
+                Ok(height) => {
+                    wait_block_settlement(ctx, height, retry_config).await;
+                    Ok(height)
+                }
+                Err(e) => {
+                    wait_block_settlement(ctx, start_height, retry_config).await;
+                    Err(e)
+                }
+            }
         }
     }
 
