@@ -58,6 +58,7 @@ RUN mkdir -p /root/.masp-params \
 ENV NAMADA_MASP_PARAMS_DIR=/root/.masp-params
 
 RUN mkdir -p /container_ready
+
 COPY ./entrypoint.sh /entrypoint.sh
 
 # Important!

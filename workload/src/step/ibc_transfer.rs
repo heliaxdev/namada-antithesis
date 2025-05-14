@@ -202,7 +202,7 @@ impl StepContext for IbcUnshieldingTransfer {
     }
 
     async fn build_task(&self, ctx: &Ctx, state: &State) -> Result<Vec<Task>, StepError> {
-        let (source_account, denom) = state
+        let Some((source_account, denom)) = state
             .random_masp_account_with_ibc_balance(vec![])
             .filter(|_| utils::coin_flip(0.5))
             .map(|account| (account, ibc_denom(&ctx.namada_channel_id, COSMOS_TOKEN)))
@@ -211,7 +211,9 @@ impl StepContext for IbcUnshieldingTransfer {
                     .random_masp_account_with_min_balance(vec![], MIN_TRANSFER_BALANCE)
                     .map(|account| (account, Alias::nam().name))
             })
-            .ok_or(StepError::BuildTask("No more accounts".to_string()))?;
+        else {
+            return Ok(vec![]);
+        };
         let target_account = ctx.cosmos.account.to_string();
         let amount_account = if is_native_denom(&denom) {
             state.get_shielded_balance_for(&source_account.alias)
