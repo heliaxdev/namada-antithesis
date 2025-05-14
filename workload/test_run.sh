@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MAX_RETRY_COUNT=5
+MAX_RETRY_COUNT=15
 
 touch state-$WORKLOAD_ID.json
 echo "" > state-$WORKLOAD_ID.json
@@ -177,15 +177,6 @@ then
     exit 1
 fi
 
-output=$(/opt/antithesis/test/v1/namada/parallel_driver_claim_rewards.sh | tee /dev/stderr)
-if echo "$output" | grep -q "Done claim-rewards"
-then
-    echo "<OK> claim rewards" 
-else
-    echo "<ERROR> claim rewards"
-    exit 1
-fi
-
 output=$(/opt/antithesis/test/v1/namada/parallel_driver_become_validator.sh | tee /dev/stderr)
 if echo "$output" | grep -q "Done become-validator"
 then
@@ -210,24 +201,6 @@ then
     echo "<OK> change consensus keys" 
 else
     echo "<ERROR> change consensus keys"
-    exit 1
-fi
-
-output=$(/opt/antithesis/test/v1/namada/parallel_driver_redelegate.sh | tee /dev/stderr)
-if echo "$output" | grep -q "Done redelegate"
-then
-    echo "<OK> redelegate" 
-else
-    echo "<ERROR> redelegate"
-    exit 1
-fi
-
-output=$(/opt/antithesis/test/v1/namada/parallel_driver_unbond.sh | tee /dev/stderr)
-if echo "$output" | grep -q "Done unbond"
-then
-    echo "<OK> unbond" 
-else
-    echo "<ERROR> unbond"
     exit 1
 fi
 

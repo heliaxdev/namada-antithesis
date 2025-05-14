@@ -18,7 +18,6 @@ pub mod balance_source;
 pub mod balance_target;
 pub mod bond_decrease;
 pub mod bond_increase;
-pub mod recv_ibc_packet;
 pub mod reveal_pk;
 pub mod validator_account;
 pub mod validator_status;
@@ -32,7 +31,6 @@ pub enum Check {
     BalanceShieldedTarget(balance_shielded_target::BalanceShieldedTarget),
     BalanceShieldedSource(balance_shielded_source::BalanceShieldedSource),
     AckIbcTransfer(ack_ibc_transfer::AckIbcTransfer),
-    RecvIbcPacket(recv_ibc_packet::RecvIbcPacket),
     BondIncrease(bond_increase::BondIncrease),
     BondDecrease(bond_decrease::BondDecrease),
     AccountExist(account_exist::AccountExist),

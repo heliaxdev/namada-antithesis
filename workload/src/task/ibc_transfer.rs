@@ -24,7 +24,7 @@ use crate::utils::{
     base_denom, build_cosmos_ibc_transfer, cosmos_denom_hash, gen_shielding_tx, get_balance,
     get_block_height, get_ibc_packet_sequence, get_masp_epoch, get_shielded_balance, ibc_denom,
     ibc_token_address, is_native_denom, is_recv_packet, retry_config, shielded_sync_with_retry,
-    RetryConfig,
+    wait_block_settlement, RetryConfig,
 };
 
 #[derive(Clone, Debug, TypedBuilder)]
@@ -180,7 +180,35 @@ impl TaskContext for IbcTransferRecv {
     }
 
     async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
-        self.execute_cosmos_tx(ctx).await
+        let retry_config = retry_config();
+
+        let height = self.execute_cosmos_tx(ctx).await?;
+
+        // Check the packet receiving on Namada
+        let sequence =
+            get_ibc_packet_sequence(ctx, &self.sender, &self.target, height, false, retry_config)
+                .await?;
+        let (is_successful, recv_height) = is_recv_packet(
+            ctx,
+            &self.src_channel_id,
+            &self.dest_channel_id,
+            sequence.into(),
+            retry_config,
+        )
+        .await?;
+        if is_successful {
+            wait_block_settlement(ctx, recv_height, retry_config).await;
+            Ok(recv_height)
+        } else {
+            let err = format!(
+                "Receiving token failed: {} {} from {} to {}",
+                self.amount, self.denom, self.sender.name, self.target.name
+            );
+            Err(TaskError::Execution {
+                err,
+                height: recv_height,
+            })
+        }
     }
 
     async fn build_cosmos_tx(&self, ctx: &Ctx) -> Result<Any, TaskError> {
@@ -223,15 +251,6 @@ impl TaskContext for IbcTransferRecv {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        let recv_packet = Check::RecvIbcPacket(
-            check::recv_ibc_packet::RecvIbcPacket::builder()
-                .sender(self.sender.clone())
-                .target(self.target.clone())
-                .src_channel_id(self.src_channel_id.clone())
-                .dest_channel_id(self.dest_channel_id.clone())
-                .build(),
-        );
-
         let recv_denom = if is_native_denom(&self.denom) {
             ibc_denom(&self.dest_channel_id, &self.denom)
         } else {
@@ -247,8 +266,7 @@ impl TaskContext for IbcTransferRecv {
                 .build(),
         );
 
-        // Check receiving IBC packet before checking the target balance
-        Ok(vec![recv_packet, target_check])
+        Ok(vec![target_check])
     }
 
     fn update_state(&self, state: &mut State) {
@@ -400,7 +418,7 @@ impl TaskContext for IbcShieldingTransfer {
         ctx: &Ctx,
         retry_config: RetryConfig,
     ) -> Result<Vec<Check>, TaskError> {
-        // packet receipt has been already checked
+        shielded_sync_with_retry(ctx, &self.target, None, false, retry_config).await?;
 
         let recv_denom = if is_native_denom(&self.denom) {
             ibc_denom(&self.dest_channel_id, &self.denom)

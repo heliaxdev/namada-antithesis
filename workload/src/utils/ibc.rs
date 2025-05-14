@@ -268,7 +268,7 @@ async fn get_ibc_event(
 
     // Look for recv_packet event with the sequence
     let mut height = get_block_height(ctx, retry_config).await?;
-    let timeout_height = height + IBC_TIMEOUT_HEIGHT_OFFSET;
+    let timeout_height = height + IBC_TIMEOUT_HEIGHT_OFFSET * 2;
     while height < timeout_height {
         match shell
             .ibc_packet(
@@ -286,7 +286,7 @@ async fn get_ibc_event(
             _ => {
                 wait_block_settlement(ctx, height, retry_config).await;
                 height += 1;
-                tracing::info!("Retry IBC ack event query at {height}...");
+                tracing::info!("Retry IBC {ibc_event_type} event query at {height}...");
             }
         }
     }

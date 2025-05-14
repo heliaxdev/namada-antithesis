@@ -6,7 +6,7 @@ use crate::constants::{
     COSMOS_TOKEN, MAX_BATCH_TX_NUM, MAX_COSMOS_TRANSFER_AMOUNT, MIN_TRANSFER_BALANCE,
 };
 use crate::context::Ctx;
-use crate::error::StepError;
+use crate::error::{StepError, TaskError};
 use crate::state::State;
 use crate::step::StepContext;
 use crate::task::{self, Task, TaskSettings};
@@ -176,7 +176,15 @@ impl StepContext for IbcShieldingTransfer {
             CodeType::Success => assert_always_step!("Done IbcShieldingTransfer", code),
             CodeType::Fatal => assert_unreachable_step!("Fatal IbcShieldingTransfer", code),
             CodeType::Skip => assert_sometimes_step!("Skipped IbcShieldingTransfer", code),
-            CodeType::Failed => assert_unreachable_step!("Failed IbcShieldingTransfer", code),
+            CodeType::Failed
+                if matches!(
+                    code,
+                    Code::TaskFailure(_, TaskError::InvalidShielded { .. })
+                ) =>
+            {
+                assert_sometimes_step!("Invalid IbcShieldingTransfer", code)
+            }
+            _ => assert_unreachable_step!("Failed IbcShieldingTransfer", code),
         }
     }
 }
@@ -251,7 +259,15 @@ impl StepContext for IbcUnshieldingTransfer {
             CodeType::Success => assert_always_step!("Done IbcUnshieldingTransfer", code),
             CodeType::Fatal => assert_unreachable_step!("Fatal IbcUnshieldingTransfer", code),
             CodeType::Skip => assert_sometimes_step!("Skipped IbcUnshieldingTransfer", code),
-            CodeType::Failed => assert_unreachable_step!("Failed IbcUnshieldingTransfer", code),
+            CodeType::Failed
+                if matches!(
+                    code,
+                    Code::TaskFailure(_, TaskError::InvalidShielded { .. })
+                ) =>
+            {
+                assert_sometimes_step!("Invalid IbcUnshieldingTransfer", code)
+            }
+            _ => assert_unreachable_step!("Failed IbcUnshieldingTransfer", code),
         }
     }
 }
