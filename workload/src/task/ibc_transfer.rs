@@ -21,10 +21,10 @@ use crate::state::State;
 use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount, Height, MaspEpoch};
 use crate::utils::{
-    base_denom, build_cosmos_ibc_transfer, cosmos_denom_hash, gen_shielding_tx, get_balance,
-    get_block_height, get_ibc_packet_sequence, get_masp_epoch, get_shielded_balance, ibc_denom,
-    ibc_token_address, is_native_denom, is_recv_packet, retry_config, shielded_sync_with_retry,
-    wait_block_settlement, RetryConfig,
+    base_denom, build_cosmos_ibc_transfer, cosmos_denom_hash, execute_tx, gen_shielding_tx,
+    get_balance, get_block_height, get_ibc_packet_sequence, get_masp_epoch, get_shielded_balance,
+    ibc_denom, ibc_token_address, is_ibc_transfer_successful, is_native_denom, is_recv_packet,
+    retry_config, shielded_sync_with_retry, wait_block_settlement, RetryConfig,
 };
 
 #[derive(Clone, Debug, TypedBuilder)]
@@ -111,6 +111,51 @@ impl TaskContext for IbcTransferSend {
         Ok((transfer_tx, vec![signing_data], tx_builder.tx))
     }
 
+    async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
+        let retry_config = retry_config();
+        let (tx, signing_data, tx_args) = self.build_tx(ctx).await?;
+
+        let start_height = get_block_height(ctx, retry_config)
+            .await
+            .unwrap_or_default();
+
+        let height = match execute_tx(ctx, tx, signing_data, &tx_args).await {
+            Ok(height) => height,
+            Err(e) => {
+                wait_block_settlement(ctx, start_height, retry_config).await;
+                return Err(e);
+            }
+        };
+
+        // Wait for the IBC transfer completion
+        let sequence = get_ibc_packet_sequence(
+            ctx,
+            &self.source,
+            &self.receiver,
+            height,
+            true,
+            retry_config,
+        )
+        .await?;
+        if is_ibc_transfer_successful(
+            ctx,
+            &self.src_channel_id,
+            &self.dest_channel_id,
+            sequence.into(),
+            retry_config,
+        )
+        .await?
+        {
+            Ok(height)
+        } else {
+            let err = format!(
+                "Sending token failed: {} {} from {} to {}",
+                self.amount, self.denom, self.source.name, self.receiver.name
+            );
+            Err(TaskError::Execution { err, height })
+        }
+    }
+
     async fn build_checks(
         &self,
         ctx: &Ctx,
@@ -126,16 +171,7 @@ impl TaskContext for IbcTransferSend {
                 .build(),
         );
 
-        let ibc_ack = Check::AckIbcTransfer(
-            check::ack_ibc_transfer::AckIbcTransfer::builder()
-                .source(self.source.clone())
-                .receiver(self.receiver.clone())
-                .src_channel_id(self.src_channel_id.clone())
-                .dest_channel_id(self.dest_channel_id.clone())
-                .build(),
-        );
-
-        Ok(vec![source_check, ibc_ack])
+        Ok(vec![source_check])
     }
 
     fn update_state(&self, state: &mut State) {
@@ -559,7 +595,35 @@ impl TaskContext for IbcUnshieldingTransfer {
     }
 
     async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
-        self.execute_shielded_tx(ctx, self.epoch).await
+        let height = self.execute_shielded_tx(ctx, self.epoch).await?;
+
+        // Wait for the IBC transfer completion
+        let sequence = get_ibc_packet_sequence(
+            ctx,
+            &self.source.base(),
+            &self.receiver,
+            height,
+            true,
+            retry_config(),
+        )
+        .await?;
+        if is_ibc_transfer_successful(
+            ctx,
+            &self.src_channel_id,
+            &self.dest_channel_id,
+            sequence.into(),
+            retry_config(),
+        )
+        .await?
+        {
+            Ok(height)
+        } else {
+            let err = format!(
+                "Sending token failed: {} {} from {} to {}",
+                self.amount, self.denom, self.source.name, self.receiver.name
+            );
+            Err(TaskError::Execution { err, height })
+        }
     }
 
     async fn build_checks(
@@ -581,16 +645,7 @@ impl TaskContext for IbcUnshieldingTransfer {
                 .build(),
         );
 
-        let ibc_ack = Check::AckIbcTransfer(
-            check::ack_ibc_transfer::AckIbcTransfer::builder()
-                .source(self.source.base())
-                .receiver(self.receiver.clone())
-                .src_channel_id(self.src_channel_id.clone())
-                .dest_channel_id(self.dest_channel_id.clone())
-                .build(),
-        );
-
-        Ok(vec![source_check, ibc_ack])
+        Ok(vec![source_check])
     }
 
     fn update_state(&self, state: &mut State) {

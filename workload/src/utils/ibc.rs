@@ -14,6 +14,9 @@ use namada_sdk::ibc::event::PacketAck as PacketAckAttr;
 use namada_sdk::ibc::{decode_message, IbcMessage};
 use namada_sdk::queries::RPC;
 use namada_sdk::tx::Tx;
+use tendermint::abci::Event as TmEvent;
+use tendermint_rpc::query::Query;
+use tendermint_rpc::Order;
 
 use namada_sdk::io::Client;
 use sha2::{Digest, Sha256};
@@ -22,7 +25,9 @@ use crate::constants::IBC_TIMEOUT_HEIGHT_OFFSET;
 use crate::context::Ctx;
 use crate::error::QueryError;
 use crate::types::{Alias, Height};
-use crate::utils::{get_block_height, wait_block_settlement, RetryConfig};
+use crate::utils::{
+    get_block_height, get_cosmos_height, wait_block_settlement, wait_cosmos_settlement, RetryConfig,
+};
 
 pub fn is_native_denom(denom: &str) -> bool {
     !denom.contains('/')
@@ -159,15 +164,37 @@ pub async fn is_ibc_transfer_successful(
     sequence: Sequence,
     retry_config: RetryConfig,
 ) -> Result<bool, QueryError> {
-    let event = get_ibc_event(
-        ctx,
-        "acknowledge_packet",
-        src_channel_id,
-        dest_channel_id,
-        sequence,
-        retry_config,
-    )
-    .await?;
+    let event = loop {
+        if let Some(event) = get_ibc_event(
+            ctx,
+            "acknowledge_packet",
+            src_channel_id,
+            dest_channel_id,
+            sequence,
+            retry_config,
+        )
+        .await?
+        {
+            break event;
+        }
+
+        if get_ibc_event(
+            ctx,
+            "timeout_packet",
+            src_channel_id,
+            dest_channel_id,
+            sequence,
+            retry_config,
+        )
+        .await?
+        .is_some()
+        {
+            // packet timed out
+            return Ok(false);
+        }
+
+        tracing::info!("Ack or TimeoutPacket not found. Retry queries...");
+    };
 
     // Retrieve the height where the tx with packet ack was executed
     let height = event
@@ -231,15 +258,39 @@ pub async fn is_recv_packet(
     sequence: Sequence,
     retry_config: RetryConfig,
 ) -> Result<(bool, Height), QueryError> {
-    let event = get_ibc_event(
-        ctx,
-        "write_acknowledgement",
-        src_channel_id,
-        dest_channel_id,
-        sequence,
-        retry_config,
-    )
-    .await?;
+    let event = loop {
+        if let Some(event) = get_ibc_event(
+            ctx,
+            "write_acknowledgement",
+            src_channel_id,
+            dest_channel_id,
+            sequence,
+            retry_config,
+        )
+        .await?
+        {
+            break event;
+        }
+
+        if get_ibc_event_cosmos(
+            ctx,
+            "timeout_packet",
+            src_channel_id,
+            dest_channel_id,
+            sequence,
+            retry_config,
+        )
+        .await?
+        .is_some()
+        {
+            // packet timed out
+            let height = get_block_height(ctx, retry_config).await?;
+            return Ok((false, height));
+        }
+
+        tracing::info!("WriteAck or TimeoutPacket not found. Retry queries...");
+    };
+
     let height = event
         .read_attribute::<HeightAttr>()
         .expect("Height should exist");
@@ -261,7 +312,7 @@ async fn get_ibc_event(
     dest_channel_id: &ChannelId,
     sequence: Sequence,
     retry_config: RetryConfig,
-) -> Result<Event, QueryError> {
+) -> Result<Option<Event>, QueryError> {
     let ibc_event_type = IbcEventType(ibc_event_type.to_string());
     let port_id = PortId::transfer();
     let shell = RPC.shell();
@@ -282,7 +333,7 @@ async fn get_ibc_event(
             )
             .await
         {
-            Ok(Some(event)) => return Ok(event),
+            Ok(Some(event)) => return Ok(Some(event)),
             _ => {
                 wait_block_settlement(ctx, height, retry_config).await;
                 height += 1;
@@ -290,7 +341,70 @@ async fn get_ibc_event(
             }
         }
     }
-    Err(QueryError::Ibc(format!(
-        "Event not found: ibc_event_type {ibc_event_type}, sequence {sequence}"
-    )))
+    Ok(None)
+}
+
+async fn get_ibc_event_cosmos(
+    ctx: &Ctx,
+    ibc_event_type: &str,
+    src_channel_id: &ChannelId,
+    dest_channel_id: &ChannelId,
+    sequence: Sequence,
+    retry_config: RetryConfig,
+) -> Result<Option<TmEvent>, QueryError> {
+    let query = packet_query(ibc_event_type, src_channel_id, dest_channel_id, sequence);
+    let mut cosmos_height = get_cosmos_height(ctx, retry_config).await?;
+    let timeout_height = cosmos_height + IBC_TIMEOUT_HEIGHT_OFFSET * 2;
+    while cosmos_height < timeout_height {
+        match ctx
+            .cosmos
+            .client
+            .tx_search(query.clone(), false, 1, 10, Order::Descending)
+            .await
+        {
+            Ok(resp) if !resp.txs.is_empty() => {
+                for event in &resp.txs.first().expect("tx should exist").tx_result.events {
+                    if event.kind == ibc_event_type {
+                        return Ok(Some(event.clone()));
+                    }
+                }
+            }
+            _ => {
+                wait_cosmos_settlement(ctx, cosmos_height).await;
+                cosmos_height += 1;
+                tracing::info!(
+                    "Retry IBC {ibc_event_type} event query at {cosmos_height} on Cosmos..."
+                );
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn packet_query(
+    ibc_event_type: &str,
+    src_channel_id: &ChannelId,
+    dest_channel_id: &ChannelId,
+    sequence: Sequence,
+) -> Query {
+    Query::eq(
+        format!("{ibc_event_type}.packet_src_channel"),
+        src_channel_id.to_string(),
+    )
+    .and_eq(
+        format!("{ibc_event_type}.packet_src_port"),
+        PortId::transfer().to_string(),
+    )
+    .and_eq(
+        format!("{ibc_event_type}.packet_dst_channel"),
+        dest_channel_id.to_string(),
+    )
+    .and_eq(
+        format!("{ibc_event_type}.packet_dst_port"),
+        PortId::transfer().to_string(),
+    )
+    .and_eq(
+        format!("{ibc_event_type}.packet_sequence"),
+        sequence.to_string(),
+    )
 }

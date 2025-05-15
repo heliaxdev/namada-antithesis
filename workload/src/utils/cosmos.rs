@@ -15,6 +15,7 @@ use crate::constants::{COSMOS_CHAIN_ID, COSMOS_FEE_AMOUNT, COSMOS_FEE_TOKEN, COS
 use crate::context::Ctx;
 use crate::error::{QueryError, TaskError};
 use crate::types::{Amount, Height};
+use crate::utils::RetryConfig;
 
 pub fn build_cosmos_ibc_transfer(
     sender: &str,
@@ -112,6 +113,21 @@ pub async fn execute_cosmos_tx(ctx: &Ctx, any_msg: Any) -> Result<Height, TaskEr
     } else {
         Err(TaskError::CosmosTx(response.tx_result.log))
     }
+}
+
+pub async fn get_cosmos_height(ctx: &Ctx, retry_config: RetryConfig) -> Result<Height, QueryError> {
+    let status = tryhard::retry_fn(|| ctx.cosmos.client.status())
+        .with_config(retry_config)
+        .on_retry(|attempt, _, error| {
+            let error = error.to_string();
+            async move {
+                tracing::info!("Retry {} due to {}...", attempt, error);
+            }
+        })
+        .await
+        .map_err(QueryError::CosmosRpc)?;
+
+    Ok(status.sync_info.latest_block_height.into())
 }
 
 pub async fn wait_cosmos_settlement(ctx: &Ctx, height: Height) {

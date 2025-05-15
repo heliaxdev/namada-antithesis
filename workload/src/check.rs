@@ -11,7 +11,6 @@ use crate::types::{Alias, Balance, Fee, Height};
 use crate::utils::{is_native_denom, RetryConfig};
 
 pub mod account_exist;
-pub mod ack_ibc_transfer;
 pub mod balance_shielded_source;
 pub mod balance_shielded_target;
 pub mod balance_source;
@@ -30,7 +29,6 @@ pub enum Check {
     BalanceSource(balance_source::BalanceSource),
     BalanceShieldedTarget(balance_shielded_target::BalanceShieldedTarget),
     BalanceShieldedSource(balance_shielded_source::BalanceShieldedSource),
-    AckIbcTransfer(ack_ibc_transfer::AckIbcTransfer),
     BondIncrease(bond_increase::BondIncrease),
     BondDecrease(bond_decrease::BondDecrease),
     AccountExist(account_exist::AccountExist),

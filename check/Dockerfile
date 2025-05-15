@@ -1,9 +1,9 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.85 AS chef
 WORKDIR /app
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS cacher
+FROM lukemathwalker/cargo-chef:latest-rust-1.85 AS cacher
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
     libprotobuf-dev \
     build-essential \
@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --from=chef /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 
-FROM lukemathwalker/cargo-chef:latest-rust-1.81 AS builder
+FROM lukemathwalker/cargo-chef:latest-rust-1.85 AS builder
 WORKDIR /app
 COPY . .
 COPY --from=cacher /app/target target
