@@ -46,6 +46,8 @@ pub enum TaskError {
     Query(QueryError),
     #[error("Cosmos tx failed: `{0}`")]
     CosmosTx(String),
+    #[error("IBC transfer wasn't rejected or timed out: `{0}`")]
+    IbcTransfer(String),
 }
 
 #[derive(Error, Debug)]

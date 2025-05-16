@@ -68,6 +68,9 @@ impl StepContext for IbcTransferSend {
             CodeType::Success => assert_always_step!("Done IbcTransferSend", code),
             CodeType::Fatal => assert_unreachable_step!("Fatal IbcTransferSend", code),
             CodeType::Skip => assert_sometimes_step!("Skipped IbcTransferSend", code),
+            CodeType::Failed if matches!(code, Code::TaskFailure(_, TaskError::IbcTransfer(_))) => {
+                assert_sometimes_step!("Failed IbcTransferSend (acceptable)", code)
+            }
             CodeType::Failed => assert_unreachable_step!("Failed IbcTransferSend", code),
         }
     }
@@ -122,6 +125,9 @@ impl StepContext for IbcTransferRecv {
             CodeType::Success => assert_always_step!("Done IbcTransferRecv", code),
             CodeType::Fatal => assert_unreachable_step!("Fatal IbcTransferRecv", code),
             CodeType::Skip => assert_sometimes_step!("Skipped IbcTransferRecv", code),
+            CodeType::Failed if matches!(code, Code::TaskFailure(_, TaskError::IbcTransfer(_))) => {
+                assert_sometimes_step!("Failed IbcTransferRecv (acceptable)", code)
+            }
             CodeType::Failed => assert_unreachable_step!("Failed IbcTransferRecv", code),
         }
     }
@@ -176,6 +182,9 @@ impl StepContext for IbcShieldingTransfer {
             CodeType::Success => assert_always_step!("Done IbcShieldingTransfer", code),
             CodeType::Fatal => assert_unreachable_step!("Fatal IbcShieldingTransfer", code),
             CodeType::Skip => assert_sometimes_step!("Skipped IbcShieldingTransfer", code),
+            CodeType::Failed if matches!(code, Code::TaskFailure(_, TaskError::IbcTransfer(_))) => {
+                assert_sometimes_step!("Failed IbcShieldingTransfer (acceptable)", code)
+            }
             CodeType::Failed
                 if matches!(
                     code,
@@ -261,6 +270,9 @@ impl StepContext for IbcUnshieldingTransfer {
             CodeType::Success => assert_always_step!("Done IbcUnshieldingTransfer", code),
             CodeType::Fatal => assert_unreachable_step!("Fatal IbcUnshieldingTransfer", code),
             CodeType::Skip => assert_sometimes_step!("Skipped IbcUnshieldingTransfer", code),
+            CodeType::Failed if matches!(code, Code::TaskFailure(_, TaskError::IbcTransfer(_))) => {
+                assert_sometimes_step!("Failed IbcUnshieldingTransfer (acceptable)", code)
+            }
             CodeType::Failed
                 if matches!(
                     code,

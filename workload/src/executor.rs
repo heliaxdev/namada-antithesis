@@ -174,7 +174,9 @@ impl WorkloadExecutor {
                 Err(e) => {
                     match e {
                         // aggreate fees when the tx has been executed
-                        TaskError::Execution { .. } => task.aggregate_fees(&mut fees, false),
+                        TaskError::Execution { .. } | TaskError::IbcTransfer(_) => {
+                            task.aggregate_fees(&mut fees, false)
+                        }
                         TaskError::InvalidShielded { was_fee_paid, .. } if was_fee_paid => {
                             task.aggregate_fees(&mut fees, false)
                         }

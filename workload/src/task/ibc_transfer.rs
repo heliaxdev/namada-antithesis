@@ -22,9 +22,9 @@ use crate::task::{TaskContext, TaskSettings};
 use crate::types::{Alias, Amount, Height, MaspEpoch};
 use crate::utils::{
     base_denom, build_cosmos_ibc_transfer, cosmos_denom_hash, execute_tx, gen_shielding_tx,
-    get_balance, get_block_height, get_ibc_packet_sequence, get_masp_epoch, get_shielded_balance,
-    ibc_denom, ibc_token_address, is_ibc_transfer_successful, is_native_denom, is_recv_packet,
-    retry_config, shielded_sync_with_retry, wait_block_settlement, RetryConfig,
+    get_balance, get_block_height, get_ibc_packet_sequence, get_shielded_balance, ibc_denom,
+    ibc_token_address, is_ibc_transfer_successful, is_native_denom, is_recv_packet, retry_config,
+    shielded_sync_with_retry, wait_block_settlement, RetryConfig,
 };
 
 #[derive(Clone, Debug, TypedBuilder)]
@@ -148,11 +148,12 @@ impl TaskContext for IbcTransferSend {
         {
             Ok(height)
         } else {
+            // The destination rejected the transfer or the packet timed out
             let err = format!(
                 "Sending token failed: {} {} from {} to {}",
                 self.amount, self.denom, self.source.name, self.receiver.name
             );
-            Err(TaskError::Execution { err, height })
+            Err(TaskError::IbcTransfer(err))
         }
     }
 
@@ -236,14 +237,12 @@ impl TaskContext for IbcTransferRecv {
             wait_block_settlement(ctx, recv_height, retry_config).await;
             Ok(recv_height)
         } else {
+            // Receiving failed or timed out
             let err = format!(
                 "Receiving token failed: {} {} from {} to {}",
                 self.amount, self.denom, self.sender.name, self.target.name
             );
-            Err(TaskError::Execution {
-                err,
-                height: recv_height,
-            })
+            Err(TaskError::IbcTransfer(err))
         }
     }
 
@@ -351,14 +350,9 @@ impl TaskContext for IbcShieldingTransfer {
     async fn execute(&self, ctx: &Ctx) -> Result<Height, TaskError> {
         let retry_config = retry_config();
 
-        let start_epoch = get_masp_epoch(ctx, retry_config).await?;
         let height = self.execute_cosmos_tx(ctx).await?;
 
         // Need to check the packet receipt before checking
-        // because MASP epoch could be updated
-
-        // Nothing to do for the query failure.
-        // If the IBC packet is not found, Namada won't receive any message.
         let sequence = get_ibc_packet_sequence(
             ctx,
             &self.sender,
@@ -368,41 +362,25 @@ impl TaskContext for IbcShieldingTransfer {
             retry_config,
         )
         .await?;
-        let recv_height = match is_recv_packet(
+        let (is_successful, recv_height) = is_recv_packet(
             ctx,
             &self.src_channel_id,
             &self.dest_channel_id,
             sequence.into(),
             retry_config,
         )
-        .await
-        {
-            Ok((is_successful, height)) => {
-                if is_successful {
-                    height
-                } else {
-                    let err = format!(
-                        "Receiving token failed: {} {} from {} to {}",
-                        self.amount, self.denom, self.sender.name, self.target.name
-                    );
-                    return Err(TaskError::Execution { err, height });
-                }
-            }
-            Err(e) => {
-                let epoch = get_masp_epoch(ctx, retry_config).await?;
-                if epoch == start_epoch {
-                    return Err(e.into());
-                } else {
-                    return Err(TaskError::InvalidShielded {
-                        err: e.to_string(),
-                        was_fee_paid: false,
-                    });
-                }
-            }
-        };
-
-        // Returns Namada height where the packet was received
-        Ok(recv_height)
+        .await?;
+        if is_successful {
+            // Returns Namada height where the packet was received
+            Ok(recv_height)
+        } else {
+            // Receiving failed or timed out
+            let err = format!(
+                "Receiving token failed: {} {} from {} to {}",
+                self.amount, self.denom, self.sender.name, self.target.name
+            );
+            Err(TaskError::IbcTransfer(err))
+        }
     }
 
     async fn build_cosmos_tx(&self, ctx: &Ctx) -> Result<Any, TaskError> {
@@ -618,11 +596,12 @@ impl TaskContext for IbcUnshieldingTransfer {
         {
             Ok(height)
         } else {
+            // The destination rejected the transfer or the packet timed out
             let err = format!(
                 "Sending token failed: {} {} from {} to {}",
                 self.amount, self.denom, self.source.name, self.receiver.name
             );
-            Err(TaskError::Execution { err, height })
+            Err(TaskError::IbcTransfer(err))
         }
     }
 
