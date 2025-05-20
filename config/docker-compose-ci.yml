@@ -1,9 +1,5 @@
-networks:
-  namada-net:
-    driver: bridge
-    ipam:
-      config:
-      - subnet: 30.0.0.0/24
+version: '3.8'
+
 services:
   check:
     container_name: check
@@ -214,4 +210,11 @@ services:
     volumes:
     - ./container_ready/:/container_ready
     - ./gaia-0/:/gaia-0
-version: '3.8'
+
+networks:
+  namada-net:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 30.0.0.0/24
+

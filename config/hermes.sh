@@ -65,6 +65,7 @@ account_prefix = ''
 key_name = 'faucet'
 store_prefix = 'ibc'
 gas_price = { price = 0.000001, denom = 'tnam1qy440ynh9fwrx8aewjvvmu38zxqgukgc259fzp6h' }
+trusting_period = '899s'
 
 [[chains]]
 id = 'gaia-0'
@@ -78,6 +79,7 @@ store_prefix = 'ibc'
 gas_price = { price = 1.0, denom = 'stake' }
 gas_multiplier = 1.3
 max_gas = 500000
+client_refresh_rate = '1/9'
 "
 
 echo "${HERMES_CONFIG_TEMPLATE}" \

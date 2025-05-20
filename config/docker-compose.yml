@@ -260,7 +260,6 @@ services:
       - ./gaia-0/:/gaia-0
       - ./validator-2/:/validator-2
     user: "0"
-
 networks:
   namada-net:
     driver: bridge
