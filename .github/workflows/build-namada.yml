@@ -11,8 +11,8 @@ on:
         description: "The genesis template version"
         required: true
         type: string
-  schedule:
-    - cron: "0 20 * * *"
+  #schedule:
+  #  - cron: "0 20 * * *"
   pull_request:
     paths:
       - 'config/**'

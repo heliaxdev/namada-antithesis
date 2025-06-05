@@ -1,8 +1,8 @@
 name: Run antithesis daily (cron)
 
 on:
-  schedule:
-    - cron: "0 1 * * *"
+  #schedule:
+  #  - cron: "0 1 * * *"
 
 jobs:
   daily:
